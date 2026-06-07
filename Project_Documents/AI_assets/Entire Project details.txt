@@ -1,0 +1,297 @@
+Entire Project details: REAS THEM ALL:
+Begin your path to success! Follow each step carefully, complete all tasks for this initiative, and achieve the desired outcome.
+
+Registration
+[ You are registered ]
+Mon, May 25, 2026 4:00 PM (IST) -
+
+Sun, Jul 19, 2026 11:59 PM (IST)
+
+Live Now
+Team Formation
+[ Module Closing in : 42:00:36:26 ]
+Mon, May 25, 2026 4:00 PM (IST) -
+
+Sun, Jul 19, 2026 11:59 PM (IST)
+
+Live Now
+Prototype Submissions
+[ Module Closing in : 49:00:36:26 ]
+Thu, May 28, 2026 4:00 PM (IST) -
+
+Sun, Jul 26, 2026 11:59 PM (IST)
+
+Introductory & PS Explainer Session
+Mon, Jun 08, 2026 4:00 PM (IST) -
+
+Mon, Jun 08, 2026 5:00 PM (IST)
+
+Workshop-1 : introduction to Catalyst by ZOHO
+Thu, Jun 11, 2026 4:00 PM (IST) -
+
+Thu, Jun 11, 2026 5:00 PM (IST)
+
+AMA Session
+Thu, Jun 18, 2026 4:00 PM (IST) -
+
+Thu, Jun 18, 2026 5:00 PM (IST)
+
+Prototype Evaluation
+Mon, Jul 27, 2026 12:01 AM (IST) -
+
+Sun, Aug 16, 2026 11:59 PM (IST)
+
+Initial Shortlist Announcement
+Wed, Aug 19, 2026 10:00 AM (IST) -
+
+Wed, Aug 19, 2026 11:59 PM (IST)
+
+Refined Prototype Submission Phase
+Wed, Aug 19, 2026 10:00 AM (IST) -
+
+Sun, Aug 30, 2026 11:59 PM (IST)
+
+Mentor-Mentee Connects
+Thu, Aug 20, 2026 12:00 PM (IST) -
+
+Fri, Aug 28, 2026 11:59 PM (IST)
+
+Induction Session for Shortlisted Teams
+Thu, Aug 20, 2026 4:00 PM (IST) -
+
+Thu, Aug 20, 2026 5:00 PM (IST)
+
+Final Shortlist Announcement
+Wed, Sep 09, 2026 10:00 AM (IST) -
+
+Wed, Sep 09, 2026 11:59 PM (IST)
+
+Finale
+Sat, Sep 26, 2026 9:00 AM (IST) -
+
+Sat, Sep 26, 2026 6:00 PM (IST)
+
+Team management :
+Team Management
+Build your dream team! Onboard like-minded individuals and pave your path to success with efficient team management tools
+
+Your team is full. Max team size for this initiative is: 5
+Team Member
+
+
+Debojit Deb
+
+debocodes00@gmail.com
+
+Dishaba Siddhrajsinh Zala
+
+dishazala21@gmail.com
+
+Shreya Singh
+
+shreyasingh22may@gmail.com
+
+
+Abhinav
+
+abhinav93puri@gmail.com
+
+
+KRISH ANAND (Leader)
+
+krishkanandy@gmail.com
+
+Reminder: Make sure the members you invite are not already part of another team. They will not be able to accept your invitation if they are.
+
+Submissions :
+Submissions
+Showcase your team's collective efforts and insights by providing all the necessary content below to complete your submission.
+
+Prototype Submissions
+
+Time Period:
+28th May, 2026 - 26th Jul, 2026
+Closing in:
+49d: 00hr: 35min
+
+Resources :
+THE MOST IMPORTNAT ONE :
+Resources
+Your ultimate guide! Explore this section for best practices and valuable resources to maximize your experience and get the most out of this initiative.
+
+Claim your credits for Catalyst here: https://catalyst.zoho.com/promotions.html?cn=KSPH26
+
+Steps to claim your credits↗
+
+
+
+Catalyst by Zoho — Supported Features & Services
+
+The following table outlines the capabilities available through Catalyst and their corresponding required services.
+
+It is highly recommended to use the listed Catalyst services for any matching capability in your solution. Using a third-party alternative when a Catalyst service is available may affect the validity of your submission.
+
+Please note: Deployment via Catalyst is mandatory for all submissions, without exception.
+
+#
+
+Capability
+
+Required Catalyst Service
+
+1
+
+Serverless functions/backend logic
+
+Catalyst Serverless (Functions)
+
+2
+
+Docker image deployment
+
+Catalyst AppSail (custom OCI runtime)
+
+3
+
+Full web app in a managed runtime
+
+Catalyst AppSail (managed runtime)
+
+4
+
+Frontend / SPA / Next.js / static site
+
+Catalyst Slate or Web Client Hosting
+
+5
+
+Custom domain + SSL
+
+Catalyst Domain Mappings
+
+6
+
+Relational database
+
+Catalyst Data Store
+
+7
+
+Unstructured / semi-structured data
+
+Catalyst NoSQL
+
+8
+
+Object / blob storage (S3-style)
+
+Catalyst Stratus
+
+9
+
+Cache
+
+Catalyst Cache
+
+10
+
+Full-text search (within Data Store)
+
+Catalyst Data Store
+
+11
+
+Text LLMs / RAG / knowledge bases
+
+Catalyst QuickML (LLM Serving, RAG)
+
+12
+
+No-code ML pipelines
+
+Catalyst QuickML
+
+13
+
+Automated model training (tabular)
+
+Catalyst Zia AutoML
+
+14
+
+OCR / Face / Text Analytics / Image Mod / Object Recognition / Barcode / ID Scanner
+
+Catalyst Zia Services
+
+15
+
+Voice services / models (speech-to-text, text-to-speech, translation)
+
+Catalyst Zia Services
+
+16
+
+PDF / image-based report generation, screenshots, headless browser, scraping
+
+Catalyst SmartBrowz
+
+17
+
+User auth / login/signup
+
+Catalyst Authentication
+
+18
+
+API routing, throttling, and auth in front of Functions or Web Client Hosting
+
+Catalyst API Gateway
+
+19
+
+OAuth tokens for Zoho / 3rd-party services
+
+Catalyst Connections
+
+20
+
+Scheduled jobs/cron/job pools
+
+Catalyst Cron (Cloud Scale) or Catalyst Job Scheduling
+
+21
+
+Reacting to in-project events (DB inserts, file uploads, signups, etc.)
+
+Catalyst Signals + Event Functions
+
+22
+
+Cross-app event bus/event routing
+
+Catalyst Signals
+
+23
+
+Multi-step workflow/orchestration with branches and parallel steps
+
+Catalyst Circuits
+
+24
+
+Transactional email
+
+Catalyst Mail
+
+25
+
+Push notifications (web/Android/iOS)
+
+Catalyst Push Notifications
+
+26
+
+CI/CD
+
+Catalyst Pipelines
+
