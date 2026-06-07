@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 fake = Faker("en_IN")
 
 # Configuration
-NUM_RECORDS = 1000000
+NUM_RECORDS = 50000 
 
 crime_types = {
     "Theft": 35,
