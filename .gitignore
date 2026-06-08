@@ -1,2 +1,31 @@
+# Next.js / Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*.local
+
+# Python / FastAPI
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
+.idea/
+.vscode/
 .DS_Store
-.DS_Store/
+*.log
+frontend/.vercel
+
+# Database data folders
+pgdata/
