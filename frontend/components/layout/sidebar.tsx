@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { 
   ShieldAlert, 
   LayoutDashboard, 
@@ -23,6 +24,7 @@ interface SidebarProps {
 
 export default function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "SUPERINTENDENT", "OFFICER"] },
@@ -92,8 +94,8 @@ export default function Sidebar({ role }: SidebarProps) {
             <User className="w-4 h-4 text-slate-300" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-slate-200 truncate">DATATHON OFFICER</p>
-            <p className="text-[10px] text-indigo-400 font-bold truncate">ROLE: {role}</p>
+            <p className="text-xs font-semibold text-slate-200 truncate uppercase">{user?.name || "DATATHON OFFICER"}</p>
+            <p className="text-[10px] text-indigo-400 font-bold truncate">ROLE: {user?.role || role}</p>
           </div>
         </div>
       </div>

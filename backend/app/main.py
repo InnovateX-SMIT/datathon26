@@ -1,3 +1,12 @@
+import os
+import sys
+
+# Ensure backend package can be imported from parent directory if run from inside backend
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 import time
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +22,52 @@ from backend import models
 if settings.ENVIRONMENT == "development":
     logger.info("Recreating database tables in development environment...")
     Base.metadata.create_all(bind=engine)
+    
+    # Seeding database with default accounts
+    from backend.core.database import SessionLocal
+    from backend.models.user import User, UserRole
+    from backend.core.security import get_password_hash
+    
+    db = SessionLocal()
+    try:
+        default_users = [
+            {
+                "email": "admin@police.gov.in",
+                "name": "Platform Admin",
+                "password": "admin123",
+                "role": UserRole.ADMIN,
+            },
+            {
+                "email": "sp@police.gov.in",
+                "name": "Superintendent Patil",
+                "password": "sp123",
+                "role": UserRole.SUPERINTENDENT,
+            },
+            {
+                "email": "officer@police.gov.in",
+                "name": "Officer Sharma",
+                "password": "officer123",
+                "role": UserRole.OFFICER,
+            },
+        ]
+        for u_data in default_users:
+            user = db.query(User).filter(User.email == u_data["email"]).first()
+            if not user:
+                logger.info(f"Seeding default user: {u_data['email']}")
+                db.add(User(
+                    email=u_data["email"],
+                    name=u_data["name"],
+                    password_hash=get_password_hash(u_data["password"]),
+                    role=u_data["role"],
+                    status="active"
+                ))
+        db.commit()
+        logger.info("Database seeding completed.")
+    except Exception as e:
+        logger.error(f"Error seeding database: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

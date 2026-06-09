@@ -4,8 +4,8 @@ import jwt
 from passlib.context import CryptContext
 from backend.core.config import settings
 
-# Setup password context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Setup password context using sha256_crypt to avoid bcrypt compatibility bugs in Python 3.14
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)

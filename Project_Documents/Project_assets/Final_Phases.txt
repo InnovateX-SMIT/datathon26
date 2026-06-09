@@ -1,12 +1,12 @@
 Phase 0  → Blueprint & Foundation
 
-Phase 1  → Authentication & Layout Foundation
+Phase 1  → Authentication & Layout Foundation Abhinav
 
-Phase 1A → Data Foundation
+Phase 1A → Data Foundation Krish 
 
-Phase 2  → Command Center Dashboard
+Phase 2  → Command Center Dashboard shreya
 
-Phase 3  → Crime Analytics
+Phase 3  → Crime Analytics Dishaba
 
 Phase 4  → Geo Intelligence
 
