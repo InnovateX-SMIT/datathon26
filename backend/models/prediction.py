@@ -11,7 +11,7 @@ class Prediction(Base):
     prediction_value = Column(String(255), nullable=False)
     confidence_score = Column(Float, default=1.0)
     
-    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+    generated_at = Column(DateTime(timezone=True), index=True, server_default=func.now())
 
     # Relationships
     crime_event = relationship("CrimeEvent", back_populates="predictions")

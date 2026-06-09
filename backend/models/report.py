@@ -9,4 +9,4 @@ class Report(Base):
     summary = Column(String(2000), nullable=True)
     report_type = Column(String(100), index=True, nullable=False)
     
-    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+    generated_at = Column(DateTime(timezone=True), index=True, server_default=func.now())

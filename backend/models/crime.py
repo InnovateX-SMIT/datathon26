@@ -16,8 +16,8 @@ class CrimeEvent(Base):
     crime_date = Column(Date, index=True, nullable=False)
     crime_time = Column(Time, nullable=True)
     
-    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
-    police_station_id = Column(Integer, ForeignKey("police_stations.id"), nullable=True)
+    location_id = Column(Integer, ForeignKey("locations.id"), index=True, nullable=True)
+    police_station_id = Column(Integer, ForeignKey("police_stations.id"), index=True, nullable=True)
     
     victim_count = Column(Integer, default=0)
     accused_count = Column(Integer, default=0)

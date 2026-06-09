@@ -1,0 +1,451 @@
+station_name,district,beat,officer_count,vehicle_count,equipment_count,capacity,availability
+BAL_PS_37,Ballari,BAL_BEAT_2,16,7,17,137,available
+SHI_PS_31,Shivamogga,SHI_BEAT_3,21,11,12,231,available
+MYS_PS_34,Mysuru,MYS_BEAT_7,17,3,12,135,available
+KAL_PS_23,Kalaburagi,KAL_BEAT_4,47,12,10,223,available
+TUM_PS_43,Tumakuru,TUM_BEAT_4,60,11,23,136,available
+SHI_PS_25,Shivamogga,SHI_BEAT_8,52,7,35,81,available
+MAN_PS_20,Mangaluru,MAN_BEAT_3,59,9,20,151,available
+SHI_PS_36,Shivamogga,SHI_BEAT_3,28,8,13,103,available
+MAN_PS_32,Mangaluru,MAN_BEAT_7,21,8,37,168,available
+BEN_PS_10,Bengaluru Urban,BEN_BEAT_10,31,3,33,197,available
+BEN_PS_29,Bengaluru Rural,BEN_BEAT_9,22,9,12,221,available
+BEL_PS_27,Belagavi,BEL_BEAT_5,55,12,38,172,available
+BEN_PS_1,Bengaluru Urban,BEN_BEAT_10,27,4,11,249,available
+MAN_PS_50,Mangaluru,MAN_BEAT_4,33,4,37,139,available
+BEN_PS_49,Bengaluru Urban,BEN_BEAT_2,39,7,24,242,available
+MAN_PS_6,Mangaluru,MAN_BEAT_6,25,8,21,133,available
+BAL_PS_1,Ballari,BAL_BEAT_5,59,4,29,242,available
+TUM_PS_7,Tumakuru,TUM_BEAT_3,49,6,15,198,available
+BEN_PS_28,Bengaluru Rural,BEN_BEAT_7,32,11,17,163,available
+HUB_PS_25,Hubballi,HUB_BEAT_1,29,3,35,160,available
+MYS_PS_33,Mysuru,MYS_BEAT_7,32,4,16,225,available
+SHI_PS_5,Shivamogga,SHI_BEAT_6,28,10,22,244,available
+BAL_PS_22,Ballari,BAL_BEAT_8,24,7,14,143,available
+MAN_PS_47,Mangaluru,MAN_BEAT_9,49,7,33,229,available
+TUM_PS_46,Tumakuru,TUM_BEAT_7,52,9,21,136,available
+MAN_PS_46,Mangaluru,MAN_BEAT_3,47,10,12,92,available
+KAL_PS_29,Kalaburagi,KAL_BEAT_2,24,5,35,188,available
+KAL_PS_27,Kalaburagi,KAL_BEAT_10,19,9,22,232,available
+KAL_PS_3,Kalaburagi,KAL_BEAT_8,48,7,27,82,available
+HUB_PS_6,Hubballi,HUB_BEAT_2,58,11,34,148,available
+BEN_PS_45,Bengaluru Rural,BEN_BEAT_6,22,7,23,120,available
+KAL_PS_11,Kalaburagi,KAL_BEAT_8,15,7,26,125,available
+TUM_PS_41,Tumakuru,TUM_BEAT_9,21,7,36,243,available
+MYS_PS_41,Mysuru,MYS_BEAT_9,53,6,14,175,available
+HUB_PS_9,Hubballi,HUB_BEAT_3,49,11,39,80,available
+MYS_PS_32,Mysuru,MYS_BEAT_10,35,10,10,108,available
+BEN_PS_22,Bengaluru Rural,BEN_BEAT_6,34,6,11,141,available
+MYS_PS_38,Mysuru,MYS_BEAT_10,20,4,33,204,available
+BEN_PS_15,Bengaluru Rural,BEN_BEAT_2,49,5,14,248,available
+BEL_PS_28,Belagavi,BEL_BEAT_8,50,5,18,215,available
+BEN_PS_32,Bengaluru Urban,BEN_BEAT_10,42,6,39,218,available
+BAL_PS_27,Ballari,BAL_BEAT_4,60,7,22,246,available
+KAL_PS_34,Kalaburagi,KAL_BEAT_6,43,11,24,110,available
+HUB_PS_14,Hubballi,HUB_BEAT_4,29,4,20,85,available
+BEN_PS_24,Bengaluru Rural,BEN_BEAT_10,50,6,28,136,available
+SHI_PS_13,Shivamogga,SHI_BEAT_1,19,3,17,97,available
+MYS_PS_6,Mysuru,MYS_BEAT_1,36,4,26,140,available
+HUB_PS_10,Hubballi,HUB_BEAT_5,57,10,16,218,available
+MYS_PS_21,Mysuru,MYS_BEAT_3,51,12,25,142,available
+BEN_PS_42,Bengaluru Urban,BEN_BEAT_8,41,6,13,104,available
+BAL_PS_36,Ballari,BAL_BEAT_7,37,9,23,199,available
+TUM_PS_48,Tumakuru,TUM_BEAT_1,58,4,11,183,available
+MAN_PS_27,Mangaluru,MAN_BEAT_6,21,6,16,128,available
+BAL_PS_12,Ballari,BAL_BEAT_9,43,5,23,126,available
+SHI_PS_29,Shivamogga,SHI_BEAT_5,44,6,37,99,available
+BEN_PS_38,Bengaluru Urban,BEN_BEAT_8,50,4,11,246,available
+MAN_PS_41,Mangaluru,MAN_BEAT_9,15,4,39,140,available
+KAL_PS_4,Kalaburagi,KAL_BEAT_3,41,10,25,134,available
+MAN_PS_29,Mangaluru,MAN_BEAT_7,18,5,22,80,available
+BEL_PS_49,Belagavi,BEL_BEAT_7,31,10,19,188,available
+BEN_PS_36,Bengaluru Rural,BEN_BEAT_9,57,10,14,128,available
+MYS_PS_3,Mysuru,MYS_BEAT_5,28,3,28,218,available
+BAL_PS_40,Ballari,BAL_BEAT_1,35,3,11,229,available
+HUB_PS_7,Hubballi,HUB_BEAT_8,47,11,15,94,available
+BEL_PS_9,Belagavi,BEL_BEAT_9,20,5,12,232,available
+KAL_PS_13,Kalaburagi,KAL_BEAT_2,58,6,22,110,available
+BAL_PS_28,Ballari,BAL_BEAT_10,30,12,29,90,available
+KAL_PS_22,Kalaburagi,KAL_BEAT_10,20,9,31,229,available
+BAL_PS_32,Ballari,BAL_BEAT_10,48,8,39,146,available
+SHI_PS_41,Shivamogga,SHI_BEAT_4,57,8,17,147,available
+HUB_PS_21,Hubballi,HUB_BEAT_7,23,7,24,160,available
+BEN_PS_41,Bengaluru Rural,BEN_BEAT_2,15,10,29,224,available
+BEN_PS_34,Bengaluru Urban,BEN_BEAT_2,19,11,16,209,available
+HUB_PS_38,Hubballi,HUB_BEAT_5,23,8,38,97,available
+BAL_PS_41,Ballari,BAL_BEAT_4,38,7,15,192,available
+SHI_PS_24,Shivamogga,SHI_BEAT_9,60,7,29,247,available
+BEN_PS_40,Bengaluru Rural,BEN_BEAT_9,15,11,19,249,available
+BAL_PS_14,Ballari,BAL_BEAT_2,23,7,13,107,available
+BEL_PS_3,Belagavi,BEL_BEAT_9,24,7,19,234,available
+MAN_PS_19,Mangaluru,MAN_BEAT_4,60,8,16,242,available
+BAL_PS_47,Ballari,BAL_BEAT_5,47,10,18,93,available
+BAL_PS_48,Ballari,BAL_BEAT_2,55,9,36,150,available
+MYS_PS_12,Mysuru,MYS_BEAT_1,15,8,34,113,available
+BEN_PS_6,Bengaluru Rural,BEN_BEAT_5,25,10,27,189,available
+BAL_PS_50,Ballari,BAL_BEAT_9,15,4,12,118,available
+MAN_PS_9,Mangaluru,MAN_BEAT_9,17,8,28,221,available
+MYS_PS_13,Mysuru,MYS_BEAT_3,42,5,11,158,available
+SHI_PS_38,Shivamogga,SHI_BEAT_6,17,8,16,143,available
+BAL_PS_16,Ballari,BAL_BEAT_2,37,11,38,184,available
+TUM_PS_21,Tumakuru,TUM_BEAT_10,24,6,37,121,available
+KAL_PS_24,Kalaburagi,KAL_BEAT_3,41,3,15,165,available
+KAL_PS_1,Kalaburagi,KAL_BEAT_7,57,6,18,120,available
+MAN_PS_39,Mangaluru,MAN_BEAT_2,39,3,37,200,available
+BAL_PS_4,Ballari,BAL_BEAT_4,27,10,21,158,available
+MAN_PS_40,Mangaluru,MAN_BEAT_4,29,3,31,129,available
+HUB_PS_8,Hubballi,HUB_BEAT_7,36,7,37,97,available
+BAL_PS_2,Ballari,BAL_BEAT_5,37,11,22,217,available
+BEN_PS_3,Bengaluru Urban,BEN_BEAT_6,16,4,38,146,available
+SHI_PS_19,Shivamogga,SHI_BEAT_3,52,7,11,107,available
+SHI_PS_50,Shivamogga,SHI_BEAT_10,42,8,33,160,available
+BAL_PS_8,Ballari,BAL_BEAT_7,53,11,13,178,available
+TUM_PS_31,Tumakuru,TUM_BEAT_10,27,7,11,191,available
+SHI_PS_3,Shivamogga,SHI_BEAT_1,48,11,31,130,available
+BEL_PS_8,Belagavi,BEL_BEAT_6,42,4,40,250,available
+BAL_PS_18,Ballari,BAL_BEAT_6,54,8,31,111,available
+TUM_PS_6,Tumakuru,TUM_BEAT_5,47,7,31,184,available
+HUB_PS_41,Hubballi,HUB_BEAT_6,40,7,27,112,available
+KAL_PS_26,Kalaburagi,KAL_BEAT_4,41,9,31,124,available
+BAL_PS_19,Ballari,BAL_BEAT_10,51,7,22,220,available
+SHI_PS_45,Shivamogga,SHI_BEAT_1,34,7,16,190,available
+HUB_PS_11,Hubballi,HUB_BEAT_10,53,8,24,193,available
+BAL_PS_7,Ballari,BAL_BEAT_8,58,6,26,201,available
+MAN_PS_18,Mangaluru,MAN_BEAT_3,57,4,19,211,available
+TUM_PS_47,Tumakuru,TUM_BEAT_10,36,4,36,140,available
+KAL_PS_9,Kalaburagi,KAL_BEAT_5,29,6,14,86,available
+MAN_PS_21,Mangaluru,MAN_BEAT_1,30,10,29,98,available
+TUM_PS_8,Tumakuru,TUM_BEAT_8,41,12,16,178,available
+BEN_PS_48,Bengaluru Rural,BEN_BEAT_8,40,6,14,247,available
+MAN_PS_2,Mangaluru,MAN_BEAT_1,21,9,17,125,available
+HUB_PS_34,Hubballi,HUB_BEAT_9,44,3,27,143,available
+BEL_PS_23,Belagavi,BEL_BEAT_2,44,5,35,198,available
+TUM_PS_24,Tumakuru,TUM_BEAT_9,50,12,20,193,available
+BAL_PS_46,Ballari,BAL_BEAT_10,47,9,36,220,available
+BAL_PS_6,Ballari,BAL_BEAT_8,25,10,24,146,available
+BEN_PS_47,Bengaluru Urban,BEN_BEAT_4,55,7,34,213,available
+MYS_PS_9,Mysuru,MYS_BEAT_8,55,6,18,192,available
+BEN_PS_25,Bengaluru Urban,BEN_BEAT_2,60,7,17,149,available
+HUB_PS_43,Hubballi,HUB_BEAT_6,35,11,12,115,available
+SHI_PS_11,Shivamogga,SHI_BEAT_3,29,9,32,119,available
+BEL_PS_40,Belagavi,BEL_BEAT_4,19,9,23,164,available
+KAL_PS_19,Kalaburagi,KAL_BEAT_9,44,9,11,132,available
+BEN_PS_31,Bengaluru Urban,BEN_BEAT_7,39,12,40,85,available
+SHI_PS_43,Shivamogga,SHI_BEAT_10,39,10,10,170,available
+KAL_PS_28,Kalaburagi,KAL_BEAT_5,39,9,27,219,available
+HUB_PS_31,Hubballi,HUB_BEAT_10,29,10,17,149,available
+MYS_PS_24,Mysuru,MYS_BEAT_7,46,3,22,166,available
+HUB_PS_13,Hubballi,HUB_BEAT_7,25,10,39,112,available
+BAL_PS_42,Ballari,BAL_BEAT_10,49,3,39,180,available
+SHI_PS_21,Shivamogga,SHI_BEAT_10,51,3,12,244,available
+BAL_PS_38,Ballari,BAL_BEAT_7,23,10,15,92,available
+MYS_PS_20,Mysuru,MYS_BEAT_5,39,8,16,196,available
+KAL_PS_6,Kalaburagi,KAL_BEAT_6,36,9,18,187,available
+HUB_PS_40,Hubballi,HUB_BEAT_5,20,10,10,218,available
+TUM_PS_27,Tumakuru,TUM_BEAT_1,37,6,30,97,available
+MYS_PS_30,Mysuru,MYS_BEAT_1,16,6,16,85,available
+MYS_PS_43,Mysuru,MYS_BEAT_10,24,6,14,201,available
+BEN_PS_14,Bengaluru Rural,BEN_BEAT_2,51,6,24,145,available
+SHI_PS_4,Shivamogga,SHI_BEAT_6,25,12,29,109,available
+BEL_PS_45,Belagavi,BEL_BEAT_3,34,4,28,86,available
+MYS_PS_2,Mysuru,MYS_BEAT_5,51,9,22,130,available
+MYS_PS_44,Mysuru,MYS_BEAT_2,52,6,13,157,available
+HUB_PS_20,Hubballi,HUB_BEAT_10,22,12,35,90,available
+BEN_PS_33,Bengaluru Rural,BEN_BEAT_6,49,9,31,174,available
+BEL_PS_4,Belagavi,BEL_BEAT_2,47,8,10,187,available
+MYS_PS_26,Mysuru,MYS_BEAT_8,21,9,40,172,available
+BEL_PS_12,Belagavi,BEL_BEAT_8,60,5,23,125,available
+TUM_PS_32,Tumakuru,TUM_BEAT_9,56,7,29,217,available
+SHI_PS_35,Shivamogga,SHI_BEAT_8,44,9,36,231,available
+HUB_PS_44,Hubballi,HUB_BEAT_5,35,6,36,102,available
+TUM_PS_38,Tumakuru,TUM_BEAT_5,43,6,34,198,available
+MAN_PS_25,Mangaluru,MAN_BEAT_10,54,9,20,87,available
+BEN_PS_20,Bengaluru Urban,BEN_BEAT_8,35,5,25,134,available
+TUM_PS_29,Tumakuru,TUM_BEAT_6,31,8,18,232,available
+BEN_PS_13,Bengaluru Rural,BEN_BEAT_5,50,3,26,128,available
+BEL_PS_20,Belagavi,BEL_BEAT_2,30,9,25,222,available
+BEL_PS_22,Belagavi,BEL_BEAT_4,59,10,30,205,available
+MYS_PS_40,Mysuru,MYS_BEAT_8,16,4,19,136,available
+MYS_PS_27,Mysuru,MYS_BEAT_7,59,6,19,249,available
+BAL_PS_35,Ballari,BAL_BEAT_10,38,10,27,215,available
+HUB_PS_35,Hubballi,HUB_BEAT_6,42,11,20,170,available
+KAL_PS_38,Kalaburagi,KAL_BEAT_8,32,7,18,139,available
+HUB_PS_42,Hubballi,HUB_BEAT_2,27,8,13,217,available
+TUM_PS_11,Tumakuru,TUM_BEAT_3,27,6,33,203,available
+TUM_PS_22,Tumakuru,TUM_BEAT_5,52,11,29,152,available
+MYS_PS_25,Mysuru,MYS_BEAT_2,27,7,17,172,available
+BEN_PS_5,Bengaluru Rural,BEN_BEAT_3,34,3,32,216,available
+HUB_PS_30,Hubballi,HUB_BEAT_3,32,3,11,221,available
+SHI_PS_42,Shivamogga,SHI_BEAT_5,59,5,30,205,available
+MAN_PS_22,Mangaluru,MAN_BEAT_2,15,12,19,200,available
+KAL_PS_39,Kalaburagi,KAL_BEAT_8,43,8,15,93,available
+HUB_PS_48,Hubballi,HUB_BEAT_5,45,4,36,96,available
+MYS_PS_35,Mysuru,MYS_BEAT_7,46,4,28,241,available
+SHI_PS_47,Shivamogga,SHI_BEAT_1,24,5,35,224,available
+HUB_PS_15,Hubballi,HUB_BEAT_5,20,6,13,222,available
+BEL_PS_48,Belagavi,BEL_BEAT_7,53,12,35,238,available
+TUM_PS_36,Tumakuru,TUM_BEAT_4,48,9,24,193,available
+BEL_PS_26,Belagavi,BEL_BEAT_5,52,9,19,225,available
+KAL_PS_40,Kalaburagi,KAL_BEAT_10,18,12,40,105,available
+KAL_PS_5,Kalaburagi,KAL_BEAT_4,55,6,18,249,available
+MAN_PS_3,Mangaluru,MAN_BEAT_2,25,6,15,221,available
+MYS_PS_47,Mysuru,MYS_BEAT_2,25,3,23,195,available
+KAL_PS_30,Kalaburagi,KAL_BEAT_10,45,7,11,139,available
+BAL_PS_29,Ballari,BAL_BEAT_5,60,7,32,196,available
+BEL_PS_5,Belagavi,BEL_BEAT_2,58,6,39,147,available
+MYS_PS_28,Mysuru,MYS_BEAT_10,57,6,23,109,available
+BAL_PS_31,Ballari,BAL_BEAT_9,29,5,39,148,available
+BEN_PS_12,Bengaluru Urban,BEN_BEAT_3,19,3,15,158,available
+KAL_PS_43,Kalaburagi,KAL_BEAT_10,51,7,24,111,available
+MAN_PS_1,Mangaluru,MAN_BEAT_8,59,7,32,183,available
+TUM_PS_44,Tumakuru,TUM_BEAT_5,47,11,25,192,available
+BEN_PS_30,Bengaluru Urban,BEN_BEAT_2,53,3,38,190,available
+SHI_PS_2,Shivamogga,SHI_BEAT_6,53,7,10,103,available
+KAL_PS_8,Kalaburagi,KAL_BEAT_4,58,12,28,85,available
+BEN_PS_21,Bengaluru Rural,BEN_BEAT_5,51,3,34,124,available
+BAL_PS_26,Ballari,BAL_BEAT_8,48,10,39,151,available
+BEN_PS_18,Bengaluru Rural,BEN_BEAT_3,52,9,30,205,available
+BEN_PS_8,Bengaluru Rural,BEN_BEAT_2,45,8,23,165,available
+BEN_PS_26,Bengaluru Rural,BEN_BEAT_6,57,4,37,121,available
+BEN_PS_37,Bengaluru Urban,BEN_BEAT_6,41,10,19,249,available
+KAL_PS_37,Kalaburagi,KAL_BEAT_7,50,3,24,102,available
+BAL_PS_17,Ballari,BAL_BEAT_6,31,8,13,183,available
+MYS_PS_18,Mysuru,MYS_BEAT_9,15,11,24,185,available
+TUM_PS_17,Tumakuru,TUM_BEAT_1,27,11,21,239,available
+KAL_PS_17,Kalaburagi,KAL_BEAT_8,55,10,34,93,available
+BEL_PS_2,Belagavi,BEL_BEAT_4,32,11,14,153,available
+TUM_PS_50,Tumakuru,TUM_BEAT_8,59,10,13,87,available
+BEN_PS_16,Bengaluru Urban,BEN_BEAT_10,30,5,19,221,available
+MYS_PS_5,Mysuru,MYS_BEAT_1,50,9,12,137,available
+TUM_PS_2,Tumakuru,TUM_BEAT_2,44,4,30,119,available
+TUM_PS_28,Tumakuru,TUM_BEAT_8,60,7,26,149,available
+SHI_PS_6,Shivamogga,SHI_BEAT_7,45,10,17,196,available
+SHI_PS_26,Shivamogga,SHI_BEAT_9,24,9,16,233,available
+HUB_PS_36,Hubballi,HUB_BEAT_9,23,4,18,186,available
+MAN_PS_23,Mangaluru,MAN_BEAT_6,47,7,36,80,available
+HUB_PS_16,Hubballi,HUB_BEAT_5,34,12,28,248,available
+SHI_PS_1,Shivamogga,SHI_BEAT_8,24,10,27,203,available
+BEL_PS_39,Belagavi,BEL_BEAT_6,36,11,34,219,available
+SHI_PS_15,Shivamogga,SHI_BEAT_7,44,8,37,128,available
+TUM_PS_14,Tumakuru,TUM_BEAT_4,51,9,17,185,available
+BEL_PS_16,Belagavi,BEL_BEAT_1,35,10,32,177,available
+BEL_PS_42,Belagavi,BEL_BEAT_7,57,5,25,89,available
+SHI_PS_27,Shivamogga,SHI_BEAT_3,47,12,20,105,available
+SHI_PS_37,Shivamogga,SHI_BEAT_8,21,11,39,196,available
+BEL_PS_13,Belagavi,BEL_BEAT_1,24,9,37,247,available
+BAL_PS_5,Ballari,BAL_BEAT_3,19,10,35,147,available
+MAN_PS_10,Mangaluru,MAN_BEAT_6,54,9,30,100,available
+MAN_PS_34,Mangaluru,MAN_BEAT_6,58,11,22,161,available
+MAN_PS_8,Mangaluru,MAN_BEAT_8,49,3,29,97,available
+MYS_PS_4,Mysuru,MYS_BEAT_4,55,7,17,103,available
+BEL_PS_30,Belagavi,BEL_BEAT_7,21,4,24,122,available
+TUM_PS_23,Tumakuru,TUM_BEAT_5,16,3,20,94,available
+BEN_PS_2,Bengaluru Urban,BEN_BEAT_5,37,8,23,117,available
+SHI_PS_48,Shivamogga,SHI_BEAT_4,48,9,28,126,available
+BEN_PS_46,Bengaluru Rural,BEN_BEAT_3,26,4,29,177,available
+MYS_PS_10,Mysuru,MYS_BEAT_10,58,6,25,229,available
+MYS_PS_29,Mysuru,MYS_BEAT_3,29,10,30,145,available
+TUM_PS_40,Tumakuru,TUM_BEAT_8,31,3,38,199,available
+BEL_PS_33,Belagavi,BEL_BEAT_5,58,11,15,98,available
+MYS_PS_15,Mysuru,MYS_BEAT_8,37,12,19,243,available
+MAN_PS_45,Mangaluru,MAN_BEAT_7,59,7,24,157,available
+SHI_PS_34,Shivamogga,SHI_BEAT_4,39,10,13,140,available
+KAL_PS_50,Kalaburagi,KAL_BEAT_7,51,8,28,155,available
+KAL_PS_49,Kalaburagi,KAL_BEAT_5,16,9,18,82,available
+BEN_PS_17,Bengaluru Urban,BEN_BEAT_10,58,3,39,235,available
+SHI_PS_23,Shivamogga,SHI_BEAT_8,33,6,29,170,available
+MYS_PS_31,Mysuru,MYS_BEAT_4,55,6,29,144,available
+BAL_PS_25,Ballari,BAL_BEAT_3,55,4,38,240,available
+TUM_PS_9,Tumakuru,TUM_BEAT_1,34,10,11,228,available
+KAL_PS_2,Kalaburagi,KAL_BEAT_6,23,4,39,155,available
+SHI_PS_44,Shivamogga,SHI_BEAT_6,41,5,16,113,available
+BEL_PS_14,Belagavi,BEL_BEAT_9,38,11,26,149,available
+KAL_PS_36,Kalaburagi,KAL_BEAT_3,31,10,40,155,available
+TUM_PS_1,Tumakuru,TUM_BEAT_6,22,10,40,99,available
+BEN_PS_9,Bengaluru Urban,BEN_BEAT_3,29,9,40,222,available
+BEN_PS_19,Bengaluru Urban,BEN_BEAT_6,20,9,10,147,available
+SHI_PS_32,Shivamogga,SHI_BEAT_9,22,10,21,147,available
+SHI_PS_9,Shivamogga,SHI_BEAT_10,39,8,13,139,available
+HUB_PS_45,Hubballi,HUB_BEAT_8,16,12,38,223,available
+MAN_PS_17,Mangaluru,MAN_BEAT_6,54,6,30,96,available
+TUM_PS_10,Tumakuru,TUM_BEAT_8,59,7,30,184,available
+MAN_PS_5,Mangaluru,MAN_BEAT_2,23,3,40,89,available
+KAL_PS_48,Kalaburagi,KAL_BEAT_5,46,4,13,140,available
+MYS_PS_36,Mysuru,MYS_BEAT_9,23,9,24,174,available
+SHI_PS_33,Shivamogga,SHI_BEAT_9,41,12,33,119,available
+MAN_PS_26,Mangaluru,MAN_BEAT_7,56,4,36,205,available
+HUB_PS_50,Hubballi,HUB_BEAT_10,41,7,11,174,available
+MYS_PS_39,Mysuru,MYS_BEAT_4,43,10,40,140,available
+BEL_PS_6,Belagavi,BEL_BEAT_6,21,8,27,245,available
+BEL_PS_34,Belagavi,BEL_BEAT_6,18,9,18,128,available
+SHI_PS_20,Shivamogga,SHI_BEAT_2,44,4,31,134,available
+HUB_PS_5,Hubballi,HUB_BEAT_10,16,3,35,165,available
+KAL_PS_33,Kalaburagi,KAL_BEAT_4,23,12,16,97,available
+BAL_PS_15,Ballari,BAL_BEAT_9,28,12,16,139,available
+BEL_PS_7,Belagavi,BEL_BEAT_6,24,12,10,150,available
+BEL_PS_15,Belagavi,BEL_BEAT_3,23,11,18,124,available
+HUB_PS_18,Hubballi,HUB_BEAT_2,57,3,14,83,available
+HUB_PS_22,Hubballi,HUB_BEAT_6,30,12,20,84,available
+MAN_PS_38,Mangaluru,MAN_BEAT_3,31,3,14,187,available
+KAL_PS_15,Kalaburagi,KAL_BEAT_9,22,4,25,194,available
+HUB_PS_39,Hubballi,HUB_BEAT_6,47,12,13,195,available
+TUM_PS_33,Tumakuru,TUM_BEAT_9,29,12,11,248,available
+MAN_PS_43,Mangaluru,MAN_BEAT_9,34,10,30,87,available
+KAL_PS_32,Kalaburagi,KAL_BEAT_1,45,9,23,107,available
+BEN_PS_27,Bengaluru Rural,BEN_BEAT_8,60,10,12,100,available
+HUB_PS_12,Hubballi,HUB_BEAT_6,53,5,12,112,available
+BEL_PS_29,Belagavi,BEL_BEAT_5,54,12,27,163,available
+BAL_PS_3,Ballari,BAL_BEAT_7,53,11,19,196,available
+HUB_PS_24,Hubballi,HUB_BEAT_9,53,9,13,109,available
+BAL_PS_30,Ballari,BAL_BEAT_9,28,9,24,138,available
+BEL_PS_11,Belagavi,BEL_BEAT_7,36,10,22,186,available
+MAN_PS_35,Mangaluru,MAN_BEAT_2,35,9,20,250,available
+BAL_PS_13,Ballari,BAL_BEAT_5,38,5,31,201,available
+BEL_PS_37,Belagavi,BEL_BEAT_2,20,4,12,190,available
+BEN_PS_39,Bengaluru Rural,BEN_BEAT_2,38,5,27,95,available
+HUB_PS_26,Hubballi,HUB_BEAT_10,50,11,20,111,available
+BEN_PS_43,Bengaluru Rural,BEN_BEAT_7,37,9,37,93,available
+MAN_PS_49,Mangaluru,MAN_BEAT_5,53,7,21,106,available
+BEL_PS_21,Belagavi,BEL_BEAT_10,47,6,14,248,available
+HUB_PS_46,Hubballi,HUB_BEAT_8,29,4,21,222,available
+MYS_PS_1,Mysuru,MYS_BEAT_6,22,7,28,137,available
+BAL_PS_39,Ballari,BAL_BEAT_7,50,12,29,244,available
+KAL_PS_41,Kalaburagi,KAL_BEAT_9,16,12,39,248,available
+BEN_PS_50,Bengaluru Urban,BEN_BEAT_5,16,5,18,159,available
+HUB_PS_19,Hubballi,HUB_BEAT_6,37,3,15,116,available
+MAN_PS_37,Mangaluru,MAN_BEAT_10,57,9,12,116,available
+MYS_PS_7,Mysuru,MYS_BEAT_1,20,11,16,176,available
+MYS_PS_46,Mysuru,MYS_BEAT_7,44,8,15,174,available
+TUM_PS_39,Tumakuru,TUM_BEAT_5,35,12,29,101,available
+BAL_PS_21,Ballari,BAL_BEAT_1,24,5,34,238,available
+SHI_PS_39,Shivamogga,SHI_BEAT_1,58,4,18,193,available
+BEL_PS_35,Belagavi,BEL_BEAT_7,46,12,24,186,available
+SHI_PS_16,Shivamogga,SHI_BEAT_5,28,11,13,168,available
+BEL_PS_50,Belagavi,BEL_BEAT_7,22,7,31,231,available
+BAL_PS_45,Ballari,BAL_BEAT_8,48,7,11,136,available
+BAL_PS_20,Ballari,BAL_BEAT_7,53,3,10,132,available
+BAL_PS_10,Ballari,BAL_BEAT_5,28,5,34,145,available
+TUM_PS_20,Tumakuru,TUM_BEAT_5,35,4,10,207,available
+TUM_PS_13,Tumakuru,TUM_BEAT_7,26,5,22,216,available
+MYS_PS_37,Mysuru,MYS_BEAT_4,47,11,36,170,available
+SHI_PS_18,Shivamogga,SHI_BEAT_2,40,3,23,84,available
+KAL_PS_31,Kalaburagi,KAL_BEAT_8,19,8,28,189,available
+HUB_PS_23,Hubballi,HUB_BEAT_10,40,9,19,109,available
+KAL_PS_12,Kalaburagi,KAL_BEAT_7,16,8,15,238,available
+MAN_PS_12,Mangaluru,MAN_BEAT_8,59,8,12,191,available
+TUM_PS_45,Tumakuru,TUM_BEAT_2,30,9,28,182,available
+MYS_PS_42,Mysuru,MYS_BEAT_9,20,9,37,159,available
+MYS_PS_19,Mysuru,MYS_BEAT_6,29,8,34,123,available
+BEN_PS_44,Bengaluru Rural,BEN_BEAT_2,47,4,26,210,available
+BEL_PS_47,Belagavi,BEL_BEAT_4,37,8,33,245,available
+HUB_PS_37,Hubballi,HUB_BEAT_3,30,4,14,145,available
+SHI_PS_10,Shivamogga,SHI_BEAT_4,26,12,14,247,available
+KAL_PS_44,Kalaburagi,KAL_BEAT_2,26,10,24,224,available
+KAL_PS_45,Kalaburagi,KAL_BEAT_10,43,12,30,242,available
+SHI_PS_7,Shivamogga,SHI_BEAT_10,35,8,14,192,available
+BEN_PS_7,Bengaluru Urban,BEN_BEAT_2,45,10,30,157,available
+KAL_PS_18,Kalaburagi,KAL_BEAT_5,52,3,21,209,available
+BAL_PS_43,Ballari,BAL_BEAT_2,34,10,24,89,available
+HUB_PS_17,Hubballi,HUB_BEAT_1,38,7,12,245,available
+MAN_PS_36,Mangaluru,MAN_BEAT_2,54,12,26,178,available
+MYS_PS_11,Mysuru,MYS_BEAT_8,52,11,40,90,available
+HUB_PS_32,Hubballi,HUB_BEAT_8,51,6,20,234,available
+HUB_PS_4,Hubballi,HUB_BEAT_8,47,5,40,95,available
+TUM_PS_26,Tumakuru,TUM_BEAT_8,21,8,32,101,available
+MYS_PS_14,Mysuru,MYS_BEAT_9,56,5,11,143,available
+KAL_PS_47,Kalaburagi,KAL_BEAT_8,43,11,26,236,available
+BEN_PS_35,Bengaluru Rural,BEN_BEAT_3,38,8,39,152,available
+MAN_PS_15,Mangaluru,MAN_BEAT_7,41,8,31,233,available
+TUM_PS_37,Tumakuru,TUM_BEAT_1,55,8,12,164,available
+BEL_PS_19,Belagavi,BEL_BEAT_2,50,9,19,144,available
+SHI_PS_8,Shivamogga,SHI_BEAT_10,24,8,12,229,available
+TUM_PS_3,Tumakuru,TUM_BEAT_3,37,7,40,247,available
+BAL_PS_33,Ballari,BAL_BEAT_7,23,12,32,101,available
+BAL_PS_9,Ballari,BAL_BEAT_5,50,9,30,164,available
+BAL_PS_34,Ballari,BAL_BEAT_3,57,11,12,245,available
+HUB_PS_47,Hubballi,HUB_BEAT_7,47,8,10,172,available
+BEN_PS_23,Bengaluru Urban,BEN_BEAT_5,26,6,20,204,available
+BEL_PS_44,Belagavi,BEL_BEAT_4,29,5,14,99,available
+TUM_PS_34,Tumakuru,TUM_BEAT_5,21,11,34,218,available
+MYS_PS_50,Mysuru,MYS_BEAT_9,17,8,38,238,available
+BEL_PS_24,Belagavi,BEL_BEAT_3,53,9,14,121,available
+SHI_PS_14,Shivamogga,SHI_BEAT_3,59,12,35,122,available
+MAN_PS_24,Mangaluru,MAN_BEAT_8,17,9,21,140,available
+HUB_PS_27,Hubballi,HUB_BEAT_8,54,7,34,194,available
+TUM_PS_4,Tumakuru,TUM_BEAT_4,49,6,19,200,available
+TUM_PS_19,Tumakuru,TUM_BEAT_4,38,12,24,198,available
+BEL_PS_41,Belagavi,BEL_BEAT_5,39,11,26,187,available
+KAL_PS_16,Kalaburagi,KAL_BEAT_3,27,12,14,144,available
+TUM_PS_49,Tumakuru,TUM_BEAT_1,56,10,37,175,available
+SHI_PS_40,Shivamogga,SHI_BEAT_9,21,11,37,111,available
+HUB_PS_2,Hubballi,HUB_BEAT_5,20,5,18,195,available
+MYS_PS_16,Mysuru,MYS_BEAT_9,24,9,12,136,available
+KAL_PS_46,Kalaburagi,KAL_BEAT_8,37,3,23,93,available
+TUM_PS_42,Tumakuru,TUM_BEAT_7,47,8,17,178,available
+KAL_PS_35,Kalaburagi,KAL_BEAT_2,38,6,10,161,available
+MYS_PS_17,Mysuru,MYS_BEAT_2,60,8,35,117,available
+MAN_PS_44,Mangaluru,MAN_BEAT_3,17,7,39,200,available
+SHI_PS_17,Shivamogga,SHI_BEAT_3,60,10,24,237,available
+SHI_PS_12,Shivamogga,SHI_BEAT_1,20,3,18,135,available
+BEL_PS_25,Belagavi,BEL_BEAT_3,50,12,26,188,available
+MYS_PS_45,Mysuru,MYS_BEAT_2,33,6,19,111,available
+SHI_PS_30,Shivamogga,SHI_BEAT_1,30,9,30,239,available
+TUM_PS_30,Tumakuru,TUM_BEAT_8,19,4,36,207,available
+BEN_PS_4,Bengaluru Rural,BEN_BEAT_10,49,3,30,211,available
+KAL_PS_20,Kalaburagi,KAL_BEAT_10,30,5,19,189,available
+BEL_PS_10,Belagavi,BEL_BEAT_1,54,8,17,226,available
+MAN_PS_16,Mangaluru,MAN_BEAT_7,26,4,26,172,available
+BEL_PS_43,Belagavi,BEL_BEAT_2,48,11,26,209,available
+MAN_PS_31,Mangaluru,MAN_BEAT_9,16,9,37,200,available
+HUB_PS_1,Hubballi,HUB_BEAT_1,55,9,21,144,available
+BEL_PS_18,Belagavi,BEL_BEAT_1,37,4,21,141,available
+MAN_PS_48,Mangaluru,MAN_BEAT_2,52,8,14,91,available
+SHI_PS_46,Shivamogga,SHI_BEAT_6,49,8,36,244,available
+KAL_PS_14,Kalaburagi,KAL_BEAT_3,58,10,32,202,available
+BEL_PS_36,Belagavi,BEL_BEAT_3,23,4,32,197,available
+BEN_PS_11,Bengaluru Urban,BEN_BEAT_1,33,6,11,131,available
+KAL_PS_21,Kalaburagi,KAL_BEAT_1,35,7,26,181,available
+KAL_PS_42,Kalaburagi,KAL_BEAT_9,45,7,11,245,available
+MAN_PS_33,Mangaluru,MAN_BEAT_4,33,8,37,92,available
+MAN_PS_14,Mangaluru,MAN_BEAT_6,32,4,35,174,available
+BEL_PS_1,Belagavi,BEL_BEAT_7,40,10,38,178,available
+MYS_PS_8,Mysuru,MYS_BEAT_6,26,10,32,207,available
+BEL_PS_31,Belagavi,BEL_BEAT_6,48,7,35,101,available
+BEL_PS_32,Belagavi,BEL_BEAT_7,20,9,29,126,available
+HUB_PS_28,Hubballi,HUB_BEAT_9,33,8,13,100,available
+SHI_PS_49,Shivamogga,SHI_BEAT_6,57,7,19,194,available
+HUB_PS_49,Hubballi,HUB_BEAT_10,60,9,15,193,available
+BAL_PS_11,Ballari,BAL_BEAT_6,43,3,33,170,available
+KAL_PS_10,Kalaburagi,KAL_BEAT_10,42,7,30,94,available
+MAN_PS_28,Mangaluru,MAN_BEAT_2,57,9,21,211,available
+MAN_PS_30,Mangaluru,MAN_BEAT_3,16,5,37,235,available
+BEL_PS_17,Belagavi,BEL_BEAT_8,17,5,12,140,available
+TUM_PS_25,Tumakuru,TUM_BEAT_6,38,9,40,225,available
+MAN_PS_13,Mangaluru,MAN_BEAT_1,53,5,31,195,available
+TUM_PS_12,Tumakuru,TUM_BEAT_6,38,10,34,99,available
+HUB_PS_33,Hubballi,HUB_BEAT_10,23,11,21,181,available
+MYS_PS_23,Mysuru,MYS_BEAT_6,56,7,17,109,available
+BAL_PS_24,Ballari,BAL_BEAT_1,26,10,26,179,available
+BAL_PS_23,Ballari,BAL_BEAT_9,22,7,34,146,available
+TUM_PS_16,Tumakuru,TUM_BEAT_8,28,12,19,205,available
+MYS_PS_49,Mysuru,MYS_BEAT_4,22,5,37,98,available
+BAL_PS_49,Ballari,BAL_BEAT_8,26,10,12,161,available
+MAN_PS_42,Mangaluru,MAN_BEAT_6,60,4,27,218,available
+TUM_PS_35,Tumakuru,TUM_BEAT_5,34,5,32,243,available
+TUM_PS_5,Tumakuru,TUM_BEAT_3,38,11,17,111,available
+HUB_PS_3,Hubballi,HUB_BEAT_4,23,6,35,206,available
+MAN_PS_4,Mangaluru,MAN_BEAT_1,38,11,28,174,available
+MAN_PS_7,Mangaluru,MAN_BEAT_8,50,5,29,102,available
+BAL_PS_44,Ballari,BAL_BEAT_2,34,9,32,202,available
+BEL_PS_38,Belagavi,BEL_BEAT_9,41,9,36,227,available
+KAL_PS_25,Kalaburagi,KAL_BEAT_2,23,8,30,98,available
+TUM_PS_18,Tumakuru,TUM_BEAT_8,44,11,21,112,available
+MYS_PS_22,Mysuru,MYS_BEAT_9,55,12,15,113,available
+HUB_PS_29,Hubballi,HUB_BEAT_7,47,3,36,111,available
+BEL_PS_46,Belagavi,BEL_BEAT_9,24,7,15,121,available
+SHI_PS_22,Shivamogga,SHI_BEAT_6,60,6,21,212,available
+MAN_PS_11,Mangaluru,MAN_BEAT_5,20,7,16,242,available
+MYS_PS_48,Mysuru,MYS_BEAT_9,32,5,30,157,available
+KAL_PS_7,Kalaburagi,KAL_BEAT_10,49,4,26,244,available
+TUM_PS_15,Tumakuru,TUM_BEAT_3,52,12,14,123,available
+SHI_PS_28,Shivamogga,SHI_BEAT_10,53,8,36,224,available

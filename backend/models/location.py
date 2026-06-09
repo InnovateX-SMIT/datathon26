@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, func, Index
 from sqlalchemy.orm import relationship
 from backend.core.database import Base
 
@@ -12,6 +12,10 @@ class Location(Base):
     longitude = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("idx_location_lat_long", "latitude", "longitude"),
+    )
 
     # Relationships
     police_stations = relationship("PoliceStation", back_populates="location")
