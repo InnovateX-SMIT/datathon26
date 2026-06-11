@@ -126,7 +126,8 @@ class GeoService:
         
         query = self.db.query(
             Location.latitude,
-            Location.longitude
+            Location.longitude,
+            func.count(CrimeEvent.id).label("crime_count")
         ).select_from(CrimeEvent).join(
             Location, CrimeEvent.location_id == Location.id
         )
@@ -140,9 +141,9 @@ class GeoService:
         if end_date:
             query = query.filter(CrimeEvent.crime_date <= end_date)
             
-        results = query.all()
+        results = query.group_by(Location.latitude, Location.longitude).all()
         
-        coords = [(r[0], r[1]) for r in results if r[0] is not None and r[1] is not None]
+        coords = [(r[0], r[1], r[2]) for r in results if r[0] is not None and r[1] is not None]
         
         return find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
 
