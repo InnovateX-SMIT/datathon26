@@ -10,6 +10,10 @@ from backend.schemas.analytics import (
     DistrictDataPoint,
     RecentCrimeItem,
     SystemStatusResponse,
+    OverviewResponse,
+    TrendResponse,
+    CategoryResponse,
+    ComparisonResponse,
 )
 from backend.services.analytics_service import AnalyticsService
 
@@ -87,3 +91,64 @@ def get_system_status(
     except Exception as e:
         logger.error(f"Error fetching system status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/overview", response_model=OverviewResponse)
+def get_overview_metrics(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = AnalyticsService(db)
+        return service.get_overview_metrics()
+    except Exception as e:
+        logger.error(f"Error fetching overview metrics: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/trends", response_model=list[TrendResponse])
+def get_trends(
+    granularity: str = Query(default="daily"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    if granularity not in ["daily", "weekly", "monthly", "yearly"]:
+        raise HTTPException(status_code=400, detail="Invalid granularity. Allowed values: daily, weekly, monthly, yearly")
+    try:
+        service = AnalyticsService(db)
+        if granularity == "daily":
+            return service.get_daily_trends()
+        elif granularity == "weekly":
+            return service.get_weekly_trends()
+        elif granularity == "monthly":
+            return service.get_monthly_trends()
+        elif granularity == "yearly":
+            return service.get_yearly_trends()
+    except Exception as e:
+        logger.error(f"Error fetching temporal trends: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/categories", response_model=CategoryResponse)
+def get_category_breakdown(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = AnalyticsService(db)
+        categories = service.get_category_distribution()
+        subcategories = service.get_subcategory_distribution()
+        return CategoryResponse(categories=categories, subcategories=subcategories)
+    except Exception as e:
+        logger.error(f"Error fetching category breakdown: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/comparison", response_model=ComparisonResponse)
+def get_historical_comparison(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = AnalyticsService(db)
+        return service.get_historical_comparison()
+    except Exception as e:
+        logger.error(f"Error fetching historical comparison: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+

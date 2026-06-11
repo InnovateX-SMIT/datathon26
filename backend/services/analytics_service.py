@@ -125,3 +125,186 @@ class AnalyticsService:
             "last_updated": last_updated,
             "data_coverage_days": data_coverage_days,
         }
+
+    def get_overview_metrics(self) -> dict:
+        total_crimes = self.db.query(func.count(CrimeEvent.id)).scalar() or 0
+        total_victims = self.db.query(func.coalesce(func.sum(CrimeEvent.victim_count), 0)).scalar() or 0
+        total_accused = self.db.query(func.coalesce(func.sum(CrimeEvent.accused_count), 0)).scalar() or 0
+        return {
+            "total_crimes": total_crimes,
+            "total_victims": total_victims,
+            "total_accused": total_accused
+        }
+
+    def get_daily_trends(self) -> list[dict]:
+        from analytics.temporal_analysis.daily import analyze_daily_trends
+        results = self.db.query(
+            CrimeEvent.crime_date,
+            func.count(CrimeEvent.id)
+        ).filter(
+            CrimeEvent.crime_date.isnot(None)
+        ).group_by(
+            CrimeEvent.crime_date
+        ).order_by(
+            CrimeEvent.crime_date.asc()
+        ).all()
+        
+        records = [{"period": r[0].isoformat() if hasattr(r[0], 'isoformat') else str(r[0]), "count": r[1]} for r in results]
+        return analyze_daily_trends(records)
+
+    def get_weekly_trends(self) -> list[dict]:
+        from analytics.temporal_analysis.weekly import analyze_weekly_trends
+        if self.db.bind.dialect.name == "postgresql":
+            expr = func.date_trunc('week', CrimeEvent.crime_date)
+        else:
+            expr = func.date(CrimeEvent.crime_date, 'weekday 1', '-7 days')
+            
+        results = self.db.query(
+            expr,
+            func.count(CrimeEvent.id)
+        ).filter(
+            CrimeEvent.crime_date.isnot(None)
+        ).group_by(
+            expr
+        ).order_by(
+            expr.asc()
+        ).all()
+        
+        records = []
+        for r in results:
+            period_val = r[0]
+            if hasattr(period_val, 'date'):
+                period_str = period_val.date().isoformat()
+            elif hasattr(period_val, 'isoformat'):
+                period_str = period_val.isoformat()[:10]
+            else:
+                period_str = str(period_val)
+            records.append({"period": period_str, "count": r[1]})
+            
+        return analyze_weekly_trends(records)
+
+    def get_monthly_trends(self) -> list[dict]:
+        from analytics.temporal_analysis.monthly import analyze_monthly_trends
+        if self.db.bind.dialect.name == "postgresql":
+            expr = func.to_char(CrimeEvent.crime_date, 'YYYY-MM')
+        else:
+            expr = func.strftime('%Y-%m', CrimeEvent.crime_date)
+            
+        results = self.db.query(
+            expr,
+            func.count(CrimeEvent.id)
+        ).filter(
+            CrimeEvent.crime_date.isnot(None)
+        ).group_by(
+            expr
+        ).order_by(
+            expr.asc()
+        ).all()
+        
+        records = [{"period": str(r[0]), "count": r[1]} for r in results]
+        return analyze_monthly_trends(records)
+
+    def get_yearly_trends(self) -> list[dict]:
+        from analytics.temporal_analysis.yearly import analyze_yearly_trends
+        if self.db.bind.dialect.name == "postgresql":
+            expr = func.to_char(CrimeEvent.crime_date, 'YYYY')
+        else:
+            expr = func.strftime('%Y', CrimeEvent.crime_date)
+            
+        results = self.db.query(
+            expr,
+            func.count(CrimeEvent.id)
+        ).filter(
+            CrimeEvent.crime_date.isnot(None)
+        ).group_by(
+            expr
+        ).order_by(
+            expr.asc()
+        ).all()
+        
+        records = [{"period": str(r[0]), "count": r[1]} for r in results]
+        return analyze_yearly_trends(records)
+
+    def get_category_distribution(self) -> list[dict]:
+        from analytics.crime_analysis.category_analysis import process_category_distribution
+        results = self.db.query(
+            CrimeEvent.crime_category,
+            func.count(CrimeEvent.id)
+        ).filter(
+            CrimeEvent.crime_category.isnot(None)
+        ).group_by(
+            CrimeEvent.crime_category
+        ).all()
+        
+        records = [{"name": r[0], "count": r[1]} for r in results]
+        return process_category_distribution(records)
+
+    def get_subcategory_distribution(self) -> list[dict]:
+        from analytics.crime_analysis.category_analysis import process_subcategory_distribution
+        results = self.db.query(
+            CrimeEvent.crime_subcategory,
+            func.count(CrimeEvent.id)
+        ).filter(
+            CrimeEvent.crime_subcategory.isnot(None)
+        ).group_by(
+            CrimeEvent.crime_subcategory
+        ).all()
+        
+        records = [{"name": r[0], "count": r[1]} for r in results]
+        return process_subcategory_distribution(records)
+
+    def get_historical_comparison(self) -> dict:
+        from analytics.crime_analysis.trend_analysis import calculate_percentage_change
+        
+        today = date.today()
+        
+        current_month_start = date(today.year, today.month, 1)
+        if today.month == 12:
+            current_month_end = date(today.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            current_month_end = date(today.year, today.month + 1, 1) - timedelta(days=1)
+            
+        if today.month == 1:
+            previous_month_start = date(today.year - 1, 12, 1)
+        else:
+            previous_month_start = date(today.year, today.month - 1, 1)
+        previous_month_end = current_month_start - timedelta(days=1)
+        
+        current_year_start = date(today.year, 1, 1)
+        current_year_end = date(today.year, 12, 31)
+        
+        previous_year_start = date(today.year - 1, 1, 1)
+        previous_year_end = date(today.year - 1, 12, 31)
+        
+        current_month_count = self.db.query(func.count(CrimeEvent.id)).filter(
+            CrimeEvent.crime_date >= current_month_start,
+            CrimeEvent.crime_date <= current_month_end
+        ).scalar() or 0
+        
+        previous_month_count = self.db.query(func.count(CrimeEvent.id)).filter(
+            CrimeEvent.crime_date >= previous_month_start,
+            CrimeEvent.crime_date <= previous_month_end
+        ).scalar() or 0
+        
+        current_year_count = self.db.query(func.count(CrimeEvent.id)).filter(
+            CrimeEvent.crime_date >= current_year_start,
+            CrimeEvent.crime_date <= current_year_end
+        ).scalar() or 0
+        
+        previous_year_count = self.db.query(func.count(CrimeEvent.id)).filter(
+            CrimeEvent.crime_date >= previous_year_start,
+            CrimeEvent.crime_date <= previous_year_end
+        ).scalar() or 0
+        
+        month_change = calculate_percentage_change(current_month_count, previous_month_count)
+        year_change = calculate_percentage_change(current_year_count, previous_year_count)
+        
+        return {
+            "current_month": current_month_count,
+            "previous_month": previous_month_count,
+            "month_change_percent": month_change,
+            "current_year": current_year_count,
+            "previous_year": previous_year_count,
+            "year_change_percent": year_change
+        }
+
