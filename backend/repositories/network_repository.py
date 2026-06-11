@@ -53,3 +53,15 @@ class NetworkRepository:
             )
             .first()
         )
+
+    def get_all_criminals(self) -> list[Criminal]:
+        return self.db.query(Criminal).all()
+
+    def get_all_crimes(self) -> list[CrimeEvent]:
+        return self.db.query(CrimeEvent).options(joinedload(CrimeEvent.location)).all()
+
+    def get_all_locations(self) -> list[Location]:
+        return self.db.query(Location).all()
+
+    def get_all_participations(self) -> list[CrimeParticipation]:
+        return self.db.query(CrimeParticipation).all()

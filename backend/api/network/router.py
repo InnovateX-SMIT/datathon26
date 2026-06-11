@@ -1,11 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
-from backend.schemas.network import NetworkGraphResponse
+from backend.schemas.network import (
+    NetworkGraphResponse,
+    CentralityResponse,
+    ClusterResponse,
+    AssociationResponse,
+    LocationNetworkResponse,
+    LinkAnalysisResponse
+)
 from backend.services.network_service import NetworkService
+from backend.services.network_analytics_service import NetworkAnalyticsService
 
 router = APIRouter()
 
@@ -23,12 +31,82 @@ def get_network_graph() -> Dict[str, Any]:
         ]
     }
 
-@router.get("/centrality")
-def get_network_centrality() -> Dict[str, Any]:
-    return {
-        "c_1": 0.85,
-        "c_2": 0.45
-    }
+@router.get("/centrality", response_model=CentralityResponse)
+def get_network_centrality(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    try:
+        service = NetworkAnalyticsService(db)
+        return service.get_centrality()
+    except Exception as e:
+        logger.error(f"Error in get_network_centrality: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while computing network centrality"
+        )
+
+@router.get("/clusters", response_model=List[ClusterResponse])
+def get_network_clusters(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    try:
+        service = NetworkAnalyticsService(db)
+        return service.get_clusters()
+    except Exception as e:
+        logger.error(f"Error in get_network_clusters: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while detecting network clusters"
+        )
+
+@router.get("/associations", response_model=List[AssociationResponse])
+def get_network_associations(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    try:
+        service = NetworkAnalyticsService(db)
+        return service.get_repeat_associations()
+    except Exception as e:
+        logger.error(f"Error in get_network_associations: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while computing network associations"
+        )
+
+@router.get("/location-intelligence", response_model=LocationNetworkResponse)
+def get_location_intelligence(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    try:
+        service = NetworkAnalyticsService(db)
+        return service.get_location_intelligence()
+    except Exception as e:
+        logger.error(f"Error in get_location_intelligence: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while computing location network intelligence"
+        )
+
+@router.get("/link-analysis", response_model=LinkAnalysisResponse)
+def get_link_analysis(
+    source_id: str = Query(..., description="Source node ID (e.g. criminal_1)"),
+    target_id: str = Query(..., description="Target node ID (e.g. location_5)"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    try:
+        service = NetworkAnalyticsService(db)
+        return service.find_shortest_path(source_id, target_id)
+    except Exception as e:
+        logger.error(f"Error in get_link_analysis: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while performing shortest path link analysis"
+        )
 
 @router.get("/criminal/{criminal_id}", response_model=NetworkGraphResponse)
 def get_criminal_network(
