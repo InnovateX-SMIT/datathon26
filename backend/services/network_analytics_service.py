@@ -4,8 +4,12 @@ from typing import Dict, Any, List, Optional
 from backend.repositories.network_repository import NetworkRepository
 
 class NetworkAnalyticsService:
-    # Class-level cache for graph to avoid rebuilding on every API request
+    # Class-level caches to avoid rebuilding/recalculating on every API request
     _cached_graph: Optional[nx.Graph] = None
+    _cached_centrality: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    _cached_clusters: Optional[List[Dict[str, Any]]] = None
+    _cached_associations: Optional[List[Dict[str, Any]]] = None
+    _cached_location_intel: Optional[Dict[str, Any]] = None
 
     def __init__(self, db: Session):
         self.db = db
@@ -27,6 +31,11 @@ class NetworkAnalyticsService:
 
         if NetworkAnalyticsService._cached_graph is None or force_rebuild or is_test:
             NetworkAnalyticsService._cached_graph = self.build_graph()
+            # Invalidate all caches when graph is rebuilt
+            NetworkAnalyticsService._cached_centrality = None
+            NetworkAnalyticsService._cached_clusters = None
+            NetworkAnalyticsService._cached_associations = None
+            NetworkAnalyticsService._cached_location_intel = None
         return NetworkAnalyticsService._cached_graph
 
     def build_graph(self) -> nx.Graph:
@@ -114,81 +123,122 @@ class NetworkAnalyticsService:
         Computes Degree, Betweenness (k-sampled), and Closeness Centrality scores,
         ranking the top N nodes.
         """
-        G = self.get_graph()
-        if len(G) == 0:
-            return {"degree": [], "betweenness": [], "closeness": []}
+        is_test = False
+        try:
+            bind = self.db.bind
+            if bind and hasattr(bind, "url") and bind.url:
+                is_test = bind.url.drivername == "sqlite" and (bind.url.database == ":memory:" or not bind.url.database)
+        except Exception:
+            pass
 
-        # Calculate centralities
-        deg_cent = nx.degree_centrality(G)
-        
-        # Optimize betweenness for scalability using k-sampling
-        k_val = min(len(G), 100)
-        bet_cent = nx.betweenness_centrality(G, k=k_val)
-        
-        cloc_cent = nx.closeness_centrality(G)
+        if NetworkAnalyticsService._cached_centrality is None or is_test:
+            G = self.get_graph()
+            if len(G) == 0:
+                return {"degree": [], "betweenness": [], "closeness": []}
 
-        def rank_and_format(cent_dict) -> List[Dict[str, Any]]:
-            sorted_nodes = sorted(cent_dict.items(), key=lambda x: x[1], reverse=True)[:limit]
-            formatted = []
-            for node_id, score in sorted_nodes:
-                node_data = G.nodes[node_id]
-                formatted.append({
-                    "id": node_id,
-                    "type": node_data.get("type", "unknown"),
-                    "label": node_data.get("label", "Unknown"),
-                    "score": float(score)
-                })
-            return formatted
+            # If graph is large, calculate centrality on co-offending subgraph (excluding locations)
+            # to avoid the giant component bottleneck and hang
+            calc_G = G
+            if len(G) >= 1000:
+                location_nodes = [n for n, attr in G.nodes(data=True) if attr.get("type") == "location"]
+                calc_G = G.copy()
+                calc_G.remove_nodes_from(location_nodes)
 
+            # Calculate centralities
+            deg_cent = nx.degree_centrality(calc_G)
+            
+            # Optimize betweenness for scalability using k-sampling
+            k_val = min(len(calc_G), 100)
+            bet_cent = nx.betweenness_centrality(calc_G, k=k_val)
+            
+            cloc_cent = nx.closeness_centrality(calc_G)
+
+            def rank_and_format(cent_dict) -> List[Dict[str, Any]]:
+                sorted_nodes = sorted(cent_dict.items(), key=lambda x: x[1], reverse=True)
+                formatted = []
+                for node_id, score in sorted_nodes:
+                    node_data = calc_G.nodes[node_id]
+                    formatted.append({
+                        "id": node_id,
+                        "type": node_data.get("type", "unknown"),
+                        "label": node_data.get("label", "Unknown"),
+                        "score": float(score)
+                    })
+                return formatted
+
+            NetworkAnalyticsService._cached_centrality = {
+                "degree": rank_and_format(deg_cent),
+                "betweenness": rank_and_format(bet_cent),
+                "closeness": rank_and_format(cloc_cent)
+            }
+
+        res = NetworkAnalyticsService._cached_centrality
         return {
-            "degree": rank_and_format(deg_cent),
-            "betweenness": rank_and_format(bet_cent),
-            "closeness": rank_and_format(cloc_cent)
+            "degree": res["degree"][:limit],
+            "betweenness": res["betweenness"][:limit],
+            "closeness": res["closeness"][:limit]
         }
 
     def get_clusters(self) -> List[Dict[str, Any]]:
         """
         Finds connected sub-components (gangs / crime groups) sorting by size.
         """
-        G = self.get_graph()
-        if len(G) == 0:
-            return []
+        is_test = False
+        try:
+            bind = self.db.bind
+            if bind and hasattr(bind, "url") and bind.url:
+                is_test = bind.url.drivername == "sqlite" and (bind.url.database == ":memory:" or not bind.url.database)
+        except Exception:
+            pass
 
-        components = sorted(nx.connected_components(G), key=len, reverse=True)
-        
-        clusters = []
-        for i, comp in enumerate(components):
-            members = []
-            criminal_count = 0
-            crime_count = 0
-            location_count = 0
+        if NetworkAnalyticsService._cached_clusters is None or is_test:
+            G = self.get_graph()
+            if len(G) == 0:
+                return []
+
+            # If graph is large, calculate clusters on co-offending subgraph (excluding locations)
+            calc_G = G
+            if len(G) >= 1000:
+                location_nodes = [n for n, attr in G.nodes(data=True) if attr.get("type") == "location"]
+                calc_G = G.copy()
+                calc_G.remove_nodes_from(location_nodes)
+
+            components = sorted(nx.connected_components(calc_G), key=len, reverse=True)
             
-            for node_id in comp:
-                node_data = G.nodes[node_id]
-                ntype = node_data.get("type", "unknown")
-                if ntype == "criminal":
-                    criminal_count += 1
-                elif ntype == "crime":
-                    crime_count += 1
-                elif ntype == "location":
-                    location_count += 1
+            clusters = []
+            for i, comp in enumerate(components):
+                members = []
+                criminal_count = 0
+                crime_count = 0
+                location_count = 0
                 
-                members.append({
-                    "id": node_id,
-                    "type": ntype,
-                    "label": node_data.get("label", "Unknown")
+                for node_id in comp:
+                    node_data = calc_G.nodes[node_id]
+                    ntype = node_data.get("type", "unknown")
+                    if ntype == "criminal":
+                        criminal_count += 1
+                    elif ntype == "crime":
+                        crime_count += 1
+                    elif ntype == "location":
+                        location_count += 1
+                    
+                    members.append({
+                        "id": node_id,
+                        "type": ntype,
+                        "label": node_data.get("label", "Unknown")
+                    })
+                
+                clusters.append({
+                    "cluster_id": f"cluster_{i+1}",
+                    "members": members,
+                    "size": len(comp),
+                    "criminal_count": criminal_count,
+                    "crime_count": crime_count,
+                    "location_count": location_count
                 })
+            NetworkAnalyticsService._cached_clusters = clusters
             
-            clusters.append({
-                "cluster_id": f"cluster_{i+1}",
-                "members": members,
-                "size": len(comp),
-                "criminal_count": criminal_count,
-                "crime_count": crime_count,
-                "location_count": location_count
-            })
-            
-        return clusters
+        return NetworkAnalyticsService._cached_clusters
 
     def get_repeat_associations(self, limit: int = 50) -> List[Dict[str, Any]]:
         """
@@ -198,63 +248,82 @@ class NetworkAnalyticsService:
         from collections import defaultdict
         import itertools
 
-        G = self.get_graph()
-        crimes = [n for n, attr in G.nodes(data=True) if attr.get("type") == "crime"]
-        
-        pair_shared_crimes = defaultdict(list)
-        for crime_id in crimes:
-            # Gather all participating criminals
-            crims = [nbr for nbr in G.neighbors(crime_id) if G.nodes[nbr].get("type") == "criminal"]
-            if len(crims) >= 2:
-                for crim_a, crim_b in itertools.combinations(sorted(crims), 2):
-                    pair_shared_crimes[(crim_a, crim_b)].append(crime_id)
+    def get_repeat_associations(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Discovers co-offending pairs of criminals appearing together on the same crime events,
+        determining Jaccard-based association strength and co-occurrence frequency.
+        """
+        from collections import defaultdict
+        import itertools
 
-        associations = []
-        for (crim_a, crim_b), shared_list in pair_shared_crimes.items():
-            deg_a = G.degree(crim_a)
-            deg_b = G.degree(crim_b)
-            freq = len(shared_list)
+        is_test = False
+        try:
+            bind = self.db.bind
+            if bind and hasattr(bind, "url") and bind.url:
+                is_test = bind.url.drivername == "sqlite" and (bind.url.database == ":memory:" or not bind.url.database)
+        except Exception:
+            pass
+
+        if NetworkAnalyticsService._cached_associations is None or is_test:
+            G = self.get_graph()
+            crimes = [n for n, attr in G.nodes(data=True) if attr.get("type") == "crime"]
             
-            # Compute normalized co-offending Jaccard score
-            strength = freq / (deg_a + deg_b - freq) if (deg_a + deg_b - freq) > 0 else 0.0
-            
-            node_a_data = G.nodes[crim_a]
-            node_b_data = G.nodes[crim_b]
-            
-            shared_crime_details = []
-            for c_id in shared_list:
-                c_data = G.nodes[c_id]
-                shared_crime_details.append({
-                    "id": c_id,
-                    "type": "crime",
-                    "label": c_data.get("label", "Unknown"),
-                    "metadata": {
-                        "crime_category": c_data.get("crime_category"),
-                        "severity": c_data.get("severity")
-                    }
+            pair_shared_crimes = defaultdict(list)
+            for crime_id in crimes:
+                # Gather all participating criminals
+                crims = [nbr for nbr in G.neighbors(crime_id) if G.nodes[nbr].get("type") == "criminal"]
+                if len(crims) >= 2:
+                    for crim_a, crim_b in itertools.combinations(sorted(crims), 2):
+                        pair_shared_crimes[(crim_a, crim_b)].append(crime_id)
+
+            associations = []
+            for (crim_a, crim_b), shared_list in pair_shared_crimes.items():
+                deg_a = G.degree(crim_a)
+                deg_b = G.degree(crim_b)
+                freq = len(shared_list)
+                
+                # Compute normalized co-offending Jaccard score
+                strength = freq / (deg_a + deg_b - freq) if (deg_a + deg_b - freq) > 0 else 0.0
+                
+                node_a_data = G.nodes[crim_a]
+                node_b_data = G.nodes[crim_b]
+                
+                shared_crime_details = []
+                for c_id in shared_list:
+                    c_data = G.nodes[c_id]
+                    shared_crime_details.append({
+                        "id": c_id,
+                        "type": "crime",
+                        "label": c_data.get("label", "Unknown"),
+                        "metadata": {
+                            "crime_category": c_data.get("crime_category"),
+                            "severity": c_data.get("severity")
+                        }
+                    })
+                
+                associations.append({
+                    "criminal_a": {
+                        "id": crim_a,
+                        "type": "criminal",
+                        "label": node_a_data.get("label", "Unknown"),
+                        "metadata": {"risk_score": node_a_data.get("risk_score")}
+                    },
+                    "criminal_b": {
+                        "id": crim_b,
+                        "type": "criminal",
+                        "label": node_b_data.get("label", "Unknown"),
+                        "metadata": {"risk_score": node_b_data.get("risk_score")}
+                    },
+                    "shared_crimes": shared_crime_details,
+                    "frequency": freq,
+                    "strength": float(strength)
                 })
-            
-            associations.append({
-                "criminal_a": {
-                    "id": crim_a,
-                    "type": "criminal",
-                    "label": node_a_data.get("label", "Unknown"),
-                    "metadata": {"risk_score": node_a_data.get("risk_score")}
-                },
-                "criminal_b": {
-                    "id": crim_b,
-                    "type": "criminal",
-                    "label": node_b_data.get("label", "Unknown"),
-                    "metadata": {"risk_score": node_b_data.get("risk_score")}
-                },
-                "shared_crimes": shared_crime_details,
-                "frequency": freq,
-                "strength": float(strength)
-            })
-            
-        # Sort co-offenders by count of shared crimes, then Jaccard index
-        associations.sort(key=lambda x: (-x["frequency"], -x["strength"]))
-        return associations[:limit]
+                
+            # Sort co-offenders by count of shared crimes, then Jaccard index
+            associations.sort(key=lambda x: (-x["frequency"], -x["strength"]))
+            NetworkAnalyticsService._cached_associations = associations
+
+        return NetworkAnalyticsService._cached_associations[:limit]
 
     def get_location_intelligence(self, limit: int = 50) -> Dict[str, Any]:
         """
@@ -264,80 +333,96 @@ class NetworkAnalyticsService:
         from collections import defaultdict
         import itertools
 
-        G = self.get_graph()
-        locations = [n for n, attr in G.nodes(data=True) if attr.get("type") == "location"]
-        
-        loc_details = []
-        for loc_id in locations:
-            attr = G.nodes[loc_id]
-            connected_crimes = list(G.neighbors(loc_id))
-            
-            distinct_criminals = set()
-            for crime_id in connected_crimes:
-                criminals = [nbr for nbr in G.neighbors(crime_id) if G.nodes[nbr].get("type") == "criminal"]
-                distinct_criminals.update(criminals)
-                
-            loc_details.append({
-                "id": loc_id,
-                "district": attr.get("district", "Unknown"),
-                "state": attr.get("state", "Unknown"),
-                "degree": len(connected_crimes),
-                "crime_count": len(connected_crimes),
-                "criminal_count": len(distinct_criminals)
-            })
-            
-        most_active = sorted(loc_details, key=lambda x: x["crime_count"], reverse=True)[:limit]
-        most_connected = sorted(loc_details, key=lambda x: x["criminal_count"], reverse=True)[:limit]
+        is_test = False
+        try:
+            bind = self.db.bind
+            if bind and hasattr(bind, "url") and bind.url:
+                is_test = bind.url.drivername == "sqlite" and (bind.url.database == ":memory:" or not bind.url.database)
+        except Exception:
+            pass
 
-        # Location crossovers (Locations linked by criminals committing offences in both)
-        loc_pairs = defaultdict(set)
-        criminals = [n for n, attr in G.nodes(data=True) if attr.get("type") == "criminal"]
-        
-        for crim_id in criminals:
-            crim_crimes = list(G.neighbors(crim_id))
-            crim_locs = set()
-            for crime_id in crim_crimes:
-                locs = [nbr for nbr in G.neighbors(crime_id) if G.nodes[nbr].get("type") == "location"]
-                crim_locs.update(locs)
+        if NetworkAnalyticsService._cached_location_intel is None or is_test:
+            G = self.get_graph()
+            locations = [n for n, attr in G.nodes(data=True) if attr.get("type") == "location"]
             
-            if len(crim_locs) >= 2:
-                for loc_a, loc_b in itertools.combinations(sorted(list(crim_locs)), 2):
-                    loc_pairs[(loc_a, loc_b)].add(crim_id)
+            loc_details = []
+            for loc_id in locations:
+                attr = G.nodes[loc_id]
+                connected_crimes = list(G.neighbors(loc_id))
+                
+                distinct_criminals = set()
+                for crime_id in connected_crimes:
+                    criminals = [nbr for nbr in G.neighbors(crime_id) if G.nodes[nbr].get("type") == "criminal"]
+                    distinct_criminals.update(criminals)
                     
-        location_links = []
-        for (loc_a, loc_b), crim_set in loc_pairs.items():
-            loc_a_attr = G.nodes[loc_a]
-            loc_b_attr = G.nodes[loc_b]
-            
-            connecting_details = []
-            for c_id in crim_set:
-                connecting_details.append({
-                    "id": c_id,
-                    "type": "criminal",
-                    "label": G.nodes[c_id].get("label", "Unknown")
+                loc_details.append({
+                    "id": loc_id,
+                    "district": attr.get("district", "Unknown"),
+                    "state": attr.get("state", "Unknown"),
+                    "degree": len(connected_crimes),
+                    "crime_count": len(connected_crimes),
+                    "criminal_count": len(distinct_criminals)
                 })
                 
-            location_links.append({
-                "location_a": {
-                    "id": loc_a,
-                    "type": "location",
-                    "label": loc_a_attr.get("label", "Unknown")
-                },
-                "location_b": {
-                    "id": loc_b,
-                    "type": "location",
-                    "label": loc_b_attr.get("label", "Unknown")
-                },
-                "connecting_criminals": connecting_details,
-                "strength": len(crim_set)
-            })
+            most_active = sorted(loc_details, key=lambda x: x["crime_count"], reverse=True)
+            most_connected = sorted(loc_details, key=lambda x: x["criminal_count"], reverse=True)
+
+            # Location crossovers (Locations linked by criminals committing offences in both)
+            loc_pairs = defaultdict(set)
+            criminals = [n for n, attr in G.nodes(data=True) if attr.get("type") == "criminal"]
             
-        location_links.sort(key=lambda x: x["strength"], reverse=True)
-        
+            for crim_id in criminals:
+                crim_crimes = list(G.neighbors(crim_id))
+                crim_locs = set()
+                for crime_id in crim_crimes:
+                    locs = [nbr for nbr in G.neighbors(crime_id) if G.nodes[nbr].get("type") == "location"]
+                    crim_locs.update(locs)
+                
+                if len(crim_locs) >= 2:
+                    for loc_a, loc_b in itertools.combinations(sorted(list(crim_locs)), 2):
+                        loc_pairs[(loc_a, loc_b)].add(crim_id)
+                        
+            location_links = []
+            for (loc_a, loc_b), crim_set in loc_pairs.items():
+                loc_a_attr = G.nodes[loc_a]
+                loc_b_attr = G.nodes[loc_b]
+                
+                connecting_details = []
+                for c_id in crim_set:
+                    connecting_details.append({
+                        "id": c_id,
+                        "type": "criminal",
+                        "label": G.nodes[c_id].get("label", "Unknown")
+                    })
+                    
+                location_links.append({
+                    "location_a": {
+                        "id": loc_a,
+                        "type": "location",
+                        "label": loc_a_attr.get("label", "Unknown")
+                    },
+                    "location_b": {
+                        "id": loc_b,
+                        "type": "location",
+                        "label": loc_b_attr.get("label", "Unknown")
+                    },
+                    "connecting_criminals": connecting_details,
+                    "strength": len(crim_set)
+                })
+                
+            location_links.sort(key=lambda x: x["strength"], reverse=True)
+            
+            NetworkAnalyticsService._cached_location_intel = {
+                "most_active": most_active,
+                "most_connected": most_connected,
+                "location_links": location_links
+            }
+            
+        res = NetworkAnalyticsService._cached_location_intel
         return {
-            "most_active": most_active,
-            "most_connected": most_connected,
-            "location_links": location_links[:limit]
+            "most_active": res["most_active"][:limit],
+            "most_connected": res["most_connected"][:limit],
+            "location_links": res["location_links"][:limit]
         }
 
     def find_shortest_path(self, source_id: str, target_id: str) -> Dict[str, Any]:

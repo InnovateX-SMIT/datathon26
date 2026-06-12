@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Any
 
 from backend.core.database import get_db
 from backend.core.logging import logger
@@ -132,4 +133,110 @@ def generate_report(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate executive report."
+        )
+
+@router.get("/{report_id}/download")
+def download_report_csv(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Generates and downloads a CSV export file of the executive report.
+    """
+    import io
+    import csv
+    check_executive_clearance(current_user)
+    try:
+        service = ReportService(db)
+        report_data = service.get_report_by_id(report_id)
+        if not report_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Report with ID {report_id} not found."
+            )
+            
+        # Compile CSV in-memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header info
+        writer.writerow(["EXECUTIVE BRIEFING DOSSIER"])
+        writer.writerow([f"Dossier ID: INTEL-{report_data['report_id']}"])
+        writer.writerow([f"Title: {report_data['title']}"])
+        writer.writerow([f"Report Type: {report_data['report_type']}"])
+        writer.writerow([f"Generated At: {report_data['generated_at']}"])
+        writer.writerow([])
+        
+        # Summary
+        writer.writerow(["EXECUTIVE SUMMARY NARRATIVE"])
+        writer.writerow([report_data["executive_summary"]])
+        writer.writerow([])
+        
+        # Section 1: Crime Overview
+        overview = report_data["crime_overview"]
+        writer.writerow(["SECTION I: CRIME ANALYTICS OVERVIEW"])
+        writer.writerow([f"Total Crimes: {overview['total_crimes']}"])
+        writer.writerow([f"Trend Direction: {overview['trend_direction']}"])
+        writer.writerow([])
+        writer.writerow(["Top Crime Categories"])
+        writer.writerow(["Category", "Count"])
+        for cat in overview.get("top_categories", []):
+            writer.writerow([cat.get("category"), cat.get("count")])
+        writer.writerow([])
+        
+        # Section 2: Predictive Insights
+        preds = report_data["predictive_insights"]
+        writer.writerow(["SECTION II: PREDICTIVE RISK AND SPOT FORECASTS"])
+        writer.writerow([f"Hotspot Count: {preds['hotspot_count']}"])
+        rss = preds.get("risk_score_summary", {})
+        writer.writerow([f"Average Criminal Risk: {rss.get('average_criminal_risk')}"])
+        writer.writerow([f"High-Risk Criminals Count: {rss.get('high_risk_criminals_count')}"])
+        writer.writerow([f"Total Criminals Tracked: {rss.get('total_criminals_tracked')}"])
+        writer.writerow([])
+        writer.writerow(["High-Risk Locations"])
+        writer.writerow(["District", "Crime Count", "Risk Level"])
+        for loc in preds.get("high_risk_locations", []):
+            writer.writerow([loc.get("district"), loc.get("crime_count"), loc.get("risk_level")])
+        writer.writerow([])
+        
+        # Section 3: Network Insights
+        networks = report_data["network_insights"]
+        writer.writerow(["SECTION III: CRIMINAL CO-OFFENDING NETWORK INTELLIGENCE"])
+        writer.writerow([f"Total Networks: {networks['total_networks']}"])
+        writer.writerow([f"Largest Network Size: {networks['largest_network_size']}"])
+        writer.writerow([])
+        writer.writerow(["Key Network Influencers"])
+        writer.writerow(["Node ID", "Type", "Label", "Centrality Score"])
+        for entity in networks.get("key_entities", []):
+            writer.writerow([entity.get("id"), entity.get("type"), entity.get("label"), entity.get("score")])
+        writer.writerow([])
+        
+        # Section 4: Recommendations
+        writer.writerow(["SECTION IV: STRATEGIC OPERATIONAL RECOMMENDATIONS"])
+        writer.writerow(["ID", "Priority", "Recommendation Text", "Reason", "Status"])
+        for rec in report_data.get("recommendations", []):
+            writer.writerow([rec.get("id"), rec.get("priority"), rec.get("recommendation_text"), rec.get("reason"), rec.get("status")])
+        writer.writerow([])
+        
+        # Section 5: Alerts
+        writer.writerow(["SECTION V: SYSTEM & PATROL ESCALATIONS"])
+        writer.writerow(["ID", "Severity", "Source", "Title", "Description", "Status"])
+        for alt in report_data.get("alerts", []):
+            writer.writerow([alt.get("id"), alt.get("severity"), alt.get("source"), alt.get("title"), alt.get("description"), alt.get("status")])
+            
+        output.seek(0)
+        
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode("utf-8")),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=dossier_intel_{report_id}.csv"}
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in download_report_csv: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export CSV dossier."
         )

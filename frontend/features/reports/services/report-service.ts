@@ -45,3 +45,19 @@ export async function generateReport(title: string, reportType: string): Promise
   );
   return res.data;
 }
+
+export async function downloadReportCSV(id: number, filename: string): Promise<void> {
+  const res = await axios.get(`${API_BASE}/api/v1/reports/${id}/download`, {
+    headers: getAuthHeaders(),
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+

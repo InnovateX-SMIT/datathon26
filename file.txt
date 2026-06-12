@@ -22,7 +22,7 @@ datathon26/
 │   └── Project_assets/
 │       ├── DATABASE_DESIGN.md
 │       ├── DATA_ARCHITECTURE.MD
-│       ├── Final_Phases.txt
+│       ├── Final_Phases.md
 │       ├── PROJECT_FOLDER_STRUCTURE.md
 │       └── SYSTEM_ARCHITECTURE.md
 ├── README.md
@@ -143,10 +143,16 @@ datathon26/
 │   │   └── victim.py
 │   ├── repositories/
 │   │   ├── __pycache__/
+│   │   │   ├── alert_repository.cpython-314.pyc
 │   │   │   ├── network_repository.cpython-314.pyc
-│   │   │   └── prediction_repository.cpython-314.pyc
+│   │   │   ├── prediction_repository.cpython-314.pyc
+│   │   │   ├── recommendation_repository.cpython-314.pyc
+│   │   │   └── report_repository.cpython-314.pyc
+│   │   ├── alert_repository.py
 │   │   ├── network_repository.py
-│   │   └── prediction_repository.py
+│   │   ├── prediction_repository.py
+│   │   ├── recommendation_repository.py
+│   │   └── report_repository.py
 │   ├── requirements.txt
 │   ├── schemas/
 │   │   ├── __init__.py
@@ -202,21 +208,31 @@ datathon26/
 │   │   └── report_service.py
 │   └── tests/
 │       ├── __pycache__/
+│       │   ├── test_alert_api.cpython-314-pytest-9.0.3.pyc
+│       │   ├── test_alert_service.cpython-314-pytest-9.0.3.pyc
 │       │   ├── test_analytics.cpython-314-pytest-9.0.3.pyc
 │       │   ├── test_geo.cpython-314-pytest-9.0.3.pyc
 │       │   ├── test_network_analytics.cpython-314-pytest-9.0.3.pyc
 │       │   ├── test_network_api.cpython-314-pytest-9.0.3.pyc
 │       │   ├── test_network_repository.cpython-314-pytest-9.0.3.pyc
 │       │   ├── test_network_service.cpython-314-pytest-9.0.3.pyc
-│       │   └── test_prediction_api.cpython-314-pytest-9.0.3.pyc
+│       │   ├── test_prediction_api.cpython-314-pytest-9.0.3.pyc
+│       │   ├── test_recommendation_api.cpython-314-pytest-9.0.3.pyc
+│       │   └── test_recommendation_service.cpython-314-pytest-9.0.3.pyc
+│       ├── test_alert_api.py
+│       ├── test_alert_service.py
 │       ├── test_analytics.py
 │       ├── test_geo.py
 │       ├── test_network_analytics.py
 │       ├── test_network_api.py
 │       ├── test_network_repository.py
 │       ├── test_network_service.py
-│       └── test_prediction_api.py
+│       ├── test_prediction_api.py
+│       ├── test_recommendation_api.py
+│       ├── test_recommendation_service.py
+│       └── test_report.py
 ├── crime_intel.db
+├── crime_intel.db-journal
 ├── database/
 │   ├── backups/
 │   ├── migrations/
@@ -281,6 +297,10 @@ datathon26/
 │   │   └── reports/
 │   │       └── page.tsx
 │   ├── components/
+│   │   ├── alerts/
+│   │   │   ├── alert-list.tsx
+│   │   │   ├── alert-stats.tsx
+│   │   │   └── monitoring-view.tsx
 │   │   ├── dashboard/
 │   │   │   ├── CategoryChart.tsx
 │   │   │   ├── CrimeTrendChart.tsx
@@ -288,6 +308,10 @@ datathon26/
 │   │   │   ├── KPICard.tsx
 │   │   │   ├── RecentCrimesTable.tsx
 │   │   │   └── SystemStatusBar.tsx
+│   │   ├── decision-support/
+│   │   │   ├── monitoring-panels.tsx
+│   │   │   ├── recommendation-list.tsx
+│   │   │   └── resource-optimizer.tsx
 │   │   ├── graphs/
 │   │   │   ├── CrimeEventNode.tsx
 │   │   │   ├── CriminalNetworkGraph.tsx
@@ -334,15 +358,30 @@ datathon26/
 │   │   │   │   └── geoApi.ts
 │   │   │   └── types/
 │   │   │       └── geo.ts
-│   │   └── network/
+│   │   ├── network/
+│   │   │   ├── components/
+│   │   │   │   ├── NetworkSearch.tsx
+│   │   │   │   ├── NetworkStatistics.tsx
+│   │   │   │   └── NetworkViewer.tsx
+│   │   │   ├── hooks/
+│   │   │   │   └── useNetworkGraph.ts
+│   │   │   └── utils/
+│   │   │       └── graphTransform.ts
+│   │   └── reports/
 │   │       ├── components/
-│   │       │   ├── NetworkSearch.tsx
-│   │       │   ├── NetworkStatistics.tsx
-│   │       │   └── NetworkViewer.tsx
-│   │       ├── hooks/
-│   │       │   └── useNetworkGraph.ts
-│   │       └── utils/
-│   │           └── graphTransform.ts
+│   │       │   ├── report-alerts-section.tsx
+│   │       │   ├── report-metrics-grid.tsx
+│   │       │   ├── report-network-summary.tsx
+│   │       │   ├── report-recommendations-section.tsx
+│   │       │   ├── report-summary-card.tsx
+│   │       │   └── report-trends-section.tsx
+│   │       ├── services/
+│   │       │   └── report-service.ts
+│   │       └── types/
+│   │           └── report.ts
+│   ├── hooks/
+│   │   ├── useAlerts.ts
+│   │   └── useDecisionSupport.ts
 │   ├── next-env.d.ts
 │   ├── next.config.ts
 │   ├── package-lock.json
@@ -355,15 +394,19 @@ datathon26/
 │   │   ├── vercel.svg
 │   │   └── window.svg
 │   ├── services/
+│   │   ├── alert.service.ts
 │   │   ├── dashboardService.ts
 │   │   ├── network.service.ts
-│   │   └── prediction.service.ts
+│   │   ├── prediction.service.ts
+│   │   └── recommendation.service.ts
 │   ├── tsconfig.json
 │   ├── tsconfig.tsbuildinfo
 │   └── types/
+│       ├── alert.ts
 │       ├── dashboard.ts
 │       ├── network.ts
-│       └── prediction.ts
+│       ├── prediction.ts
+│       └── recommendation.ts
 ├── index.html
 ├── index.js
 ├── infrastructure/

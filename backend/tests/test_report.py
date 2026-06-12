@@ -178,3 +178,26 @@ def test_generate_and_retrieve_report(client_superintendent):
 def test_get_invalid_report_id(client_superintendent):
     response = client_superintendent.get("/api/v1/reports/99999")
     assert response.status_code == 404
+
+def test_download_report_csv_success(client_superintendent):
+    # 1. Generate Report
+    payload = {
+        "title": "Quarterly Export review",
+        "report_type": "district_intelligence"
+    }
+    response = client_superintendent.post("/api/v1/reports/generate", json=payload)
+    assert response.status_code == 201
+    report_id = response.json()["report_id"]
+
+    # 2. Download Report
+    dl_resp = client_superintendent.get(f"/api/v1/reports/{report_id}/download")
+    assert dl_resp.status_code == 200
+    assert dl_resp.headers["content-type"] == "text/csv; charset=utf-8"
+    assert f"attachment; filename=dossier_intel_{report_id}.csv" in dl_resp.headers["content-disposition"]
+    csv_content = dl_resp.text
+    assert "EXECUTIVE BRIEFING DOSSIER" in csv_content
+    assert "SECTION I: CRIME ANALYTICS OVERVIEW" in csv_content
+
+def test_download_report_csv_not_found(client_superintendent):
+    response = client_superintendent.get("/api/v1/reports/99999/download")
+    assert response.status_code == 404

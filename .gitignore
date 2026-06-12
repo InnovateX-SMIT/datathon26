@@ -29,3 +29,10 @@ frontend/.vercel
 
 # Database data folders
 pgdata/
+
+crime_intel.db
+crime_intel.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.tsbuildinfo

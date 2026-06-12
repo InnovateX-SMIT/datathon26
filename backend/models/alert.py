@@ -7,6 +7,8 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     crime_event_id = Column(Integer, ForeignKey("crime_events.id"), index=True, nullable=True)
+    alert_type = Column(String(100), nullable=False, default="default")
+    message = Column(String(500), nullable=False, default="")
     title = Column(String(150), nullable=False)
     description = Column(String(1000), nullable=False)
     severity = Column(String(50), index=True, default="medium")  # CRITICAL, HIGH, MEDIUM, LOW

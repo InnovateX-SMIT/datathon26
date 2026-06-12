@@ -15,7 +15,8 @@ import {
   fetchReports, 
   fetchReportTypes, 
   fetchReportById, 
-  generateReport 
+  generateReport,
+  downloadReportCSV
 } from "@/features/reports/services/report-service";
 import type { Report, ReportSummary, ReportType } from "@/features/reports/types/report";
 
@@ -42,6 +43,24 @@ export default function ReportsPage() {
   const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [typeInput, setTypeInput] = useState("");
+
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!selectedReportId || !selectedReport) return;
+    setDownloading(true);
+    setError(null);
+    try {
+      const sanitizedTitle = selectedReport.title.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      const filename = `dossier_intel_${sanitizedTitle}_${selectedReportId}.csv`;
+      await downloadReportCSV(selectedReportId, filename);
+    } catch (err: unknown) {
+      console.error(err);
+      setError("Failed to download CSV dossier. Access might be restricted or network error.");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const loadReportDetails = useCallback(async (id: number) => {
     setLoadingDetail(true);
@@ -330,6 +349,19 @@ export default function ReportsPage() {
                   <h2 className="text-2xl font-black text-white tracking-tight mt-2">{selectedReport.title}</h2>
                   <p className="text-[10px] font-mono text-slate-500 tracking-wider mt-1 uppercase">Dossier ID: INTEL-{selectedReport.report_id}</p>
                 </div>
+
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-350 hover:text-white border border-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shrink-0"
+                >
+                  {downloading ? (
+                    <RefreshCw className="w-4.5 h-4.5 animate-spin text-indigo-400" />
+                  ) : (
+                    <FileSpreadsheet className="w-4.5 h-4.5 text-emerald-400" />
+                  )}
+                  {downloading ? "Exporting..." : "Export CSV"}
+                </button>
               </div>
 
               {/* Executive Summary */}
