@@ -8,7 +8,7 @@ from backend.models.victim import Victim
 from backend.models.crime_participation import CrimeParticipation
 from backend.models.prediction import Prediction
 from backend.models.alert import Alert
-from backend.models.recommendation import Recommendation
+from backend.models.recommendation import Recommendation, ResourceAllocation
 from backend.models.report import Report
 
 # Expose them all in __all__
@@ -25,5 +25,6 @@ __all__ = [
     "Prediction",
     "Alert",
     "Recommendation",
+    "ResourceAllocation",
     "Report",
 ]

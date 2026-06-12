@@ -18,3 +18,43 @@ class RecommendationResponse(RecommendationBase):
     model_config = {
         "from_attributes": True
     }
+
+
+class AllocationPayload(BaseModel):
+    district: str
+    sanctioned_asi: int
+    sanctioned_chc: int
+    sanctioned_cpc: int
+
+
+class BeatAllocation(BaseModel):
+    beat_name: str
+    asi_allocated: int
+    chc_allocated: int
+    cpc_allocated: int
+    normalized_severity: float
+
+
+class AllocationResponse(BaseModel):
+    status: str
+    district: str
+    solved_allocation: list[BeatAllocation]
+
+
+class ResourceAllocationResponse(BaseModel):
+    id: int
+    district: str
+    allocated_asi: int
+    allocated_chc: int
+    allocated_cpc: int
+    solved_allocation: list[BeatAllocation]
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class RecommendationStatusUpdate(BaseModel):
+    status: str
+

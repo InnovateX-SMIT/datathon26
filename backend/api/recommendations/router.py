@@ -1,35 +1,137 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any, Optional
+
+from backend.core.database import get_db
+from backend.core.logging import logger
+from backend.api.auth.router import get_current_user
+from backend.schemas.recommendation import (
+    AllocationPayload,
+    AllocationResponse,
+    ResourceAllocationResponse,
+    RecommendationResponse,
+    RecommendationStatusUpdate
+)
+from backend.services.recommendation_service import RecommendationService
 
 router = APIRouter()
 
-class AllocationPayload(BaseModel):
-    district: str
-    sanctioned_asi: int
-    sanctioned_chc: int
-    sanctioned_cpc: int
+@router.post("/solve", response_model=AllocationResponse)
+def run_allocation_solver(
+    payload: AllocationPayload,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Solves resource allocation optimization for a district and logs the run in history.
+    """
+    try:
+        service = RecommendationService(db)
+        allocations = service.run_resource_optimization(
+            district=payload.district,
+            sanctioned_asi=payload.sanctioned_asi,
+            sanctioned_chc=payload.sanctioned_chc,
+            sanctioned_cpc=payload.sanctioned_cpc
+        )
+        if not allocations:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No police stations found in district {payload.district}."
+            )
+        return AllocationResponse(
+            status="success",
+            district=payload.district,
+            solved_allocation=allocations
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in run_allocation_solver: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while running the resource optimization solver"
+        )
 
-@router.post("/solve")
-def run_allocation_solver(payload: AllocationPayload) -> Dict[str, Any]:
-    return {
-        "status": "success",
-        "district": payload.district,
-        "solved_allocation": [
-            {"beat_name": "Beat Alpha", "asi_allocated": 1, "chc_allocated": 2, "cpc_allocated": 5, "normalized_severity": 0.95},
-            {"beat_name": "Beat Beta", "asi_allocated": 0, "chc_allocated": 1, "cpc_allocated": 3, "normalized_severity": 0.60}
-        ]
-    }
+@router.get("/resource-allocation", response_model=List[ResourceAllocationResponse])
+def get_resource_allocations_history(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Retrieves the logs of previous resource allocation runs.
+    """
+    try:
+        service = RecommendationService(db)
+        return service.fetch_allocations_logs()
+    except Exception as e:
+        logger.error(f"Error in get_resource_allocations_history: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while retrieving resource allocation logs"
+        )
 
-@router.get("/resource-allocation")
-def get_resource_allocations_history() -> List[Dict[str, Any]]:
-    return [
-        {
-            "id": 1,
-            "district": "Bengaluru Urban",
-            "allocated_asi": 12,
-            "allocated_chc": 30,
-            "allocated_cpc": 75,
-            "created_at": "2026-06-08T11:00:00"
-        }
-    ]
+@router.get("/", response_model=List[RecommendationResponse])
+def get_recommendations(
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (pending, resolved, dismissed)"),
+    priority_filter: Optional[str] = Query(None, alias="priority", description="Filter by priority (high, medium, low)"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Lists prioritized decision support actions / recommendations.
+    """
+    try:
+        service = RecommendationService(db)
+        return service.get_recommendations(status=status_filter, priority=priority_filter)
+    except Exception as e:
+        logger.error(f"Error in get_recommendations: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while retrieving recommendations"
+        )
+
+@router.post("/generate", response_model=List[RecommendationResponse])
+def generate_recommendations(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Triggers refresh of dynamic recommendations from latest intelligence data.
+    """
+    try:
+        service = RecommendationService(db)
+        return service.generate_dynamic_recommendations()
+    except Exception as e:
+        logger.error(f"Error in generate_recommendations: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while generating dynamic recommendations"
+        )
+
+@router.put("/{id}", response_model=RecommendationResponse)
+def update_recommendation_status(
+    id: int,
+    payload: RecommendationStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Updates status of a recommendation (Acknowledge/Resolve/Dismiss).
+    """
+    try:
+        service = RecommendationService(db)
+        rec = service.update_recommendation_status(recommendation_id=id, status=payload.status)
+        if not rec:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Recommendation with ID {id} not found."
+            )
+        return rec
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in update_recommendation_status: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while updating recommendation status"
+        )
