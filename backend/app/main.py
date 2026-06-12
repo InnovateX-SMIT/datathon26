@@ -18,10 +18,51 @@ from backend.core.database import engine, Base
 # Import all models to ensure they are registered on Metadata before we call create_all
 from backend import models
 
+def migrate_database_schema(db_engine):
+    from sqlalchemy import text
+    try:
+        # We only apply SQLite-specific migration logic for alerts table mapping
+        if db_engine.dialect.name != "sqlite":
+            logger.info("Database dialect is not SQLite; skipping alerts table schema migration.")
+            return
+
+        with db_engine.begin() as conn:
+            # Check table info for alerts
+            result = conn.execute(text("PRAGMA table_info(alerts)"))
+            columns = {row[1] for row in result.fetchall()}
+            
+            if not columns:
+                logger.info("Alerts table does not exist; skipping schema migration.")
+                return
+                
+            # Columns to add if they are missing
+            missing_cols = []
+            if "title" not in columns:
+                missing_cols.append("ALTER TABLE alerts ADD COLUMN title VARCHAR(150) NOT NULL DEFAULT ''")
+            if "description" not in columns:
+                missing_cols.append("ALTER TABLE alerts ADD COLUMN description VARCHAR(1000) NOT NULL DEFAULT ''")
+            if "source" not in columns:
+                missing_cols.append("ALTER TABLE alerts ADD COLUMN source VARCHAR(100) NOT NULL DEFAULT 'prediction'")
+            if "assigned_user_id" not in columns:
+                missing_cols.append("ALTER TABLE alerts ADD COLUMN assigned_user_id INTEGER NULL")
+            if "metadata_payload" not in columns:
+                missing_cols.append("ALTER TABLE alerts ADD COLUMN metadata_payload VARCHAR(2000) NULL")
+            if "updated_at" not in columns:
+                missing_cols.append("ALTER TABLE alerts ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
+                
+            for sql in missing_cols:
+                logger.info(f"Running migration SQL: {sql}")
+                conn.execute(text(sql))
+            if missing_cols:
+                logger.info("Database schema migration completed successfully.")
+    except Exception as e:
+        logger.error(f"Error during dynamic alerts table migration: {e}")
+
 # Create tables in development
 if settings.ENVIRONMENT == "development":
     logger.info("Recreating database tables in development environment...")
     Base.metadata.create_all(bind=engine)
+    migrate_database_schema(engine)
     
     # Seeding database with default accounts
     from backend.core.database import SessionLocal
