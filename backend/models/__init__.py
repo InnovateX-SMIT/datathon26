@@ -10,6 +10,7 @@ from backend.models.prediction import Prediction
 from backend.models.alert import Alert
 from backend.models.recommendation import Recommendation, ResourceAllocation
 from backend.models.report import Report
+from backend.models.audit_log import AuditLog
 
 # Expose them all in __all__
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "Recommendation",
     "ResourceAllocation",
     "Report",
+    "AuditLog",
 ]

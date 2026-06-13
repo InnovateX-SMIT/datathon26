@@ -1,0 +1,326 @@
+# Datathon 2026 — Generate Implementation Plan for Phase 7 Decision Support Center
+
+You are acting as a Senior Software Architect, Technical Lead, Product Architect, and Datathon Solution Reviewer.
+
+Your task is NOT to write code.
+
+Your task is to generate a complete implementation plan for the next phase of our project.
+
+---
+
+# IMPORTANT PROJECT CONTEXT
+
+We are building:
+
+AI-Powered Crime Intelligence & Decision Support Platform
+
+for Datathon 2026.
+
+The project is inspired by a reference repository called Predictive Guardians.
+
+We have already reverse engineered the repository architecture, data flow, features, ML layer, deployment strategy, analytics layer, and user workflows.
+
+We are NOT copying the repository.
+
+We are building our own improved version using:
+
+Frontend:
+- Next.js
+- TypeScript
+- TailwindCSS
+
+Backend:
+- FastAPI
+- SQLAlchemy
+- Pydantic
+
+Analytics:
+- Pandas
+- NumPy
+- Geo Analytics
+
+Machine Learning:
+- Scikit-Learn
+- SHAP
+- NetworkX
+
+Database:
+- SQLite currently
+- Future Catalyst/PostgreSQL integration planned
+
+Deployment:
+- Catalyst integration will occur later.
+- Do NOT include Catalyst work in this phase.
+
+---
+
+# CURRENT PROJECT STATUS
+
+The following phases are COMPLETE:
+
+Phase 0 → Blueprint & Foundation
+
+Phase 1 → Authentication & Layout Foundation
+
+Phase 1A → Data Foundation
+
+Phase 2 → Command Center Dashboard
+
+Phase 3 → Crime Analytics
+
+Phase 4A → Geo Intelligence
+
+Phase 5 → Predictive Intelligence
+
+Phase 6A → Network Data Modeling
+
+Phase 6B → Network Visualization
+
+Phase 6C → Network Intelligence Analytics
+
+All phases above are:
+- Implemented
+- Tested
+- Reviewed
+- Merged into main branch
+
+The repository is stable.
+
+The current active branch for the next work will be created from latest main.
+
+---
+
+# SYSTEM ARCHITECTURE
+
+The platform consists of four intelligence engines.
+
+1. Crime Analytics Engine
+Question:
+"What is happening?"
+
+2. Predictive Intelligence Engine
+Question:
+"What is likely to happen?"
+
+3. Criminal Network Intelligence Engine
+Question:
+"Who is connected?"
+
+4. Decision Support Engine
+Question:
+"What should be done?"
+
+We are now implementing Engine 4.
+
+---
+
+# PHASE TO PLAN
+
+Phase 7 → Decision Support Center
+
+---
+
+# PHASE OBJECTIVE
+
+This phase must consume intelligence generated from:
+
+- Crime Analytics
+- Geo Intelligence
+- Predictive Intelligence
+- Network Intelligence
+
+and transform it into:
+
+- Recommendations
+- Resource Allocation Suggestions
+- Strategic Intelligence
+- Priority Actions
+- Operational Decision Support
+
+This phase represents the platform's intelligence-to-action layer.
+
+The system should no longer only show insights.
+
+The system should recommend actions.
+
+---
+
+# BUSINESS GOALS
+
+The Decision Support Center should answer:
+
+1. What locations need immediate attention?
+
+2. Which districts are highest risk?
+
+3. Which hotspots require additional resources?
+
+4. Which repeat offenders require monitoring?
+
+5. Which criminal networks require investigation priority?
+
+6. What actions should officers take next?
+
+7. Which recommendations should leadership prioritize?
+
+---
+
+# EXISTING DATA AVAILABLE
+
+The following intelligence already exists inside the system:
+
+Crime Analytics:
+- Trends
+- Category analysis
+- Historical comparisons
+
+Geo Intelligence:
+- Heatmaps
+- Hotspots
+- District intelligence
+
+Predictive Intelligence:
+- Risk predictions
+- Crime type predictions
+- Repeat offender predictions
+
+Network Intelligence:
+- Centrality analysis
+- Cluster detection
+- Association discovery
+- Link analysis
+- Location intelligence
+
+The recommendation engine must reuse existing intelligence rather than recreating calculations.
+
+---
+
+# EXPECTED DECISION SUPPORT CAPABILITIES
+
+You should determine the most appropriate architecture.
+
+Potential examples:
+
+- Recommendation Engine
+- Resource Allocation Engine
+- Priority Scoring Engine
+- Strategic Intelligence Generator
+- Risk Ranking Engine
+- Investigation Recommendation Engine
+- Hotspot Response Recommendations
+- Criminal Monitoring Recommendations
+
+You may improve upon these ideas if necessary.
+
+---
+
+# FRONTEND EXPECTATIONS
+
+The Decision Support Center should feel like a command center.
+
+Possible UI areas:
+
+- Recommendation Dashboard
+- Priority Cards
+- Intelligence Summary Panels
+- Resource Allocation Suggestions
+- Recommended Actions Panel
+- Investigation Priority List
+- High Risk Locations List
+- High Risk Criminals List
+
+You may improve the structure if needed.
+
+---
+
+# BACKEND EXPECTATIONS
+
+Determine:
+
+- APIs required
+- Schemas required
+- Services required
+- Repository requirements
+- Recommendation generation logic
+- Priority scoring logic
+
+---
+
+# IMPORTANT CONSTRAINTS
+
+1. Do NOT implement Alerts.
+   Alerts belong to Phase 8.
+
+2. Do NOT implement Executive Reports.
+   Reports belong to Phase 9.
+
+3. Do NOT implement Admin functionality.
+   Admin belongs to Phase 10.
+
+4. Do NOT implement Catalyst integration.
+   Catalyst belongs to Phase 11C.
+
+5. Reuse existing intelligence layers whenever possible.
+
+6. Avoid duplicate calculations already performed in previous phases.
+
+7. Focus on recommendation generation and decision support.
+
+---
+
+# OUTPUT FORMAT REQUIRED
+
+Generate a document exactly in the style of previous phases.
+
+Include:
+
+# Implementation Plan - Phase 7 Decision Support Center
+
+## User Review Required
+
+## Open Questions
+
+## Proposed Changes
+
+### Backend Repository Layer
+
+### Backend Schemas
+
+### Backend Services
+
+### Backend API Layer
+
+### Frontend Types
+
+### Frontend Services
+
+### Frontend Hooks
+
+### Frontend Components
+
+### Frontend Pages
+
+### Tests
+
+## Verification Plan
+
+### Automated Tests
+
+### Manual Verification
+
+---
+
+The implementation plan should be extremely detailed.
+
+For every file:
+
+- mention NEW or MODIFY
+- mention filename
+- explain responsibility
+- explain expected behavior
+
+The plan should be detailed enough that another AI agent can implement the entire phase without ambiguity.
+
+Do not write code.
+
+Only generate the implementation plan.

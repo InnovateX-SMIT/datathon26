@@ -98,7 +98,16 @@ def generate_alerts(
     """
     try:
         service = AlertService(db)
-        return service.generate_alerts_from_intelligence()
+        alerts = service.generate_alerts_from_intelligence()
+        
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=current_user.id if current_user and not isinstance(current_user, dict) else (current_user.get("id") if isinstance(current_user, dict) else None),
+            action="ALERT_CREATED",
+            details=f"Generated {len(alerts)} alerts from intelligence"
+        )
+        return alerts
     except Exception as e:
         logger.error(f"Error in generate_alerts: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -144,6 +153,16 @@ def update_alert_status(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Alert with ID {id} not found."
             )
+            
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=user_id,
+            action=f"ALERT_{payload.status}", # ALERT_ACKNOWLEDGED, ALERT_RESOLVED, etc
+            entity_type="alert",
+            entity_id=id,
+            details=f"Alert {id} status updated to {payload.status}"
+        )
         return alert
     except HTTPException as he:
         raise he

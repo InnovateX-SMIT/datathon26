@@ -122,6 +122,17 @@ def generate_report(
             title=payload.title,
             report_type=payload.report_type
         )
+        
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=current_user.id if current_user and not isinstance(current_user, dict) else (current_user.get("id") if isinstance(current_user, dict) else None),
+            action="REPORT_GENERATED",
+            entity_type="report",
+            entity_id=report_data.get("report_id"),
+            details=f"Generated {payload.report_type} report '{payload.title}'"
+        )
+        
         return ReportResponse(**report_data)
     except ValueError as ve:
         raise HTTPException(
@@ -155,6 +166,16 @@ def download_report_csv(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Report with ID {report_id} not found."
             )
+        # Audit log the download
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=current_user.id if current_user and not isinstance(current_user, dict) else (current_user.get("id") if isinstance(current_user, dict) else None),
+            action="REPORT_DOWNLOADED",
+            entity_type="report",
+            entity_id=report_id,
+            details=f"Downloaded CSV export for report ID {report_id}"
+        )
             
         # Compile CSV in-memory
         output = io.StringIO()

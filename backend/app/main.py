@@ -55,6 +55,7 @@ def migrate_database_schema(db_engine):
                 conn.execute(text(sql))
             if missing_cols:
                 logger.info("Database schema migration completed successfully.")
+        logger.info("AuditLog table ensured via create_all.")
     except Exception as e:
         logger.error(f"Error during dynamic alerts table migration: {e}")
 

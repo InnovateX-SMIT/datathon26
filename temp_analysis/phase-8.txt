@@ -1,0 +1,573 @@
+# PHASE 8 – ALERTS & MONITORING
+
+## PROJECT CONTEXT
+
+You are working on an existing Datathon project:
+
+**AI-Powered Crime Intelligence & Decision Support Platform**
+
+This project has been developed phase-by-phase.
+
+Completed and reviewed phases:
+
+* Phase 0 → Blueprint & Foundation
+* Phase 1 → Authentication & Layout Foundation
+* Phase 1A → Data Foundation
+* Phase 2 → Command Center Dashboard
+* Phase 3 → Crime Analytics
+* Phase 4 → Geo Intelligence
+* Phase 5 → Predictive Intelligence
+* Phase 6A → Network Data Modeling
+* Phase 6B → Network Visualization
+* Phase 6C → Network Analytics
+* Phase 7 → Decision Support Center
+
+All previous phases are implemented, tested, reviewed, optimized, and merged.
+
+The project currently contains:
+
+* Authentication system
+* Crime analytics engine
+* Geo intelligence engine
+* Predictive intelligence engine
+* Criminal network intelligence engine
+* Decision support center
+* Resource allocation engine
+* Recommendation engine
+
+Phase 8 must build on top of existing outputs.
+
+DO NOT redesign previous phases.
+
+DO NOT rebuild existing modules.
+
+DO NOT duplicate intelligence logic already implemented.
+
+Consume outputs from existing systems.
+
+---
+
+# PHASE OBJECTIVE
+
+The platform can currently:
+
+* Analyze crime
+* Predict crime
+* Detect criminal relationships
+* Recommend actions
+
+However, the system still depends on users manually checking dashboards.
+
+Phase 8 introduces:
+
+**Operational Alerting & Monitoring**
+
+The goal is:
+
+* Detect important events automatically
+* Generate alerts
+* Store alerts
+* Track alerts
+* Manage alerts
+* Monitor active situations
+
+This phase transforms intelligence into operational awareness.
+
+---
+
+# WHAT ALERTS SHOULD BE GENERATED FROM
+
+Use existing intelligence modules.
+
+Alerts must be generated from:
+
+## Predictive Intelligence
+
+Examples:
+
+* Hotspot probability above threshold
+* High crime risk prediction
+* Repeat offender probability above threshold
+* High-risk criminal prediction
+
+---
+
+## Network Intelligence
+
+Examples:
+
+* Large criminal cluster detected
+* High-centrality criminal discovered
+* Significant co-offender network identified
+* Critical network bridge identified
+
+---
+
+## Decision Support Center
+
+Examples:
+
+* Resource allocation imbalance
+* High-priority recommendation generated
+* Critical recommendation unresolved
+* Resource shortage conditions
+
+---
+
+## Geo Intelligence
+
+Examples:
+
+* District risk exceeds threshold
+* Crime concentration hotspot detected
+* Station risk significantly elevated
+
+---
+
+# ALERT SEVERITY SYSTEM
+
+Implement:
+
+* CRITICAL
+* HIGH
+* MEDIUM
+* LOW
+
+Severity must be determined automatically.
+
+Examples:
+
+CRITICAL:
+
+* Major hotspot
+* High-risk offender
+* Large criminal network
+
+HIGH:
+
+* Resource shortage
+* High-risk recommendation
+
+MEDIUM:
+
+* Moderate risk prediction
+
+LOW:
+
+* Informational monitoring events
+
+---
+
+# ALERT STATUS SYSTEM
+
+Implement lifecycle tracking:
+
+* NEW
+* ACKNOWLEDGED
+* IN_PROGRESS
+* RESOLVED
+* DISMISSED
+
+Users must be able to update status.
+
+---
+
+# BACKEND REQUIREMENTS
+
+Implement complete backend support.
+
+## Alert Model
+
+Store:
+
+* id
+* title
+* description
+* severity
+* source
+* status
+* created_at
+* updated_at
+
+Optional:
+
+* assigned_user
+* metadata payload
+
+---
+
+## Repository Layer
+
+Create repository support for:
+
+* create alert
+* fetch alerts
+* filter alerts
+* update status
+* summary statistics
+
+---
+
+## Service Layer
+
+Create alert generation engine.
+
+Responsibilities:
+
+* Consume existing module outputs
+* Create alert records
+* Calculate severity
+* Prevent duplicates where appropriate
+* Generate summaries
+
+---
+
+## API LAYER
+
+Create endpoints under:
+
+/api/v1/alerts
+
+Expected routes:
+
+GET /alerts
+
+GET /alerts/{id}
+
+POST /alerts/generate
+
+PUT /alerts/{id}/status
+
+GET /alerts/summary
+
+Support filtering by:
+
+* severity
+* status
+* source
+
+---
+
+# FRONTEND REQUIREMENTS
+
+Replace current placeholder Alerts page.
+
+Create a complete Alerts Dashboard.
+
+---
+
+## Alerts Overview
+
+Show:
+
+* Active Alerts
+* Critical Alerts
+* Resolved Alerts
+* Alerts Today
+
+---
+
+## Alert Cards/Table
+
+Display:
+
+* Title
+* Description
+* Severity
+* Source
+* Status
+* Timestamp
+
+---
+
+## Filtering
+
+Allow filtering by:
+
+* Severity
+* Status
+* Source
+
+---
+
+## Alert Actions
+
+Allow:
+
+* Acknowledge
+* Start Investigation
+* Resolve
+* Dismiss
+
+These actions must update backend status.
+
+---
+
+## Monitoring Panel
+
+Create operational monitoring view showing:
+
+* Critical Alerts
+* Recently Generated Alerts
+* Active Investigations
+* Unresolved High Priority Alerts
+
+---
+
+# IMPORTANT PHASE BOUNDARIES
+
+DO NOT IMPLEMENT:
+
+* Email notifications
+* SMS notifications
+* WhatsApp notifications
+* Push notifications
+* WebSockets
+* Background workers
+* Celery
+* Kafka
+* RabbitMQ
+* Scheduled jobs
+* Catalyst Event Functions
+* Catalyst Cron Jobs
+
+Those belong to future deployment/integration phases.
+
+This phase is strictly:
+
+Alert Generation
++
+Alert Storage
++
+Alert Tracking
++
+Alert Management
++
+Alert Dashboard
+
+---
+
+# TESTING REQUIREMENTS
+
+Create tests for:
+
+Backend:
+
+* Alert creation
+* Alert generation
+* Alert filtering
+* Alert status updates
+* Alert summary endpoint
+
+Frontend:
+
+* Dashboard rendering
+* Filter behavior
+* Status updates
+* API integration
+
+---
+
+# IMPLEMENTATION PLAN REQUIRED
+
+DO NOT WRITE CODE YET.
+
+First create a professional implementation plan.
+
+The plan must include:
+
+1. Files to create
+2. Files to modify
+3. Backend architecture
+4. Frontend architecture
+5. Database changes
+6. APIs to add
+7. Tests to create
+8. Verification strategy
+9. Risks
+10. Phase boundary confirmation
+
+Return only the implementation plan for review.
+
+
+
+
+
+
+
+
+# PHASE 8 CRITICAL FIX - ALERTS DATABASE SCHEMA MISMATCH
+
+We have completed Phase 8 implementation but manual testing exposed a runtime failure.
+
+## Current Error
+
+Backend returns:
+
+```text
+sqlite3.OperationalError: no such column: alerts.title
+```
+
+Trace:
+
+```text
+SELECT alerts.id,
+alerts.crime_event_id,
+alerts.title,
+alerts.description,
+alerts.severity,
+alerts.source,
+alerts.status,
+alerts.assigned_user_id,
+alerts.metadata_payload,
+alerts.created_at,
+alerts.updated_at
+FROM alerts
+```
+
+The SQLAlchemy Alert model contains these fields but the SQLite database table was created before these columns existed.
+
+## Root Cause
+
+The project uses:
+
+```python
+Base.metadata.create_all()
+```
+
+This does not modify existing tables.
+
+It only creates missing tables.
+
+Therefore the database schema and SQLAlchemy model are out of sync.
+
+## Required Task
+
+Perform a complete Phase 8 database compatibility fix.
+
+### Step 1
+
+Inspect:
+
+```text
+backend/models/alert.py
+backend/core/database.py
+backend/app/main.py
+```
+
+Determine exactly how tables are created.
+
+### Step 2
+
+Inspect the actual SQLite schema:
+
+```sql
+PRAGMA table_info(alerts);
+```
+
+Compare it with the SQLAlchemy Alert model.
+
+Document every missing column.
+
+### Step 3
+
+Implement a safe development migration strategy.
+
+Requirements:
+
+* Do NOT use Alembic.
+* Do NOT redesign the database.
+* Do NOT remove existing alert records.
+* Maintain compatibility with the current SQLite development workflow.
+
+Allowed approaches:
+
+Option A (preferred):
+Create a startup migration helper that checks for missing alert columns and adds them using ALTER TABLE statements.
+
+Option B:
+If the project intentionally recreates local databases during development, implement controlled table recreation while preserving compatibility.
+
+Choose the safest solution for the current architecture.
+
+### Step 4
+
+Verify these columns exist after migration:
+
+```text
+title
+description
+source
+updated_at
+assigned_user_id
+metadata_payload
+```
+
+### Step 5
+
+Verify all Phase 8 routes:
+
+```text
+GET /api/v1/alerts
+GET /api/v1/alerts/summary
+GET /api/v1/alerts/{id}
+POST /api/v1/alerts/generate
+PUT /api/v1/alerts/{id}/status
+```
+
+### Step 6
+
+Run complete validation:
+
+```bash
+python -m pytest backend/tests/test_alert_service.py
+python -m pytest backend/tests/test_alert_api.py
+python -m pytest backend/tests
+```
+
+### Step 7
+
+Run manual verification:
+
+```text
+Open Alerts page
+Load alerts
+Load summary
+Generate alerts
+Update alert status
+Refresh page
+```
+
+All operations must complete without 500 errors.
+
+## Additional Investigation
+
+There is also a frontend warning:
+
+```text
+ResponsiveContainer width(-1) height(-1)
+```
+
+Investigate whether this comes from Recharts components elsewhere in the application.
+
+Determine:
+
+* exact component
+* severity
+* whether any fix is required
+
+If harmless, document it and leave unchanged.
+
+## Deliverables
+
+Provide:
+
+1. Root cause analysis.
+2. Files modified.
+3. Database migration approach used.
+4. Test results.
+5. Manual verification results.
+6. Confirmation that Alerts page loads successfully without 500 errors.
+
+```
+```

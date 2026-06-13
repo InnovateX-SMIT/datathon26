@@ -100,7 +100,17 @@ def generate_recommendations(
     """
     try:
         service = RecommendationService(db)
-        return service.generate_dynamic_recommendations()
+        recs = service.generate_dynamic_recommendations()
+        
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=current_user.id if current_user and not isinstance(current_user, dict) else (current_user.get("id") if isinstance(current_user, dict) else None),
+            action="RECOMMENDATION_GENERATED",
+            details=f"Generated {len(recs)} dynamic recommendations"
+        )
+        
+        return recs
     except Exception as e:
         logger.error(f"Error in generate_recommendations: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -126,6 +136,17 @@ def update_recommendation_status(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Recommendation with ID {id} not found."
             )
+            
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=current_user.id if current_user and not isinstance(current_user, dict) else (current_user.get("id") if isinstance(current_user, dict) else None),
+            action="RECOMMENDATION_STATUS_CHANGED",
+            entity_type="recommendation",
+            entity_id=id,
+            details=f"Recommendation {id} status changed to {payload.status}"
+        )
+        
         return rec
     except HTTPException as he:
         raise he

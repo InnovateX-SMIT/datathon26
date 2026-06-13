@@ -1,0 +1,796 @@
+PHASE 9 IMPLEMENTATION PROMPT — EXECUTIVE REPORTS
+
+You are a senior software architect and technical lead for Datathon 2026.
+
+You are helping build an AI-Powered Crime Intelligence & Decision Support Platform.
+
+Before doing anything:
+
+READ ALL PROJECT DOCUMENTATION COMPLETELY.
+
+Do not skip any file.
+
+The uploaded project documents are the source of truth.
+
+Do not redesign:
+
+* Architecture
+* Database
+* Folder Structure
+* API Structure
+* Service Structure
+* Technology Stack
+
+These are already finalized and approved.
+
+Every decision must align with:
+
+* SYSTEM_ARCHITECTURE.md
+* DATA_ARCHITECTURE.md
+* DATABASE_DESIGN.md
+* PROJECT_FOLDER_STRUCTURE.md
+* MASTER_CONTEXT documents
+
+⸻
+
+CURRENT STACK
+
+Frontend
+
+* Next.js
+* TypeScript
+* TailwindCSS
+* Recharts
+* Leaflet
+* React Flow
+
+Backend
+
+* FastAPI
+* SQLAlchemy
+* JWT
+
+Database
+
+* PostgreSQL
+
+Machine Learning
+
+* XGBoost
+* Scikit-Learn
+* SHAP
+* NetworkX
+
+Deployment
+
+* Zoho Catalyst
+
+⸻
+
+PHASE NAME
+
+Phase 9 — Executive Reports
+
+⸻
+
+PHASE OBJECTIVE
+
+Implement the Executive Reports module.
+
+This phase belongs to:
+
+Decision Support Engine
+
+Executive Reports is one of the approved WOW features of the platform.
+
+Purpose:
+
+Transform platform intelligence into executive-level decision support information for:
+
+* District Superintendents
+* Senior Police Officers
+* Strategic Decision Makers
+
+This module must consolidate intelligence from existing platform engines and present it in a structured report format.
+
+The goal is NOT to create another dashboard.
+
+The goal is to convert:
+
+Data
+↓
+Analytics
+↓
+Predictions
+↓
+Network Intelligence
+↓
+Recommendations
+↓
+Executive Intelligence
+
+⸻
+
+IMPORTANT PHASE BOUNDARY
+
+This phase ONLY implements:
+
+* Report data aggregation
+* Report APIs
+* Report service layer
+* Report dashboard page
+* Report viewing functionality
+
+This phase MUST NOT implement:
+
+* PDF generation
+* Report export
+* SmartBrowz integration
+* Email delivery
+* Scheduled reports
+* AI-generated narratives
+* Gemini integration
+* OpenAI integration
+* QuickML integration
+* Catalyst workflows
+* Download buttons
+* Print mode
+* Report sharing
+
+Those belong to future phases.
+
+Do not implement future phases.
+
+⸻
+
+REPORT DATA SOURCES
+
+Reports must aggregate information from existing platform modules.
+
+Use existing data sources only.
+
+Sources:
+
+1. Crime Analytics Engine
+2. Predictive Intelligence Engine
+3. Criminal Network Intelligence Engine
+4. Decision Support Engine
+5. Alert Engine
+
+Examples of information to aggregate:
+
+Crime Intelligence
+
+* Total crimes
+* Crime categories
+* Crime trends
+* High-crime districts
+* Historical comparisons
+
+Predictive Intelligence
+
+* High-risk locations
+* Risk score summaries
+* Hotspot predictions
+* Repeat offender insights
+
+Network Intelligence
+
+* Criminal network summaries
+* Largest network size
+* Most connected entities
+* Network cluster counts
+
+Decision Support
+
+* Recommendations
+* Resource allocation insights
+
+Alerts
+
+* Active alerts
+* Alert severity summaries
+
+⸻
+
+FILES THAT MAY BE MODIFIED
+
+Backend
+
+backend/services/report_service.py
+
+backend/api/reports/router.py
+
+backend/models/report.py
+
+backend/app/main.py
+
+backend/requirements.txt
+
+Frontend
+
+frontend/app/reports/page.tsx
+
+frontend/package.json
+
+⸻
+
+NEW FILES TO CREATE
+
+Backend
+
+backend/schemas/report.py
+
+backend/repositories/report_repository.py
+
+Frontend
+
+frontend/features/reports/
+
+frontend/features/reports/components/
+
+frontend/features/reports/components/report-summary-card.tsx
+
+frontend/features/reports/components/report-metrics-grid.tsx
+
+frontend/features/reports/components/report-alerts-section.tsx
+
+frontend/features/reports/components/report-recommendations-section.tsx
+
+frontend/features/reports/components/report-network-summary.tsx
+
+frontend/features/reports/components/report-trends-section.tsx
+
+frontend/features/reports/services/report-service.ts
+
+frontend/features/reports/types/report.ts
+
+⸻
+
+FILES THAT MUST NOT BE TOUCHED
+
+Authentication
+
+backend/api/auth/*
+backend/core/security.py
+
+Crime APIs
+
+backend/api/crimes/*
+
+Geo APIs
+
+backend/api/geo/*
+
+Prediction APIs
+
+backend/api/predictions/*
+
+Network APIs
+
+backend/api/network/*
+
+Recommendation APIs
+
+backend/api/recommendations/*
+
+Alert APIs
+
+backend/api/alerts/*
+
+Analytics Layer
+
+analytics/*
+
+Machine Learning Layer
+
+ml/*
+
+Database Core
+
+backend/models/crime.py
+
+backend/models/criminal.py
+
+backend/models/location.py
+
+backend/models/police_station.py
+
+backend/models/prediction.py
+
+backend/models/recommendation.py
+
+backend/models/alert.py
+
+backend/models/victim.py
+
+Database Infrastructure
+
+database/*
+
+Infrastructure
+
+infrastructure/*
+
+Catalyst
+
+infrastructure/catalyst/*
+
+Do not modify any database table design.
+
+Do not create migrations.
+
+Do not redesign relationships.
+
+Do not redesign architecture.
+
+⸻
+
+REPORT TYPES
+
+Implement support for:
+
+1. District Intelligence Report
+2. Crime Trend Report
+3. Risk Assessment Report
+4. Network Intelligence Report
+5. Executive Summary Report
+
+Represent these using enums or constants.
+
+⸻
+
+REPORT SERVICE IMPLEMENTATION
+
+Implement Report Service responsibilities.
+
+Responsibilities:
+
+1. Generate executive report payloads
+2. Aggregate intelligence from existing services
+3. Return structured JSON responses
+4. Retrieve report history
+5. Retrieve individual reports
+6. Save report metadata if required
+
+The service should act as an intelligence aggregation layer.
+
+No business logic should be placed in routers.
+
+⸻
+
+REPORT RESPONSE STRUCTURE
+
+Standard response:
+
+{
+“report_id”: “”,
+“report_type”: “”,
+“title”: “”,
+“generated_at”: “”,
+
+“executive_summary”: “”,
+
+“crime_overview”: {
+“total_crimes”: 0,
+“top_categories”: [],
+“trend_direction”: “”
+},
+
+“predictive_insights”: {
+“high_risk_locations”: [],
+“hotspot_count”: 0,
+“risk_score_summary”: {}
+},
+
+“network_insights”: {
+“total_networks”: 0,
+“largest_network_size”: 0,
+“key_entities”: []
+},
+
+“recommendations”: [],
+
+“alerts”: []
+}
+
+Only include supported fields.
+
+Do not invent unsupported data structures.
+
+⸻
+
+API ENDPOINTS
+
+Implement:
+
+GET /api/reports
+
+Purpose:
+
+Return report list.
+
+⸻
+
+GET /api/reports/{report_id}
+
+Purpose:
+
+Return single report.
+
+⸻
+
+POST /api/reports/generate
+
+Purpose:
+
+Generate executive report.
+
+⸻
+
+GET /api/reports/types
+
+Purpose:
+
+Return supported report types.
+
+⸻
+
+SCHEMAS
+
+Create request and response schemas.
+
+Examples:
+
+ReportResponse
+
+ReportSummaryResponse
+
+ReportListResponse
+
+GenerateReportRequest
+
+ReportTypeResponse
+
+Use Pydantic schemas.
+
+All APIs must be fully typed.
+
+⸻
+
+REPOSITORY LAYER
+
+Implement:
+
+backend/repositories/report_repository.py
+
+Responsibilities:
+
+* Database access
+* Report retrieval
+* Report listing
+* Report persistence
+
+No business logic in repository layer.
+
+⸻
+
+FRONTEND IMPLEMENTATION
+
+Replace placeholder reports page.
+
+Build a proper Executive Reports Dashboard.
+
+⸻
+
+REQUIRED PAGE SECTIONS
+
+1. Report Header
+
+Display:
+
+* Report title
+* Report type
+* Generated timestamp
+
+⸻
+
+2. Executive Summary
+
+Display:
+
+* High-level intelligence summary
+
+⸻
+
+3. Crime Overview
+
+Display:
+
+* Total crimes
+* Trend direction
+* Top categories
+
+⸻
+
+4. Predictive Intelligence Summary
+
+Display:
+
+* High-risk locations
+* Risk indicators
+* Hotspot information
+
+⸻
+
+5. Network Intelligence Summary
+
+Display:
+
+* Network count
+* Largest network
+* Key entities
+
+⸻
+
+6. Recommendations Section
+
+Display:
+
+* Strategic recommendations
+
+⸻
+
+7. Alerts Section
+
+Display:
+
+* Active alerts
+* Alert severity indicators
+
+⸻
+
+UI REQUIREMENTS
+
+Use:
+
+* TailwindCSS
+* Existing design language
+* Existing layout system
+
+Design goals:
+
+* Executive-friendly
+* Professional
+* Clean
+* Intelligence-focused
+
+Not:
+
+* Experimental
+* Fancy
+* Animation-heavy
+
+The page should resemble an intelligence briefing dashboard.
+
+⸻
+
+FRONTEND SERVICE LAYER
+
+Create:
+
+frontend/features/reports/services/report-service.ts
+
+Responsibilities:
+
+* API communication
+* Typed requests
+* Typed responses
+* Error handling
+
+No hardcoded mock data.
+
+⸻
+
+FRONTEND TYPES
+
+Create:
+
+frontend/features/reports/types/report.ts
+
+Include:
+
+* Report
+* ReportSummary
+* ReportType
+* ExecutiveSummary
+* NetworkInsight
+* Recommendation
+* Alert
+
+⸻
+
+ERROR HANDLING
+
+Handle:
+
+* Missing reports
+* Invalid report IDs
+* Empty datasets
+* Missing alerts
+* Missing recommendations
+* Missing network data
+* Backend failures
+
+Return graceful UI states.
+
+No crashes.
+
+⸻
+
+REQUIREMENTS & DEPENDENCIES
+
+Review dependency files before implementation.
+
+Backend
+
+backend/requirements.txt
+
+Frontend
+
+frontend/package.json
+
+Only add dependencies if absolutely necessary.
+
+Preferred outcome:
+
+No new dependencies.
+
+If a dependency is required:
+
+* Add only what is needed
+* Keep additions minimal
+* Remove unused packages
+
+Do NOT add:
+
+* reportlab
+* pdfkit
+* weasyprint
+* openai
+* langchain
+* llama-index
+* google-generativeai
+* catalyst SDKs
+* smartbrowz SDKs
+* PDF export libraries
+
+This phase does not support exports or AI generation.
+
+⸻
+
+TESTING REQUIREMENTS
+
+Backend
+
+Verify:
+
+✓ Report generation works
+
+✓ Report retrieval works
+
+✓ Report listing works
+
+✓ Report type endpoint works
+
+✓ Invalid report ID handled
+
+✓ Empty dataset handled
+
+✓ Schema validation works
+
+✓ Service layer works
+
+✓ Repository layer works
+
+⸻
+
+Frontend
+
+Verify:
+
+✓ Reports page loads
+
+✓ API integration works
+
+✓ Report details render correctly
+
+✓ Recommendations render
+
+✓ Alerts render
+
+✓ Network insights render
+
+✓ Responsive layout works
+
+✓ Loading states work
+
+✓ Error states work
+
+✓ Empty states work
+
+⸻
+
+SUCCESS CRITERIA
+
+Phase is complete ONLY IF:
+
+✓ Report APIs exist
+
+✓ Report schemas implemented
+
+✓ Report repository implemented
+
+✓ Report service implemented
+
+✓ Reports page implemented
+
+✓ Executive summary displayed
+
+✓ Crime insights displayed
+
+✓ Predictive insights displayed
+
+✓ Network insights displayed
+
+✓ Recommendations displayed
+
+✓ Alerts displayed
+
+✓ Responsive UI completed
+
+✓ Backend and frontend compile successfully
+
+✓ No architecture violations
+
+✓ No database redesign
+
+✓ No future-phase functionality added
+
+✓ Dependency files reviewed and updated if necessary
+
+⸻
+
+REVIEW CHECKLIST
+
+Before marking Phase 9 complete verify:
+
+[ ] Folder structure unchanged
+
+[ ] Architecture unchanged
+
+[ ] Database unchanged
+
+[ ] Report APIs working
+
+[ ] Repository layer implemented
+
+[ ] Service layer implemented
+
+[ ] Schemas implemented
+
+[ ] Frontend integrated
+
+[ ] Responsive design verified
+
+[ ] No PDF generation
+
+[ ] No AI integration
+
+[ ] No Catalyst integration
+
+[ ] No export functionality
+
+[ ] No future-phase implementation
+
+Only Phase 9 deliverables should exist when implementation is complete.

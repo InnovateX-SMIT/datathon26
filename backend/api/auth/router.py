@@ -74,8 +74,16 @@ def get_current_user(
 # Routes
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    from backend.repositories.admin_repository import AdminRepository
+    admin_repo = AdminRepository(db)
+    
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
+        admin_repo.create_audit_log(
+            user_id=None,
+            action="LOGIN_FAILED",
+            details=f"Failed login attempt for {payload.email}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -83,6 +91,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         )
     
     access_token = create_access_token(subject=user.id)
+    admin_repo.create_audit_log(
+        user_id=user.id,
+        action="LOGIN_SUCCESS",
+        details="User logged in successfully"
+    )
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
