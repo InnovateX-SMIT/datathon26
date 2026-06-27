@@ -36,7 +36,7 @@ export default function SystemStatusBar({
   };
 
   const renderHeader = () => (
-    <div className="flex items-center gap-2 mb-4 md:hidden">
+    <div className="flex items-center gap-2 mb-4">
       <div className="w-1 h-5 bg-indigo-500 rounded" />
       <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
         System Health Status

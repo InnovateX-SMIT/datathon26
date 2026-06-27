@@ -97,7 +97,7 @@ export default function KPICard({
 
   if (loading) {
     return (
-      <div className="glass-card p-6 rounded-2xl border border-slate-800/60 flex flex-col justify-between h-[140px]">
+      <div className="glass-card p-6 rounded-2xl border border-slate-800/60 flex flex-col justify-between min-h-[140px]">
         <div className="flex items-start justify-between">
           <div className="w-10 h-10 bg-slate-800/50 rounded-xl animate-pulse" />
         </div>
@@ -111,7 +111,7 @@ export default function KPICard({
 
   if (error) {
     return (
-      <div className="glass-card p-5 rounded-2xl border-l-4 border-red-500 border border-slate-800/60 flex flex-col justify-between h-[140px]">
+      <div className="glass-card p-5 rounded-2xl border-l-4 border-red-500 border border-slate-800/60 flex flex-col justify-between min-h-[140px]">
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
           <div className="min-w-0">
@@ -132,7 +132,7 @@ export default function KPICard({
   }
 
   return (
-    <div className={`glass-card p-6 rounded-2xl border border-slate-800/60 flex flex-col justify-between h-[140px] relative overflow-hidden transition-all duration-300 ${colors.hover}`}>
+    <div className={`glass-card p-6 rounded-2xl border border-slate-800/60 flex flex-col justify-between min-h-[140px] relative overflow-hidden transition-all duration-300 ${colors.hover}`}>
       <div className="flex items-start justify-between">
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           {title}

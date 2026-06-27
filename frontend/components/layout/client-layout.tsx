@@ -46,7 +46,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   if (!user && !isLoginPage) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#070b13] text-slate-100">
-        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
+          <p className="text-xs text-slate-500 font-medium">Redirecting...</p>
+        </div>
       </div>
     );
   }
@@ -88,7 +91,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <Navbar />
 
         {/* Dynamic Route View */}
-        <main className="flex-1 overflow-y-auto px-8 py-8 relative bg-radial from-[#0d1527] to-[#070b13]">
+        <main className="flex-1 overflow-y-auto px-8 py-8 relative bg-radial from-[#0d1527] to-[#070b13] animate-fade-in">
           {hasAccess ? (
             children
           ) : (

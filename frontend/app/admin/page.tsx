@@ -115,15 +115,17 @@ export default function AdminPage() {
       )}
 
       {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
-      <div className="flex border-b border-slate-900">
+      <div className="flex border-b border-slate-900" role="tablist" aria-label="Admin sections">
         <div className="flex gap-2">
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`pb-4 px-4 text-xs uppercase tracking-widest font-black transition-all relative cursor-pointer ${
                 activeTab === tab.id
-                  ? "text-violet-400 border-b-2 border-violet-500"
+                  ? "text-violet-400 border-b-2 border-violet-500 bg-violet-500/5"
                   : "text-slate-500 hover:text-slate-350"
               }`}
             >
@@ -181,7 +183,7 @@ export default function AdminPage() {
       </div>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <div className="pt-8 border-t border-slate-900 flex justify-between items-center text-[10px] font-mono text-slate-600 tracking-wider">
+      <div className="pt-6 mt-4 border-t border-slate-900/60 flex justify-between items-center text-[9px] font-mono text-slate-700/60 tracking-widest select-none">
         <span>ADMIN CONTROL INFRASTRUCTURE</span>
         <span>PHASE 10 ENGINE ACTIVE</span>
       </div>

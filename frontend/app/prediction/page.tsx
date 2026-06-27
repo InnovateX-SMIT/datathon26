@@ -66,7 +66,7 @@ export default function PredictionPage() {
         </div>
 
         {/* Engine status indicator */}
-        <div className="flex items-center gap-2.5 px-4.5 py-2.5 bg-slate-950/60 border border-slate-800 rounded-2xl w-fit">
+        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-2xl w-fit">
           <Activity className={`w-4 h-4 ${engineHealth === "healthy" ? "text-green-400 animate-pulse" : engineHealth === "loading" ? "text-indigo-400 animate-spin" : "text-red-400"}`} />
           <div className="text-left">
             <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider">Predictive Engine Status</span>
@@ -134,7 +134,7 @@ export default function PredictionPage() {
       </div>
 
       {/* Footer System Grid Logs */}
-      <div className="pt-8 border-t border-slate-900 flex justify-between items-center text-[10px] font-mono text-slate-600 tracking-wider">
+      <div className="pt-6 mt-4 border-t border-slate-900/60 flex justify-between items-center text-[9px] font-mono text-slate-700/60 tracking-widest select-none">
         <span>SECURE PREDICTIVE INTELLIGENCE PLATFORM</span>
         <span>PHASE 5 ENGINE ACTIVE</span>
       </div>

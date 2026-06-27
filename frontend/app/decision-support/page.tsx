@@ -71,7 +71,7 @@ export default function DecisionSupportPage() {
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Actions */}
-        <div className="bg-slate-950/40 border border-slate-900/80 rounded-3xl p-5 backdrop-blur-md relative overflow-hidden flex items-center justify-between">
+        <div className="glass-card rounded-2xl p-5 border border-slate-800/60 relative overflow-hidden flex items-center justify-between transition-all duration-300 hover:border-slate-700/60">
           <div className="space-y-1">
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Total Suggestions</span>
             <span className="text-3xl font-black text-slate-200 font-mono block">{metrics.totalCount}</span>
@@ -82,7 +82,7 @@ export default function DecisionSupportPage() {
         </div>
 
         {/* Pending Actions */}
-        <div className="bg-slate-950/40 border border-slate-900/80 rounded-3xl p-5 backdrop-blur-md relative overflow-hidden flex items-center justify-between">
+        <div className="glass-card rounded-2xl p-5 border border-slate-800/60 relative overflow-hidden flex items-center justify-between transition-all duration-300 hover:border-slate-700/60">
           <div className="space-y-1">
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Pending Actions</span>
             <span className="text-3xl font-black text-amber-400 font-mono block">{metrics.pendingCount}</span>
@@ -93,7 +93,7 @@ export default function DecisionSupportPage() {
         </div>
 
         {/* Resolved Actions */}
-        <div className="bg-slate-950/40 border border-slate-900/80 rounded-3xl p-5 backdrop-blur-md relative overflow-hidden flex items-center justify-between">
+        <div className="glass-card rounded-2xl p-5 border border-slate-800/60 relative overflow-hidden flex items-center justify-between transition-all duration-300 hover:border-slate-700/60">
           <div className="space-y-1">
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Resolved Items</span>
             <span className="text-3xl font-black text-green-400 font-mono block">{metrics.resolvedCount}</span>
@@ -104,7 +104,7 @@ export default function DecisionSupportPage() {
         </div>
 
         {/* Solver Runs */}
-        <div className="bg-slate-950/40 border border-slate-900/80 rounded-3xl p-5 backdrop-blur-md relative overflow-hidden flex items-center justify-between">
+        <div className="glass-card rounded-2xl p-5 border border-slate-800/60 relative overflow-hidden flex items-center justify-between transition-all duration-300 hover:border-slate-700/60">
           <div className="space-y-1">
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">LP Solver Scenarios</span>
             <span className="text-3xl font-black text-indigo-400 font-mono block">{history.length}</span>
@@ -191,7 +191,7 @@ export default function DecisionSupportPage() {
       </div>
 
       {/* Footer System Roster */}
-      <div className="pt-8 border-t border-slate-900 flex justify-between items-center text-[10px] font-mono text-slate-600 tracking-wider">
+      <div className="pt-6 mt-4 border-t border-slate-900/60 flex justify-between items-center text-[9px] font-mono text-slate-700/60 tracking-widest select-none">
         <span>SECURE INTELLIGENCE-TO-ACTION INFRASTRUCTURE</span>
         <span>PHASE 7 ENGINE ACTIVE</span>
       </div>

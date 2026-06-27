@@ -4,12 +4,42 @@
   --background: #070b13;
   --foreground: #f8fafc;
   --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Chart color palette — semantic */
+  --chart-primary: #6366f1;   /* indigo — primary series */
+  --chart-secondary: #22d3ee; /* cyan — geographic/district */
+  --chart-tertiary: #a78bfa;  /* violet — categorical */
+  --chart-success: #34d399;   /* emerald — positive/closed */
+  --chart-warning: #fbbf24;   /* amber — medium severity */
+  --chart-danger: #f87171;    /* red — high severity */
+
+  /* Spacing scale */
+  --space-page: 2rem;         /* px-8 */
+  --space-section: 1.5rem;    /* gap-6 / space-y-6 */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* Global focus-visible ring for accessibility */
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove default outline (we handle it via focus-visible) */
+* {
+  outline: none;
+}
+
+/* Custom selection color */
+::selection {
+  background: rgba(99, 102, 241, 0.25);
+  color: #f8fafc;
 }
 
 /* Custom Scrollbar for modern feel */
@@ -35,12 +65,50 @@ body {
 .glass-card {
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(30, 41, 59, 0.5);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 
 .glass-card:hover {
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.35), 0 0 20px -8px rgba(99, 102, 241, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── Keyframe Animations ──────────────────────────────────────────────── */
+
+/* Fade In — used on page-level wrappers (animate-fade-in) */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Shake — used on error banners (animate-shake) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+/* Slide up — for tab panels */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── Tailwind Utility Registration ───────────────────────────────────── */
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .animate-shake {
+    animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+  .animate-slide-up {
+    animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
 }

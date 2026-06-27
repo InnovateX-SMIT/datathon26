@@ -79,7 +79,7 @@ export default function LoginPage() {
       <div className="w-full max-w-lg z-10 space-y-6">
         {/* Logo and branding */}
         <div className="text-center space-y-2">
-          <div className="inline-flex bg-indigo-600/10 border border-indigo-500/20 p-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.15)] animate-pulse">
+          <div className="inline-flex bg-indigo-600/10 border border-indigo-500/20 p-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.1)] hover:shadow-[0_0_30px_rgba(99,102,241,0.2)] transition-shadow duration-500">
             <ShieldAlert className="w-10 h-10 text-indigo-400" />
           </div>
           <div>
@@ -98,7 +98,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium leading-relaxed flex items-start gap-3 animate-shake">
+            <div role="alert" aria-live="polite" className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium leading-relaxed flex items-start gap-3 animate-shake">
               <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -107,13 +107,15 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Input */}
             <div className="space-y-1.5">
-              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Authorized Email</label>
+              <label htmlFor="email-input" className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Authorized Email</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none">
                   <Mail className="w-4 h-4" />
                 </span>
                 <input
+                  id="email-input"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   disabled={formLoading}
                   onChange={(e) => {
@@ -131,13 +133,15 @@ export default function LoginPage() {
 
             {/* Password Input */}
             <div className="space-y-1.5">
-              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Security Password</label>
+              <label htmlFor="password-input" className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Security Password</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
+                  id="password-input"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   disabled={formLoading}
                   onChange={(e) => {

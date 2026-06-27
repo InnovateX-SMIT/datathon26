@@ -69,9 +69,12 @@ export default function AlertsPage() {
       <AlertStats summary={summary} loading={summaryLoading} />
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-slate-900">
+      <div className="flex border-b border-slate-900" role="tablist" aria-label="Alert views">
         <div className="flex gap-2">
           <button
+            role="tab"
+            aria-selected={activeTab === "dispatch"}
+            aria-controls="tab-dispatch"
             onClick={() => setActiveTab("dispatch")}
             className={`pb-4 px-4 text-xs uppercase tracking-widest font-black transition-all relative cursor-pointer flex items-center gap-1.5 ${
               activeTab === "dispatch"
@@ -83,6 +86,9 @@ export default function AlertsPage() {
             Tactical Dispatch Triage
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === "logs"}
+            aria-controls="tab-logs"
             onClick={() => setActiveTab("logs")}
             className={`pb-4 px-4 text-xs uppercase tracking-widest font-black transition-all relative cursor-pointer flex items-center gap-1.5 ${
               activeTab === "logs"
@@ -98,14 +104,14 @@ export default function AlertsPage() {
 
       {/* Global Error Banner */}
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-xs flex gap-2.5 items-center max-w-4xl animate-shake">
+        <div role="alert" className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-3xl text-rose-400 text-xs flex gap-2.5 items-center max-w-4xl animate-shake">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Tab Panels */}
-      <div className="min-h-[450px]">
+      <div className="min-h-[450px]" role="tabpanel" id={activeTab === "dispatch" ? "tab-dispatch" : "tab-logs"}>
         {activeTab === "dispatch" && (
           <MonitoringView
             alerts={alerts}
@@ -131,7 +137,7 @@ export default function AlertsPage() {
       </div>
 
       {/* Footer System Roster */}
-      <div className="pt-8 border-t border-slate-900 flex justify-between items-center text-[10px] font-mono text-slate-600 tracking-wider">
+      <div className="pt-6 mt-4 border-t border-slate-900/60 flex justify-between items-center text-[9px] font-mono text-slate-700/60 tracking-widest select-none">
         <span>CRIME INTELLIGENCE COMMAND INFRASTRUCTURE</span>
         <span>PHASE 8 RULE ENGINE ACTIVE</span>
       </div>
