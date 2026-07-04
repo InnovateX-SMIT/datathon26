@@ -8,6 +8,8 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 import time
+import threading
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -55,6 +57,21 @@ def migrate_database_schema(db_engine):
                 conn.execute(text(sql))
             if missing_cols:
                 logger.info("Database schema migration completed successfully.")
+
+            # Handle recommendations table migration
+            result = conn.execute(text("PRAGMA table_info(recommendations)"))
+            rec_columns = {row[1] for row in result.fetchall()}
+            if rec_columns and "updated_at" not in rec_columns:
+                conn.execute(text("ALTER TABLE recommendations ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"))
+                logger.info("Added missing 'updated_at' column to recommendations table.")
+
+            # Handle reports table migration
+            result = conn.execute(text("PRAGMA table_info(reports)"))
+            rpt_cols = {row[1] for row in result.fetchall()}
+            if rpt_cols and "data_payload" not in rpt_cols:
+                conn.execute(text("ALTER TABLE reports ADD COLUMN data_payload TEXT NULL"))
+                logger.info("Added missing 'data_payload' column to reports table.")
+
         logger.info("AuditLog table ensured via create_all.")
     except Exception as e:
         logger.error(f"Error during dynamic alerts table migration: {e}")
@@ -111,10 +128,40 @@ if settings.ENVIRONMENT == "development":
     finally:
         db.close()
 
+def _warmup_network_cache():
+    """Background thread: pre-builds all NetworkAnalyticsService caches at startup."""
+    from backend.core.database import SessionLocal
+    from backend.services.network_analytics_service import NetworkAnalyticsService
+    db = SessionLocal()
+    try:
+        logger.info("Network cache warmup started...")
+        svc = NetworkAnalyticsService(db)
+        svc.get_graph()
+        svc.get_centrality()
+        svc.get_clusters()
+        svc.get_repeat_associations()
+        svc.get_location_intelligence()
+        logger.info("Network cache warmup complete.")
+    except Exception as e:
+        logger.error(f"Network cache warmup failed: {e}", exc_info=True)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Only pre-warm on non-test environments
+    if settings.ENVIRONMENT != "test":
+        thread = threading.Thread(target=_warmup_network_cache, daemon=True)
+        thread.start()
+    yield
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware

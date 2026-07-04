@@ -43,6 +43,9 @@ def get_alerts(
             detail="Error occurred while listing alerts"
         )
 
+# IMPORTANT: /summary MUST be defined BEFORE /{id}.
+# FastAPI uses first-match-wins routing. Moving /{id} above this line
+# would silently cause GET /summary to route to get_alert_by_id("summary").
 @router.get("/summary", response_model=AlertSummaryResponse)
 def get_alerts_summary(
     db: Session = Depends(get_db),

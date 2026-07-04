@@ -24,6 +24,7 @@ export async function fetchAlerts(
   const res = await axios.get<Alert[]>(`${API_BASE}/api/v1/alerts/`, {
     headers: getAuthHeaders(),
     params,
+    timeout: 20000,
   });
   return res.data;
 }
@@ -31,6 +32,7 @@ export async function fetchAlerts(
 export async function fetchAlertSummary(): Promise<AlertSummary> {
   const res = await axios.get<AlertSummary>(`${API_BASE}/api/v1/alerts/summary`, {
     headers: getAuthHeaders(),
+    timeout: 20000,
   });
   return res.data;
 }
@@ -38,6 +40,7 @@ export async function fetchAlertSummary(): Promise<AlertSummary> {
 export async function fetchAlertById(id: number): Promise<Alert> {
   const res = await axios.get<Alert>(`${API_BASE}/api/v1/alerts/${id}`, {
     headers: getAuthHeaders(),
+    timeout: 20000,
   });
   return res.data;
 }
@@ -46,7 +49,7 @@ export async function generateAlerts(): Promise<Alert[]> {
   const res = await axios.post<Alert[]>(
     `${API_BASE}/api/v1/alerts/generate`,
     {},
-    { headers: getAuthHeaders() }
+    { headers: getAuthHeaders(), timeout: 30000 }
   );
   return res.data;
 }
@@ -62,7 +65,7 @@ export async function updateAlertStatus(
       status,
       assigned_user_id: assignedUserId,
     },
-    { headers: getAuthHeaders() }
+    { headers: getAuthHeaders(), timeout: 15000 }
   );
   return res.data;
 }

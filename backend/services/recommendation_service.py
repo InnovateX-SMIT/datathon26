@@ -64,10 +64,7 @@ class RecommendationService:
         # Run optimization for each resource type
         solved_allocations = []
         
-        # Target values
-        asi_targets = [sw["weight"] * sanctioned_asi for sw in station_weights]
-        chc_targets = [sw["weight"] * sanctioned_cpc for sw in station_weights]  # wait, chc targeted relative to total
-        # Let's allocate each separately
+        # Correct proportional targets per resource type
         asi_targets = [sw["weight"] * sanctioned_asi for sw in station_weights]
         chc_targets = [sw["weight"] * sanctioned_chc for sw in station_weights]
         cpc_targets = [sw["weight"] * sanctioned_cpc for sw in station_weights]

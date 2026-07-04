@@ -1,3 +1,4 @@
+import json
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Dict, Any, Optional
@@ -63,8 +64,13 @@ class ReportService:
         db_report = self.repo.get_report_by_id(report_id)
         if not db_report:
             return None
-        
-        # Build aggregation response using stored summary
+        # Fast path: return cached payload if available
+        if db_report.data_payload:
+            try:
+                return json.loads(db_report.data_payload)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        # Slow path: re-assemble (only for legacy reports without payload)
         return self._assemble_report_response(db_report)
 
     def trigger_report_generation(self, title: str, report_type: str) -> Dict[str, Any]:
@@ -83,16 +89,33 @@ class ReportService:
             report_type, overview, predictions, networks, recs, alerts
         )
 
-        # Persist report metadata
+        # Assemble the full response dict before persisting
+        assembled = self._assemble_report_response(
+            type('_TmpReport', (), {
+                'id': None, 'report_type': report_type,
+                'title': title, 'generated_at': None, 'summary': summary_text
+            })(),
+            overview, predictions, networks, recs, alerts
+        )
+
+        # Serialize assembled payload for fast-path cache
+        try:
+            payload_json = json.dumps(assembled, default=str)
+        except (TypeError, ValueError):
+            payload_json = None
+
+        # Persist report metadata with cached payload
         db_report = self.repo.create_report(
             title=title,
             report_type=report_type,
-            summary=summary_text
+            summary=summary_text,
+            data_payload=payload_json
         )
 
-        return self._assemble_report_response(
-            db_report, overview, predictions, networks, recs, alerts
-        )
+        # Return with correct report_id from the persisted row
+        assembled["report_id"] = db_report.id
+        assembled["generated_at"] = db_report.generated_at
+        return assembled
 
     def _assemble_report_response(
         self,

@@ -10,3 +10,4 @@ class Report(Base):
     report_type = Column(String(100), index=True, nullable=False)
     
     generated_at = Column(DateTime(timezone=True), index=True, server_default=func.now())
+    data_payload = Column(String, nullable=True)  # JSON-serialized full report response

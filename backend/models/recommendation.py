@@ -13,6 +13,7 @@ class Recommendation(Base):
     status = Column(String(50), index=True, default="pending")
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     crime_event = relationship("CrimeEvent", back_populates="recommendations")

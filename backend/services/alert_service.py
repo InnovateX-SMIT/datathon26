@@ -173,11 +173,17 @@ class AlertService:
         # ==========================================
         # 4. GEO ALERTS
         # ==========================================
-        # High crime density concentration alerts
+        # High crime density concentration alerts — restricted to last 30 days to avoid
+        # stale historical counts permanently triggering alerts
+        from datetime import date, timedelta
+        thirty_days_ago = date.today() - timedelta(days=30)
+
         geo_results = self.db.query(
             Location.district, func.count(CrimeEvent.id).label("crime_count")
         ).join(
             Location, CrimeEvent.location_id == Location.id
+        ).filter(
+            CrimeEvent.crime_date >= thirty_days_ago
         ).group_by(Location.district).all()
 
         for dist_name, count in geo_results:

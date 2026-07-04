@@ -248,14 +248,6 @@ class NetworkAnalyticsService:
         from collections import defaultdict
         import itertools
 
-    def get_repeat_associations(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        Discovers co-offending pairs of criminals appearing together on the same crime events,
-        determining Jaccard-based association strength and co-occurrence frequency.
-        """
-        from collections import defaultdict
-        import itertools
-
         is_test = False
         try:
             bind = self.db.bind

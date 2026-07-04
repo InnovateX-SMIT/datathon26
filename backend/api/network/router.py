@@ -18,18 +18,29 @@ from backend.services.network_analytics_service import NetworkAnalyticsService
 router = APIRouter()
 
 @router.get("/graph")
-def get_network_graph() -> Dict[str, Any]:
-    return {
-        "nodes": [
-            {"id": "c_1", "label": "Criminal A", "type": "criminal", "risk": 0.8},
-            {"id": "c_2", "label": "Criminal B", "type": "criminal", "risk": 0.5},
-            {"id": "e_1", "label": "FIR 0042/2026", "type": "event", "severity": 2.0}
-        ],
-        "edges": [
-            {"source": "c_1", "target": "e_1", "role": "accused"},
-            {"source": "c_2", "target": "e_1", "role": "accomplice"}
-        ]
-    }
+def get_network_graph_summary(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Returns summary statistics of the criminal intelligence network graph."""
+    try:
+        service = NetworkAnalyticsService(db)
+        G = service.get_graph()
+        node_types = {}
+        for _, attr in G.nodes(data=True):
+            t = attr.get("type", "unknown")
+            node_types[t] = node_types.get(t, 0) + 1
+        return {
+            "total_nodes": G.number_of_nodes(),
+            "total_edges": G.number_of_edges(),
+            "node_type_breakdown": node_types
+        }
+    except Exception as e:
+        logger.error(f"Error in get_network_graph_summary: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while retrieving network graph summary"
+        )
 
 @router.get("/centrality", response_model=CentralityResponse)
 def get_network_centrality(

@@ -19,7 +19,7 @@ class ReportRepository:
         """
         return self.db.query(Report).filter(Report.id == report_id).first()
 
-    def create_report(self, title: str, report_type: str, summary: Optional[str] = None) -> Report:
+    def create_report(self, title: str, report_type: str, summary: Optional[str] = None, data_payload: Optional[str] = None) -> Report:
         """
         Creates and persists a new report metadata entry.
         """
@@ -27,6 +27,7 @@ class ReportRepository:
             title=title,
             report_type=report_type,
             summary=summary,
+            data_payload=data_payload,
             generated_at=datetime.utcnow()
         )
         self.db.add(db_report)
