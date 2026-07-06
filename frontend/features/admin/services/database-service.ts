@@ -134,8 +134,11 @@ export interface DatasetInfo {
   original_filename: string;
   source_type: string;
   row_count: number;
+  column_count?: number;
   file_size: number;
   status: string;
+  upload_status?: string;
+  storage_path?: string | null;
   is_active: boolean;
   import_summary: string | null;
   upload_time: string | null;

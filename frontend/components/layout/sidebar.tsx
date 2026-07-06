@@ -17,7 +17,8 @@ import {
   Database,
   Pin,
   PinOff,
-  Sparkles
+  Sparkles,
+  Layers
 } from "lucide-react";
 
 interface SidebarProps {
