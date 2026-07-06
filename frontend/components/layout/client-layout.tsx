@@ -74,6 +74,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   if (pathname.startsWith("/admin") && userRole !== "ADMIN") {
     hasAccess = false;
+  } else if (pathname.startsWith("/database-management") && userRole !== "ADMIN") {
+    hasAccess = false;
   } else if (pathname.startsWith("/reports") && !["ADMIN", "SUPERINTENDENT"].includes(userRole)) {
     hasAccess = false;
   } else if (pathname.startsWith("/decision-support") && !["ADMIN", "SUPERINTENDENT"].includes(userRole)) {

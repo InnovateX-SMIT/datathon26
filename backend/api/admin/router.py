@@ -19,6 +19,12 @@ from backend.services.admin_service import AdminService
 
 router = APIRouter()
 
+# Include database management sub-router
+from backend.api.admin.database import router as database_router
+router.include_router(database_router, prefix="/database")
+
+
+
 
 # ── Role Guard ────────────────────────────────────────────────────────────────
 

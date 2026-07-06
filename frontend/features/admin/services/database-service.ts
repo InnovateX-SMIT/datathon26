@@ -1,0 +1,134 @@
+import axios from "axios";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+function getAuthHeaders(isMultipart = false) {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("datathon_auth_token")
+      : null;
+  return {
+    ...(isMultipart ? {} : { "Content-Type": "application/json" }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export interface DatabaseStats {
+  health: string;
+  counts: Record<string, number>;
+  last_updated: Record<string, string | null>;
+  timestamp: string;
+}
+
+export interface BulkUploadSummary {
+  total_rows: number;
+  valid_count: number;
+  invalid_count: number;
+  errors: Array<{
+    row: number;
+    errors: Record<string, string>;
+    raw_data: Record<string, any>;
+  }>;
+  preview: Array<Record<string, any>>;
+}
+
+export async function fetchDatabaseStats(): Promise<DatabaseStats> {
+  const res = await axios.get<DatabaseStats>(`${API_BASE}/api/v1/admin/database/stats`, {
+    headers: getAuthHeaders(),
+  });
+  return res.data;
+}
+
+export async function fetchTableRecords(
+  table: string,
+  page: number = 1,
+  pageSize: number = 10,
+  q?: string,
+  sortBy?: string,
+  sortOrder?: string,
+  filters?: Record<string, any>
+): Promise<{ records: any[]; total: number; page: number; page_size: number }> {
+  const params: Record<string, any> = {
+    page,
+    page_size: pageSize,
+  };
+  if (q && q.trim() !== "") params.q = q;
+  if (sortBy) params.sort_by = sortBy;
+  if (sortOrder) params.sort_order = sortOrder;
+  if (filters && Object.keys(filters).length > 0) {
+    params.filters = JSON.stringify(filters);
+  }
+
+  const res = await axios.get(`${API_BASE}/api/v1/admin/database/${table}`, {
+    headers: getAuthHeaders(),
+    params,
+  });
+  return res.data;
+}
+
+export async function fetchRecordById(table: string, id: number): Promise<any> {
+  const res = await axios.get(`${API_BASE}/api/v1/admin/database/${table}/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return res.data;
+}
+
+export async function createRecord(table: string, data: any): Promise<any> {
+  const res = await axios.post(`${API_BASE}/api/v1/admin/database/${table}`, data, {
+    headers: getAuthHeaders(),
+  });
+  return res.data;
+}
+
+export async function updateRecord(table: string, id: number, data: any): Promise<any> {
+  const res = await axios.put(`${API_BASE}/api/v1/admin/database/${table}/${id}`, data, {
+    headers: getAuthHeaders(),
+  });
+  return res.data;
+}
+
+export async function deleteRecord(table: string, id: number): Promise<any> {
+  const res = await axios.delete(`${API_BASE}/api/v1/admin/database/${table}/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return res.data;
+}
+
+export async function bulkUpload(
+  table: string,
+  file: File,
+  preview: boolean = false
+): Promise<BulkUploadSummary> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await axios.post<BulkUploadSummary>(
+    `${API_BASE}/api/v1/admin/database/${table}/bulk-upload`,
+    formData,
+    {
+      headers: getAuthHeaders(true),
+      params: { preview },
+    }
+  );
+  return res.data;
+}
+
+export async function exportTable(
+  table: string,
+  format: "csv" | "excel" = "csv",
+  filters?: Record<string, any>
+): Promise<Blob> {
+  const params: Record<string, any> = {
+    export_format: format,
+  };
+  if (filters && Object.keys(filters).length > 0) {
+    params.filters = JSON.stringify(filters);
+  }
+
+  const res = await axios.get(`${API_BASE}/api/v1/admin/database/${table}/export`, {
+    headers: getAuthHeaders(),
+    params,
+    responseType: "blob",
+  });
+  return res.data;
+}

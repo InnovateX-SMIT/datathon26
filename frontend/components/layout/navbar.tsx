@@ -15,6 +15,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/alerts": "Alerts Panel",
   "/reports": "Executive Reports",
   "/admin": "Admin Portal",
+  "/database-management": "Database Management",
 };
 
 export default function Navbar() {

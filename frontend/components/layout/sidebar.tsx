@@ -15,7 +15,8 @@ import {
   FileSpreadsheet, 
   ShieldCheck, 
   Lock,
-  User
+  User,
+  Database
 } from "lucide-react";
 
 interface SidebarProps {
@@ -36,6 +37,7 @@ export default function Sidebar({ role }: SidebarProps) {
     { name: "Alerts Panel", href: "/alerts", icon: Bell, roles: ["ADMIN", "SUPERINTENDENT", "OFFICER"] },
     { name: "Executive Reports", href: "/reports", icon: FileSpreadsheet, roles: ["ADMIN", "SUPERINTENDENT"] },
     { name: "Admin Portal", href: "/admin", icon: ShieldCheck, roles: ["ADMIN"] },
+    { name: "Database Management", href: "/database-management", icon: Database, roles: ["ADMIN"] },
   ];
 
   const groups = [
@@ -49,7 +51,7 @@ export default function Sidebar({ role }: SidebarProps) {
     },
     {
       label: "Administration",
-      items: menuItems.filter(i => ["/reports", "/admin"].includes(i.href)),
+      items: menuItems.filter(i => ["/reports", "/admin", "/database-management"].includes(i.href)),
     },
   ];
 
