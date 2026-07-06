@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Network, Activity, HelpCircle } from "lucide-react";
 import NetworkSearch from "./NetworkSearch";
 import NetworkStatistics from "./NetworkStatistics";
@@ -15,12 +15,32 @@ export default function NetworkViewer() {
     loading,
     error,
     loadNetwork,
+    loadSamples,
+    sampleCriminals,
+    activeDatasetId,
     statistics,
   } = useNetworkGraph();
 
   const handleSearch = (criminalId: number) => {
     loadNetwork(criminalId);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function initializeSamples() {
+      const samples = await loadSamples();
+      if (!cancelled && samples[0]) {
+        loadNetwork(samples[0].id);
+      }
+    }
+    initializeSamples();
+    const handleDatasetChange = () => initializeSamples();
+    window.addEventListener("activeDatasetChanged", handleDatasetChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("activeDatasetChanged", handleDatasetChange);
+    };
+  }, [loadSamples, loadNetwork]);
 
   const hasGraphData = nodes.length > 0;
 
@@ -64,13 +84,13 @@ export default function NetworkViewer() {
       </div>
 
       {/* 2. Search Panel */}
-      <NetworkSearch onSearch={handleSearch} loading={loading} />
+      <NetworkSearch onSearch={handleSearch} loading={loading} samples={sampleCriminals} activeDatasetId={activeDatasetId} />
 
       {/* Error Message Banner */}
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-semibold flex items-center gap-3 max-w-4xl mx-auto shadow-md">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
-          <span>{error} Please check the ID and try again.</span>
+          <span>{error} Use one of the active-dataset suggestions or switch datasets and try again.</span>
         </div>
       )}
 
@@ -106,7 +126,7 @@ export default function NetworkViewer() {
       ) : (
         !loading && (
           <div className="border border-dashed border-slate-900 bg-slate-950/20 rounded-3xl p-16 flex flex-col items-center justify-center text-center max-w-2xl mx-auto shadow-inner space-y-4">
-            <div className="p-4 bg-slate-950/60 border border-slate-905 rounded-2xl">
+            <div className="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl">
               <HelpCircle className="w-8 h-8 text-slate-600" />
             </div>
             <div className="space-y-1">

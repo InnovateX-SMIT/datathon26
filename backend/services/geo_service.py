@@ -18,9 +18,10 @@ class GeoService:
         district: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        dataset_id: int = None
     ) -> list[dict]:
-        active_id = self._get_active_id()
+        active_id = dataset_id or self._get_active_id()
         from analytics.geo_analysis.district_map import aggregate_district_crime
         
         query = self.db.query(
@@ -51,9 +52,10 @@ class GeoService:
         district: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        dataset_id: int = None
     ) -> list[dict]:
-        active_id = self._get_active_id()
+        active_id = dataset_id or self._get_active_id()
         from analytics.geo_analysis.station_map import aggregate_station_crime
         
         query = self.db.query(
@@ -94,9 +96,10 @@ class GeoService:
         district: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        dataset_id: int = None
     ) -> list[dict]:
-        active_id = self._get_active_id()
+        active_id = dataset_id or self._get_active_id()
         from analytics.geo_analysis.heatmap import generate_heatmap_json
         
         query = self.db.query(
@@ -133,9 +136,10 @@ class GeoService:
         district: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        dataset_id: int = None
     ) -> list[dict]:
-        active_id = self._get_active_id()
+        active_id = dataset_id or self._get_active_id()
         from analytics.geo_analysis.hotspot import find_hotspots_dbscan
         
         query = self.db.query(
@@ -163,9 +167,33 @@ class GeoService:
         
         return find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
 
+
+    def get_geo_intelligence(
+        self,
+        district: str = None,
+        crime_type: str = None,
+        start_date: datetime.date = None,
+        end_date: datetime.date = None
+    ) -> dict:
+        active_id = self._get_active_id()
+        common_filters = {
+            "district": district,
+            "crime_type": crime_type,
+            "start_date": start_date,
+            "end_date": end_date,
+            "dataset_id": active_id,
+        }
+        return {
+            "districts": self.get_district_crime_distribution(**common_filters),
+            "stations": self.get_station_crime_distribution(**common_filters),
+            "heatmap": self.get_heatmap_points(**common_filters),
+            "hotspots": self.get_hotspot_clusters(**common_filters),
+        }
+
     # Maintain stubs for compatibility
     def compute_hotspots(self):
         return self.get_hotspot_clusters()
 
     def get_district_boundary(self, district_name: str):
         return {}
+

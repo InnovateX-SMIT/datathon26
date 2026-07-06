@@ -37,3 +37,16 @@ export interface NetworkGraphResponse {
   total_nodes: number;
   total_edges: number;
 }
+
+
+export interface NetworkCriminalSample {
+  id: number;
+  name: string;
+  risk_score?: number | null;
+  status?: string | null;
+}
+
+export interface NetworkCriminalSamplesResponse {
+  dataset_id: number;
+  criminals: NetworkCriminalSample[];
+}

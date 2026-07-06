@@ -54,6 +54,23 @@ class NetworkService:
         from backend.core.dataset_resolver import DatasetResolver
         return DatasetResolver(self.db).get_active_dataset_id()
 
+
+    def get_sample_criminals(self, limit: int = 10) -> Dict[str, Any]:
+        active_id = self._get_active_id()
+        criminals = self.repo.get_sample_criminals(dataset_id=active_id, limit=limit)
+        return {
+            "dataset_id": active_id,
+            "criminals": [
+                {
+                    "id": criminal.id,
+                    "name": criminal.name,
+                    "risk_score": criminal.risk_score,
+                    "status": criminal.status,
+                }
+                for criminal in criminals
+            ],
+        }
+
     def build_criminal_network(self, criminal_id: int) -> Optional[Dict[str, Any]]:
         active_id = self._get_active_id()
         criminal = self.repo.get_criminal_network(criminal_id, dataset_id=active_id)

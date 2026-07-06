@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./sidebar";
 import Navbar from "./navbar";
@@ -11,6 +11,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const { user, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const [sidebarPinned, setSidebarPinned] = useState(false);
+  const handleSidebarPinnedChange = useCallback((pinned: boolean) => {
+    setSidebarPinned(pinned);
+  }, []);
 
   const isLoginPage = pathname === "/login";
 
@@ -85,10 +89,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex h-screen overflow-hidden bg-[#070b13] text-slate-100 font-sans">
       {/* Sidebar Navigation */}
-      <Sidebar role={userRole} />
+      <Sidebar role={userRole} onPinnedChange={handleSidebarPinnedChange} />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className={`flex flex-col flex-1 min-w-0 overflow-hidden transition-[padding] duration-300 ${sidebarPinned ? "pl-64" : "pl-3"}`}>
         {/* Top Navbar */}
         <Navbar />
 

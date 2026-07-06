@@ -1,4 +1,4 @@
-import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState } from "../types/geo";
+import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState, GeoIntelligenceResponse } from "../types/geo";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -10,10 +10,11 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
-async function apiGet<T>(path: string): Promise<T> {
+async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
     headers: getAuthHeaders(),
+    signal,
   });
   if (!res.ok) {
     throw new Error(`API error ${res.status}: ${path}`);
@@ -46,4 +47,9 @@ export async function fetchHeatmapPoints(filters: GeoFiltersState): Promise<Heat
 
 export async function fetchHotspotClusters(filters: GeoFiltersState): Promise<HotspotCluster[]> {
   return apiGet<HotspotCluster[]>(`/api/v1/geo/hotspots${buildQueryString(filters)}`);
+}
+
+
+export async function fetchGeoIntelligence(filters: GeoFiltersState, signal?: AbortSignal): Promise<GeoIntelligenceResponse> {
+  return apiGet<GeoIntelligenceResponse>(`/api/v1/geo/intelligence${buildQueryString(filters)}`, signal);
 }

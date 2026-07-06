@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { AlertCircle, Map, RefreshCw } from "lucide-react";
 import GeoFilters from "@/features/geo/components/GeoFilters";
 import type { GeoFiltersState, DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster } from "@/features/geo/types/geo";
-import { fetchDistrictCrime, fetchStationCrime, fetchHeatmapPoints, fetchHotspotClusters } from "@/features/geo/services/geoApi";
+import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 
 // Dynamically import maps with ssr: false to prevent Next.js build crash
 const DistrictMap = dynamic(() => import("@/features/geo/components/DistrictMap"), {
@@ -53,35 +53,32 @@ export default function GeoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async (activeFilters: GeoFiltersState) => {
-    await Promise.resolve();
+  const loadData = async (activeFilters: GeoFiltersState, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
-      const [districts, stations, heatmap, hotspots] = await Promise.all([
-        fetchDistrictCrime(activeFilters),
-        fetchStationCrime(activeFilters),
-        fetchHeatmapPoints(activeFilters),
-        fetchHotspotClusters(activeFilters)
-      ]);
-      
-      setDistrictData(districts);
-      setStationData(stations);
-      setHeatmapData(heatmap);
-      setHotspotData(hotspots);
+      const intelligence = await fetchGeoIntelligence(activeFilters, signal);
+      setDistrictData(intelligence.districts);
+      setStationData(intelligence.stations);
+      setHeatmapData(intelligence.heatmap);
+      setHotspotData(intelligence.hotspots);
     } catch (err) {
-      console.error("Failed to load geo intelligence data:", err);
-      setError("Failed to load geospatial intelligence metrics. Please verify API server status.");
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setError("Unable to load geospatial intelligence for the active dataset. Verify the API server and dataset status.");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData(filters);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      loadData(filters, controller.signal);
     }, 0);
-    return () => clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [filters]);
 
   useEffect(() => {

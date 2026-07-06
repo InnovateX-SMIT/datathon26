@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { NetworkGraphResponse } from "@/types/network";
+import type { NetworkCriminalSamplesResponse, NetworkGraphResponse } from "@/types/network";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -19,6 +19,15 @@ export async function fetchNetworkGraph(criminalId: number): Promise<NetworkGrap
   const res = await axios.get<NetworkGraphResponse>(
     `${API_BASE}/api/v1/network/criminal/${criminalId}`,
     { headers: getAuthHeaders() }
+  );
+  return res.data;
+}
+
+
+export async function fetchSampleCriminals(limit = 10): Promise<NetworkCriminalSamplesResponse> {
+  const res = await axios.get<NetworkCriminalSamplesResponse>(
+    `${API_BASE}/api/v1/network/criminals/sample`,
+    { headers: getAuthHeaders(), params: { limit } }
   );
   return res.data;
 }

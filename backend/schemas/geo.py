@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class DistrictCrime(BaseModel):
     district: str
@@ -32,3 +33,10 @@ class HotspotCluster(BaseModel):
 
     class Config:
         from_attributes = True
+
+class GeoIntelligenceResponse(BaseModel):
+    districts: List[DistrictCrime]
+    stations: List[StationCrime]
+    heatmap: List[HeatmapPoint]
+    hotspots: List[HotspotCluster]
+

@@ -29,3 +29,11 @@ export interface GeoFiltersState {
   start_date?: string;
   end_date?: string;
 }
+
+
+export interface GeoIntelligenceResponse {
+  districts: DistrictCrime[];
+  stations: StationCrime[];
+  heatmap: HeatmapPoint[];
+  hotspots: HotspotCluster[];
+}

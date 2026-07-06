@@ -10,7 +10,8 @@ from backend.schemas.network import (
     ClusterResponse,
     AssociationResponse,
     LocationNetworkResponse,
-    LinkAnalysisResponse
+    LinkAnalysisResponse,
+    NetworkCriminalSamplesResponse
 )
 from backend.services.network_service import NetworkService
 from backend.services.network_analytics_service import NetworkAnalyticsService
@@ -117,6 +118,23 @@ def get_link_analysis(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error occurred while performing shortest path link analysis"
+        )
+
+
+@router.get("/criminals/sample", response_model=NetworkCriminalSamplesResponse)
+def get_sample_criminals(
+    limit: int = Query(10, ge=1, le=25, description="Number of active-dataset criminals to return"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    try:
+        service = NetworkService(db)
+        return service.get_sample_criminals(limit=limit)
+    except Exception as e:
+        logger.error(f"Error in get_sample_criminals: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while retrieving active dataset criminal samples"
         )
 
 @router.get("/criminal/{criminal_id}", response_model=NetworkGraphResponse)

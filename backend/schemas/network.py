@@ -105,3 +105,13 @@ class LinkAnalysisResponse(BaseModel):
     edges: List[LinkAnalysisEdge]
     path_length: int
 
+
+class NetworkCriminalSample(BaseModel):
+    id: int
+    name: str
+    risk_score: float | None = None
+    status: str | None = None
+
+class NetworkCriminalSamplesResponse(BaseModel):
+    dataset_id: int
+    criminals: List[NetworkCriminalSample]

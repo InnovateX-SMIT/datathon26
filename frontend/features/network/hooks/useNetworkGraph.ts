@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import { useNodesState, useEdgesState, Node, Edge } from "@xyflow/react";
 import axios from "axios";
-import { fetchNetworkGraph } from "@/services/network.service";
+import { fetchNetworkGraph, fetchSampleCriminals } from "@/services/network.service";
 import { transformGraphResponse } from "@/features/network/utils/graphTransform";
+import type { NetworkCriminalSample } from "@/types/network";
 
 export interface NetworkStatistics {
   totalNodes: number;
@@ -17,6 +18,8 @@ export function useNetworkGraph() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sampleCriminals, setSampleCriminals] = useState<NetworkCriminalSample[]>([]);
+  const [activeDatasetId, setActiveDatasetId] = useState<number | null>(null);
 
   const [statistics, setStatistics] = useState<NetworkStatistics>({
     totalNodes: 0,
@@ -25,6 +28,20 @@ export function useNetworkGraph() {
     crimeNodes: 0,
     locationNodes: 0,
   });
+
+
+  const loadSamples = useCallback(async () => {
+    try {
+      const response = await fetchSampleCriminals(8);
+      setSampleCriminals(response.criminals || []);
+      setActiveDatasetId(response.dataset_id);
+      return response.criminals || [];
+    } catch {
+      setSampleCriminals([]);
+      setActiveDatasetId(null);
+      return [];
+    }
+  }, []);
 
   const loadNetwork = useCallback(async (criminalId: number) => {
     setLoading(true);
@@ -54,7 +71,6 @@ export function useNetworkGraph() {
       
       setStatistics(stats);
     } catch (err) {
-      console.error("Error loading criminal network graph:", err);
       // Clean up graph on error
       setNodes([]);
       setEdges([]);
@@ -87,6 +103,9 @@ export function useNetworkGraph() {
     loading,
     error,
     loadNetwork,
+    loadSamples,
+    sampleCriminals,
+    activeDatasetId,
     statistics,
   };
 }
