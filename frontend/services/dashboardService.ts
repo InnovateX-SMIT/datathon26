@@ -19,7 +19,8 @@ async function apiGet<T>(path: string): Promise<T> {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${path}`);
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `API error ${res.status}: ${path}`);
   }
   return res.json() as Promise<T>;
 }

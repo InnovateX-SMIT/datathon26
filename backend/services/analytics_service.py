@@ -1,4 +1,6 @@
 from datetime import date, timedelta
+from typing import Any, List, Dict
+import numpy as np
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from backend.models.crime import CrimeEvent
@@ -13,12 +15,47 @@ class AnalyticsService:
         from backend.core.dataset_resolver import DatasetResolver
         return DatasetResolver(self.db).get_active_dataset_id()
 
+    def _get_active_ids(self) -> list[int]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
+        # Data compatibility validation
+        from backend.models.dataset import Dataset
+        for aid in active_ids:
+            ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
+            if not ds or ds.status != "Ready":
+                raise ValueError("One or more active datasets are not ready or are incompatible.")
+        return active_ids
+
+    def _get_cache_key(self, active_ids: list[int]) -> tuple:
+        from backend.models.dataset import Dataset
+        from sqlalchemy import func
+        max_updated = self.db.query(func.max(Dataset.updated_at)).filter(
+            Dataset.id.in_(active_ids)
+        ).scalar()
+        max_updated_str = max_updated.isoformat() if max_updated else "none"
+        return (tuple(sorted(active_ids)), max_updated_str)
+
+    def _check_cache(self, method_name: str, active_ids: list[int], *args, **kwargs) -> tuple[bool, Any, tuple]:
+        from backend.core.analytics_cache import AnalyticsCache
+        cache_key = self._get_cache_key(active_ids)
+        full_key = (cache_key, args, tuple(sorted(kwargs.items())))
+        cached_val = AnalyticsCache.get(method_name, full_key)
+        if cached_val is not None:
+            return True, cached_val, full_key
+        return False, None, full_key
+
+    def _set_cache(self, method_name: str, full_key: tuple, value: Any):
+        from backend.core.analytics_cache import AnalyticsCache
+        AnalyticsCache.set(method_name, full_key, value)
+
     def get_dashboard_summary(self) -> dict:
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_dashboard_summary", active_ids)
+        if is_cached:
+            return val
+
         from backend.models.crime import CLOSED_CASE_STATUSES, ACTIVE_CASE_STATUSES
         from backend.models.location import Location
-        from backend.models.police_station import PoliceStation
-        
-        active_id = self._get_active_id()
         
         # 1. Combined single-pass query on CrimeEvent
         stats = self.db.query(
@@ -28,7 +65,7 @@ class AnalyticsService:
             func.sum(case((CrimeEvent.status.in_(CLOSED_CASE_STATUSES), 1), else_=0)),
             func.sum(case((CrimeEvent.status.in_(ACTIVE_CASE_STATUSES), 1), else_=0)),
             func.coalesce(func.avg(CrimeEvent.severity), 0.0)
-        ).filter(CrimeEvent.dataset_id == active_id).first()
+        ).filter(CrimeEvent.dataset_id.in_(active_ids)).first()
         
         total_crimes = stats[0] or 0
         total_victims = stats[1] or 0
@@ -39,11 +76,11 @@ class AnalyticsService:
         
         # 2. Query covered districts & stations count
         districts_count = self.db.query(Location.district).join(CrimeEvent).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         ).distinct().count()
         
         stations_count = self.db.query(CrimeEvent.police_station_id).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.police_station_id.isnot(None)
         ).distinct().count()
         
@@ -51,14 +88,14 @@ class AnalyticsService:
         criminals_stats = self.db.query(
             func.count(Criminal.id),
             func.sum(case((Criminal.risk_score >= 7.0, 1), else_=0))
-        ).filter(Criminal.dataset_id == active_id).first()
+        ).filter(Criminal.dataset_id.in_(active_ids)).first()
         
         total_criminals = criminals_stats[0] or 0
         high_risk_criminals = criminals_stats[1] or 0
         
         crime_resolution_rate = (closed_cases / total_crimes * 100.0) if total_crimes > 0 else 0.0
         
-        return {
+        result = {
             "total_crimes": total_crimes,
             "total_victims": total_victims,
             "total_accused": total_accused,
@@ -70,17 +107,23 @@ class AnalyticsService:
             "districts_count": districts_count,
             "stations_count": stations_count
         }
+        self._set_cache("get_dashboard_summary", full_key, result)
+        return result
 
     def get_crime_trend(self, days: int = 30) -> list[dict]:
-        active_id = self._get_active_id()
-        max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_crime_trend", active_ids, days)
+        if is_cached:
+            return val
+
+        max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar()
         anchor_date = max_date if max_date is not None else date.today()
         start_date = anchor_date - timedelta(days=days)
         results = self.db.query(
             CrimeEvent.crime_date,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date >= start_date
         ).group_by(
             CrimeEvent.crime_date
@@ -88,25 +131,37 @@ class AnalyticsService:
             CrimeEvent.crime_date.asc()
         ).all()
 
-        return [{"date": r[0].isoformat(), "count": r[1]} for r in results if r[0] is not None]
+        result = [{"date": r[0].isoformat(), "count": r[1]} for r in results if r[0] is not None]
+        self._set_cache("get_crime_trend", full_key, result)
+        return result
 
     def get_category_breakdown(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_category_breakdown", active_ids)
+        if is_cached:
+            return val
+
         results = self.db.query(
             CrimeEvent.crime_category,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         ).group_by(
             CrimeEvent.crime_category
         ).order_by(
             func.count(CrimeEvent.id).desc()
         ).limit(9).all()
 
-        return [{"category": r[0], "count": r[1]} for r in results if r[0] is not None]
+        result = [{"category": r[0], "count": r[1]} for r in results if r[0] is not None]
+        self._set_cache("get_category_breakdown", full_key, result)
+        return result
 
     def get_district_ranking(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_district_ranking", active_ids)
+        if is_cached:
+            return val
+
         results = self.db.query(
             Location.district,
             func.count(CrimeEvent.id)
@@ -114,17 +169,23 @@ class AnalyticsService:
             Location,
             CrimeEvent.location_id == Location.id
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         ).group_by(
             Location.district
         ).order_by(
             func.count(CrimeEvent.id).desc()
         ).limit(10).all()
 
-        return [{"district": r[0], "count": r[1]} for r in results if r[0] is not None]
+        result = [{"district": r[0], "count": r[1]} for r in results if r[0] is not None]
+        self._set_cache("get_district_ranking", full_key, result)
+        return result
 
     def get_recent_crimes(self, limit: int = 10) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_recent_crimes", active_ids, limit)
+        if is_cached:
+            return val
+
         results = self.db.query(
             CrimeEvent,
             Location.district
@@ -132,7 +193,7 @@ class AnalyticsService:
             Location,
             CrimeEvent.location_id == Location.id
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         ).order_by(
             CrimeEvent.created_at.desc()
         ).limit(limit).all()
@@ -150,56 +211,75 @@ class AnalyticsService:
                 "victim_count": crime.victim_count,
                 "accused_count": crime.accused_count
             })
+        self._set_cache("get_recent_crimes", full_key, recent_crimes)
         return recent_crimes
 
     def get_system_status(self) -> dict:
-        active_id = self._get_active_id()
-        total_records = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == active_id).count()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_system_status", active_ids)
+        if is_cached:
+            return val
+
+        total_records = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id.in_(active_ids)).count()
         if total_records == 0:
-            return {
+            result = {
                 "database_status": "online",
                 "total_records": 0,
                 "last_updated": "N/A",
                 "data_coverage_days": 0,
             }
+            self._set_cache("get_system_status", full_key, result)
+            return result
 
-        max_created_at = self.db.query(func.max(CrimeEvent.created_at)).filter(CrimeEvent.dataset_id == active_id).scalar()
+        max_created_at = self.db.query(func.max(CrimeEvent.created_at)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar()
         last_updated = max_created_at.isoformat() if max_created_at else "N/A"
 
-        min_crime_date = self.db.query(func.min(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()
-        max_crime_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()
+        min_crime_date = self.db.query(func.min(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar()
+        max_crime_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar()
 
         if min_crime_date and max_crime_date:
             data_coverage_days = (max_crime_date - min_crime_date).days
         else:
             data_coverage_days = 0
 
-        return {
+        result = {
             "database_status": "online",
             "total_records": total_records,
             "last_updated": last_updated,
             "data_coverage_days": data_coverage_days,
         }
+        self._set_cache("get_system_status", full_key, result)
+        return result
 
     def get_overview_metrics(self) -> dict:
-        active_id = self._get_active_id()
-        total_crimes = self.db.query(func.count(CrimeEvent.id)).filter(CrimeEvent.dataset_id == active_id).scalar() or 0
-        total_victims = self.db.query(func.coalesce(func.sum(CrimeEvent.victim_count), 0)).filter(CrimeEvent.dataset_id == active_id).scalar() or 0
-        total_accused = self.db.query(func.coalesce(func.sum(CrimeEvent.accused_count), 0)).filter(CrimeEvent.dataset_id == active_id).scalar() or 0
-        return {
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_overview_metrics", active_ids)
+        if is_cached:
+            return val
+
+        total_crimes = self.db.query(func.count(CrimeEvent.id)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar() or 0
+        total_victims = self.db.query(func.coalesce(func.sum(CrimeEvent.victim_count), 0)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar() or 0
+        total_accused = self.db.query(func.coalesce(func.sum(CrimeEvent.accused_count), 0)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar() or 0
+        result = {
             "total_crimes": total_crimes,
             "total_victims": total_victims,
             "total_accused": total_accused
         }
+        self._set_cache("get_overview_metrics", full_key, result)
+        return result
 
     def get_daily_trends(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_daily_trends", active_ids)
+        if is_cached:
+            return val
+
         from analytics.temporal_analysis.daily import analyze_daily_trends
         results = self.db.query(
             CrimeEvent.crime_date,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date.isnot(None)
         ).group_by(
             CrimeEvent.crime_date
@@ -208,10 +288,16 @@ class AnalyticsService:
         ).all()
         
         records = [{"period": r[0].isoformat() if hasattr(r[0], 'isoformat') else str(r[0]), "count": r[1]} for r in results]
-        return analyze_daily_trends(records)
+        result = analyze_daily_trends(records)
+        self._set_cache("get_daily_trends", full_key, result)
+        return result
 
     def get_weekly_trends(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_weekly_trends", active_ids)
+        if is_cached:
+            return val
+
         from analytics.temporal_analysis.weekly import analyze_weekly_trends
         if self.db.bind.dialect.name == "postgresql":
             expr = func.date_trunc('week', CrimeEvent.crime_date)
@@ -222,7 +308,7 @@ class AnalyticsService:
             expr,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date.isnot(None)
         ).group_by(
             expr
@@ -241,10 +327,16 @@ class AnalyticsService:
                 period_str = str(period_val)
             records.append({"period": period_str, "count": r[1]})
             
-        return analyze_weekly_trends(records)
+        result = analyze_weekly_trends(records)
+        self._set_cache("get_weekly_trends", full_key, result)
+        return result
 
     def get_monthly_trends(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_monthly_trends", active_ids)
+        if is_cached:
+            return val
+
         from analytics.temporal_analysis.monthly import analyze_monthly_trends
         if self.db.bind.dialect.name == "postgresql":
             expr = func.to_char(CrimeEvent.crime_date, 'YYYY-MM')
@@ -255,7 +347,7 @@ class AnalyticsService:
             expr,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date.isnot(None)
         ).group_by(
             expr
@@ -264,10 +356,16 @@ class AnalyticsService:
         ).all()
         
         records = [{"period": str(r[0]), "count": r[1]} for r in results]
-        return analyze_monthly_trends(records)
+        result = analyze_monthly_trends(records)
+        self._set_cache("get_monthly_trends", full_key, result)
+        return result
 
     def get_yearly_trends(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_yearly_trends", active_ids)
+        if is_cached:
+            return val
+
         from analytics.temporal_analysis.yearly import analyze_yearly_trends
         if self.db.bind.dialect.name == "postgresql":
             expr = func.to_char(CrimeEvent.crime_date, 'YYYY')
@@ -278,7 +376,7 @@ class AnalyticsService:
             expr,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date.isnot(None)
         ).group_by(
             expr
@@ -287,42 +385,60 @@ class AnalyticsService:
         ).all()
         
         records = [{"period": str(r[0]), "count": r[1]} for r in results]
-        return analyze_yearly_trends(records)
+        result = analyze_yearly_trends(records)
+        self._set_cache("get_yearly_trends", full_key, result)
+        return result
 
     def get_category_distribution(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_category_distribution", active_ids)
+        if is_cached:
+            return val
+
         from analytics.crime_analysis.category_analysis import process_category_distribution
         results = self.db.query(
             CrimeEvent.crime_category,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_category.isnot(None)
         ).group_by(
             CrimeEvent.crime_category
         ).all()
         
         records = [{"name": r[0], "count": r[1]} for r in results]
-        return process_category_distribution(records)
+        result = process_category_distribution(records)
+        self._set_cache("get_category_distribution", full_key, result)
+        return result
 
     def get_subcategory_distribution(self) -> list[dict]:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_subcategory_distribution", active_ids)
+        if is_cached:
+            return val
+
         from analytics.crime_analysis.category_analysis import process_subcategory_distribution
         results = self.db.query(
             CrimeEvent.crime_subcategory,
             func.count(CrimeEvent.id)
         ).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_subcategory.isnot(None)
         ).group_by(
             CrimeEvent.crime_subcategory
         ).all()
         
         records = [{"name": r[0], "count": r[1]} for r in results]
-        return process_subcategory_distribution(records)
+        result = process_subcategory_distribution(records)
+        self._set_cache("get_subcategory_distribution", full_key, result)
+        return result
 
     def get_historical_comparison(self) -> dict:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_historical_comparison", active_ids)
+        if is_cached:
+            return val
+
         from analytics.crime_analysis.trend_analysis import calculate_percentage_change
         
         today = date.today()
@@ -346,25 +462,25 @@ class AnalyticsService:
         previous_year_end = date(today.year - 1, 12, 31)
         
         current_month_count = self.db.query(func.count(CrimeEvent.id)).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date >= current_month_start,
             CrimeEvent.crime_date <= current_month_end
         ).scalar() or 0
         
         previous_month_count = self.db.query(func.count(CrimeEvent.id)).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date >= previous_month_start,
             CrimeEvent.crime_date <= previous_month_end
         ).scalar() or 0
         
         current_year_count = self.db.query(func.count(CrimeEvent.id)).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date >= current_year_start,
             CrimeEvent.crime_date <= current_year_end
         ).scalar() or 0
         
         previous_year_count = self.db.query(func.count(CrimeEvent.id)).filter(
-            CrimeEvent.dataset_id == active_id,
+            CrimeEvent.dataset_id.in_(active_ids),
             CrimeEvent.crime_date >= previous_year_start,
             CrimeEvent.crime_date <= previous_year_end
         ).scalar() or 0
@@ -372,7 +488,7 @@ class AnalyticsService:
         month_change = calculate_percentage_change(current_month_count, previous_month_count)
         year_change = calculate_percentage_change(current_year_count, previous_year_count)
         
-        return {
+        result = {
             "current_month": current_month_count,
             "previous_month": previous_month_count,
             "month_change_percent": month_change,
@@ -380,3 +496,5 @@ class AnalyticsService:
             "previous_year": previous_year_count,
             "year_change_percent": year_change
         }
+        self._set_cache("get_historical_comparison", full_key, result)
+        return result

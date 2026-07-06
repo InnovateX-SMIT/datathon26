@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ShieldAlert, Activity, Users, Shield } from "lucide-react";
+import { ShieldAlert, Activity, Users, Shield, RefreshCw } from "lucide-react";
 import {
   fetchDashboardSummary,
   fetchCrimeTrend,
@@ -10,6 +10,7 @@ import {
   fetchRecentCrimes,
   fetchSystemStatus,
 } from "@/services/dashboardService";
+import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
 import type {
   DashboardSummary,
   TrendDataPoint,
@@ -28,6 +29,10 @@ import SystemStatusBar from "@/components/dashboard/SystemStatusBar";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
+
+  // Active datasets state
+  const [activeDatasets, setActiveDatasets] = useState<DatasetInfo[]>([]);
+  const [activeDatasetsLoading, setActiveDatasetsLoading] = useState(true);
 
   // Data states
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -62,9 +67,22 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
+  const loadActiveDatasets = async () => {
+    setActiveDatasetsLoading(true);
+    try {
+      const data = await fetchDatasets();
+      setActiveDatasets(data.filter((d) => d.is_active));
+    } catch (err) {
+      console.error("Failed to load active datasets details", err);
+    } finally {
+      setActiveDatasetsLoading(false);
+    }
+  };
+
   // Parallel Loader
   const loadAll = async () => {
     await Promise.allSettled([
+      loadActiveDatasets(),
       loadSummary(),
       loadTrend(),
       loadCategories(),
@@ -109,8 +127,8 @@ export default function DashboardPage() {
     try {
       const data = await fetchDashboardSummary();
       setSummary(data);
-    } catch {
-      setSummaryError("Failed to load summary statistics.");
+    } catch (err: any) {
+      setSummaryError(err.message || "Failed to load summary statistics.");
     } finally {
       setSummaryLoading(false);
     }
@@ -122,8 +140,8 @@ export default function DashboardPage() {
     try {
       const data = await fetchCrimeTrend(30);
       setTrend(data);
-    } catch {
-      setTrendError("Failed to load crime trends.");
+    } catch (err: any) {
+      setTrendError(err.message || "Failed to load crime trends.");
     } finally {
       setTrendLoading(false);
     }
@@ -135,8 +153,8 @@ export default function DashboardPage() {
     try {
       const data = await fetchCategoryBreakdown();
       setCategories(data);
-    } catch {
-      setCategoriesError("Failed to load categories breakdown.");
+    } catch (err: any) {
+      setCategoriesError(err.message || "Failed to load categories breakdown.");
     } finally {
       setCategoriesLoading(false);
     }
@@ -148,8 +166,8 @@ export default function DashboardPage() {
     try {
       const data = await fetchDistrictRanking();
       setDistricts(data);
-    } catch {
-      setDistrictsError("Failed to load district ranks.");
+    } catch (err: any) {
+      setDistrictsError(err.message || "Failed to load district ranks.");
     } finally {
       setDistrictsLoading(false);
     }
@@ -161,8 +179,8 @@ export default function DashboardPage() {
     try {
       const data = await fetchRecentCrimes();
       setRecentCrimes(data);
-    } catch {
-      setRecentError("Failed to load recent crimes list.");
+    } catch (err: any) {
+      setRecentError(err.message || "Failed to load recent crimes list.");
     } finally {
       setRecentLoading(false);
     }
@@ -174,12 +192,38 @@ export default function DashboardPage() {
     try {
       const data = await fetchSystemStatus();
       setSystemStatus(data);
-    } catch {
-      setStatusError("Failed to load system health.");
+    } catch (err: any) {
+      setStatusError(err.message || "Failed to load system health.");
     } finally {
       setStatusLoading(false);
     }
   };
+
+  // ── EMPTY STATE RENDERING ──
+  const isNoActiveDataset =
+    !summaryLoading &&
+    !activeDatasetsLoading &&
+    (summaryError?.includes("No active dataset") || activeDatasets.length === 0);
+
+  if (isNoActiveDataset) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center text-slate-200">
+        <div className="bg-slate-900/60 p-8 rounded-3xl border border-slate-800/80 max-w-md w-full backdrop-blur-md space-y-6">
+          <ShieldAlert className="w-16 h-16 text-indigo-400 mx-auto animate-pulse" />
+          <h2 className="text-xl font-bold uppercase tracking-tight">No active dataset selected</h2>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Predictive Guardians operations require at least one active database registry entry to query operational analytics, trend lines, and mapping clusters.
+          </p>
+          <a
+            href="/dataset-manager"
+            className="block w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-550 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/10"
+          >
+            Go to Dataset Manager
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 flex flex-col min-w-0">
@@ -193,11 +237,25 @@ export default function DashboardPage() {
             Real-Time Crime Intelligence Overview
           </p>
         </div>
-        
+
         {/* Right Info Panel */}
-        <div className="flex items-center gap-4 self-stretch md:self-auto justify-between bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Using Dataset:</span>
+            {activeDatasets.length > 0 ? (
+              activeDatasets.map((ds) => (
+                <span key={ds.id} className="text-[10px] font-mono text-emerald-400 bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/10 rounded">
+                  ✔ {ds.display_name}
+                </span>
+              ))
+            ) : (
+              <span className="text-[10px] font-mono text-red-400 bg-red-500/5 px-2 py-0.5 border border-red-500/10 rounded">
+                ✘ None Active
+              </span>
+            )}
+          </div>
           {mounted && currentTime && (
-            <div className="text-xs font-mono font-bold tracking-wider text-indigo-400 px-3 py-1 bg-indigo-500/5 border border-indigo-500/10 rounded-lg">
+            <div className="text-xs font-mono font-bold tracking-wider text-indigo-400 px-3 py-1 bg-indigo-500/5 border border-indigo-500/10 rounded-lg text-center">
               {currentTime}
             </div>
           )}

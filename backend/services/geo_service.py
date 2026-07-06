@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from typing import Any
 from backend.models.crime import CrimeEvent
 from backend.models.location import Location
 from backend.models.police_station import PoliceStation
@@ -13,6 +14,39 @@ class GeoService:
         from backend.core.dataset_resolver import DatasetResolver
         return DatasetResolver(self.db).get_active_dataset_id()
 
+    def _get_active_ids(self) -> list[int]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
+        # Data compatibility validation
+        from backend.models.dataset import Dataset
+        for aid in active_ids:
+            ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
+            if not ds or ds.status != "Ready":
+                raise ValueError("One or more active datasets are not ready or are incompatible.")
+        return active_ids
+
+    def _get_cache_key(self, active_ids: list[int]) -> tuple:
+        from backend.models.dataset import Dataset
+        from sqlalchemy import func
+        max_updated = self.db.query(func.max(Dataset.updated_at)).filter(
+            Dataset.id.in_(active_ids)
+        ).scalar()
+        max_updated_str = max_updated.isoformat() if max_updated else "none"
+        return (tuple(sorted(active_ids)), max_updated_str)
+
+    def _check_cache(self, method_name: str, active_ids: list[int], *args, **kwargs) -> tuple[bool, Any, tuple]:
+        from backend.core.analytics_cache import AnalyticsCache
+        cache_key = self._get_cache_key(active_ids)
+        full_key = (cache_key, args, tuple(sorted(kwargs.items())))
+        cached_val = AnalyticsCache.get(method_name, full_key)
+        if cached_val is not None:
+            return True, cached_val, full_key
+        return False, None, full_key
+
+    def _set_cache(self, method_name: str, full_key: tuple, value: Any):
+        from backend.core.analytics_cache import AnalyticsCache
+        AnalyticsCache.set(method_name, full_key, value)
+
     def get_district_crime_distribution(
         self,
         district: str = None,
@@ -21,7 +55,14 @@ class GeoService:
         end_date: datetime.date = None,
         dataset_id: int = None
     ) -> list[dict]:
-        active_id = dataset_id or self._get_active_id()
+        active_ids = [dataset_id] if dataset_id else self._get_active_ids()
+        
+        # Build arguments for cache lookup
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        is_cached, val, full_key = self._check_cache("get_district_crime_distribution", active_ids, *args_tuple)
+        if is_cached:
+            return val
+
         from analytics.geo_analysis.district_map import aggregate_district_crime
         
         query = self.db.query(
@@ -30,7 +71,7 @@ class GeoService:
         ).join(
             Location, CrimeEvent.location_id == Location.id
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         )
         
         if district:
@@ -45,7 +86,9 @@ class GeoService:
         results = query.group_by(Location.district).all()
         
         records = [{"district": r[0], "crime_count": r[1]} for r in results if r[0] is not None]
-        return aggregate_district_crime(records)
+        result = aggregate_district_crime(records)
+        self._set_cache("get_district_crime_distribution", full_key, result)
+        return result
 
     def get_station_crime_distribution(
         self,
@@ -55,7 +98,13 @@ class GeoService:
         end_date: datetime.date = None,
         dataset_id: int = None
     ) -> list[dict]:
-        active_id = dataset_id or self._get_active_id()
+        active_ids = [dataset_id] if dataset_id else self._get_active_ids()
+
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        is_cached, val, full_key = self._check_cache("get_station_crime_distribution", active_ids, *args_tuple)
+        if is_cached:
+            return val
+
         from analytics.geo_analysis.station_map import aggregate_station_crime
         
         query = self.db.query(
@@ -68,7 +117,7 @@ class GeoService:
         ).join(
             Location, PoliceStation.location_id == Location.id
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         )
         
         if district:
@@ -89,7 +138,9 @@ class GeoService:
             "longitude": r[3] if r[3] is not None else 0.0
         } for r in results if r[0] is not None]
         
-        return aggregate_station_crime(records)
+        result = aggregate_station_crime(records)
+        self._set_cache("get_station_crime_distribution", full_key, result)
+        return result
 
     def get_heatmap_points(
         self,
@@ -99,7 +150,13 @@ class GeoService:
         end_date: datetime.date = None,
         dataset_id: int = None
     ) -> list[dict]:
-        active_id = dataset_id or self._get_active_id()
+        active_ids = [dataset_id] if dataset_id else self._get_active_ids()
+
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        is_cached, val, full_key = self._check_cache("get_heatmap_points", active_ids, *args_tuple)
+        if is_cached:
+            return val
+
         from analytics.geo_analysis.heatmap import generate_heatmap_json
         
         query = self.db.query(
@@ -109,7 +166,7 @@ class GeoService:
         ).join(
             Location, CrimeEvent.location_id == Location.id
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         )
         
         if district:
@@ -129,7 +186,9 @@ class GeoService:
             "weight": r[2]
         } for r in results]
         
-        return generate_heatmap_json(records)
+        result = generate_heatmap_json(records)
+        self._set_cache("get_heatmap_points", full_key, result)
+        return result
 
     def get_hotspot_clusters(
         self,
@@ -139,7 +198,13 @@ class GeoService:
         end_date: datetime.date = None,
         dataset_id: int = None
     ) -> list[dict]:
-        active_id = dataset_id or self._get_active_id()
+        active_ids = [dataset_id] if dataset_id else self._get_active_ids()
+
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        is_cached, val, full_key = self._check_cache("get_hotspot_clusters", active_ids, *args_tuple)
+        if is_cached:
+            return val
+
         from analytics.geo_analysis.hotspot import find_hotspots_dbscan
         
         query = self.db.query(
@@ -149,7 +214,7 @@ class GeoService:
         ).select_from(CrimeEvent).join(
             Location, CrimeEvent.location_id == Location.id
         ).filter(
-            CrimeEvent.dataset_id == active_id
+            CrimeEvent.dataset_id.in_(active_ids)
         )
         
         if district:
@@ -165,8 +230,9 @@ class GeoService:
         
         coords = [(r[0], r[1], r[2]) for r in results if r[0] is not None and r[1] is not None]
         
-        return find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
-
+        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
+        self._set_cache("get_hotspot_clusters", full_key, result)
+        return result
 
     def get_geo_intelligence(
         self,
@@ -175,20 +241,29 @@ class GeoService:
         start_date: datetime.date = None,
         end_date: datetime.date = None
     ) -> dict:
-        active_id = self._get_active_id()
+        active_ids = self._get_active_ids()
+        
+        # Since this combines the 4 distinct queries, caching at get_geo_intelligence level is extremely efficient!
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        is_cached, val, full_key = self._check_cache("get_geo_intelligence", active_ids, *args_tuple)
+        if is_cached:
+            return val
+
         common_filters = {
             "district": district,
             "crime_type": crime_type,
             "start_date": start_date,
             "end_date": end_date,
-            "dataset_id": active_id,
         }
-        return {
+        
+        result = {
             "districts": self.get_district_crime_distribution(**common_filters),
             "stations": self.get_station_crime_distribution(**common_filters),
             "heatmap": self.get_heatmap_points(**common_filters),
             "hotspots": self.get_hotspot_clusters(**common_filters),
         }
+        self._set_cache("get_geo_intelligence", full_key, result)
+        return result
 
     # Maintain stubs for compatibility
     def compute_hotspots(self):
@@ -196,4 +271,3 @@ class GeoService:
 
     def get_district_boundary(self, district_name: str):
         return {}
-

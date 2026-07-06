@@ -40,9 +40,9 @@ export function useAnalytics() {
       setCategories(cat);
       setComparison(comp);
       initialLoadDone.current = true;
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to fetch crime analytics data. Please try again.");
+      setError(err.response?.data?.detail || "Failed to fetch crime analytics data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -53,9 +53,9 @@ export function useAnalytics() {
     try {
       const trend = await fetchTrends(gran);
       setTrends(trend);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to fetch crime trends. Please try again.");
+      setError(err.response?.data?.detail || "Failed to fetch crime trends. Please try again.");
     } finally {
       setLoadingTrends(false);
     }

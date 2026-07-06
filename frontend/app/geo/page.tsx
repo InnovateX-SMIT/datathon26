@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle, Map, RefreshCw } from "lucide-react";
+import { AlertCircle, Map, RefreshCw, ShieldAlert } from "lucide-react";
 import GeoFilters from "@/features/geo/components/GeoFilters";
+import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
 import type { GeoFiltersState, DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster } from "@/features/geo/types/geo";
 import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 
@@ -53,6 +54,22 @@ export default function GeoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Active datasets state
+  const [activeDatasets, setActiveDatasets] = useState<DatasetInfo[]>([]);
+  const [activeDatasetsLoading, setActiveDatasetsLoading] = useState(true);
+
+  const loadActiveDatasets = async () => {
+    setActiveDatasetsLoading(true);
+    try {
+      const data = await fetchDatasets();
+      setActiveDatasets(data.filter((d) => d.is_active));
+    } catch (err) {
+      console.error("Failed to load active datasets details", err);
+    } finally {
+      setActiveDatasetsLoading(false);
+    }
+  };
+
   const loadData = async (activeFilters: GeoFiltersState, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
@@ -62,13 +79,17 @@ export default function GeoPage() {
       setStationData(intelligence.stations);
       setHeatmapData(intelligence.heatmap);
       setHotspotData(intelligence.hotspots);
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      setError("Unable to load geospatial intelligence for the active dataset. Verify the API server and dataset status.");
+      setError(err.message || "Unable to load geospatial intelligence for the active dataset. Verify the API server and dataset status.");
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadActiveDatasets();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -83,6 +104,7 @@ export default function GeoPage() {
 
   useEffect(() => {
     const handleDatasetChange = () => {
+      loadActiveDatasets();
       loadData(filters);
     };
     window.addEventListener("activeDatasetChanged", handleDatasetChange);
@@ -92,8 +114,35 @@ export default function GeoPage() {
   }, [filters]);
 
   const handleRetry = () => {
+    loadActiveDatasets();
     loadData(filters);
   };
+
+  // ── EMPTY STATE RENDERING ──
+  const isNoActiveDataset =
+    !loading &&
+    !activeDatasetsLoading &&
+    (error?.includes("No active dataset") || activeDatasets.length === 0);
+
+  if (isNoActiveDataset) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center text-slate-200">
+        <div className="bg-slate-900/60 p-8 rounded-3xl border border-slate-800/80 max-w-md w-full backdrop-blur-md space-y-6">
+          <ShieldAlert className="w-16 h-16 text-indigo-400 mx-auto animate-pulse" />
+          <h2 className="text-xl font-bold uppercase tracking-tight">No active dataset selected</h2>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Predictive Guardians operations require at least one active database registry entry to query operational analytics, trend lines, and mapping clusters.
+          </p>
+          <a
+            href="/dataset-manager"
+            className="block w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-555 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/10"
+          >
+            Go to Dataset Manager
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -112,13 +161,30 @@ export default function GeoPage() {
             </h1>
           </div>
         </div>
-        
-        {loading && (
-          <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-xl">
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            <span>Refreshing Maps...</span>
+
+        {/* Right Info Panel */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Using Dataset:</span>
+            {activeDatasets.length > 0 ? (
+              activeDatasets.map((ds) => (
+                <span key={ds.id} className="text-[10px] font-mono text-emerald-400 bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/10 rounded">
+                  ✔ {ds.display_name}
+                </span>
+              ))
+            ) : (
+              <span className="text-[10px] font-mono text-red-400 bg-red-500/5 px-2 py-0.5 border border-red-500/10 rounded">
+                ✘ None Active
+              </span>
+            )}
           </div>
-        )}
+          {loading && (
+            <div className="flex items-center justify-center gap-2 text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-4 py-1 rounded-xl">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Refreshing Maps...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Query Filters */}

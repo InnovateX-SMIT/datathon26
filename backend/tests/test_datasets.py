@@ -326,3 +326,79 @@ def test_dataset_active_management(client_as_admin, db_session):
     assert ds2.is_active is False
 
 
+def test_analytics_dynamic_integration(client_as_admin, db_session, monkeypatch):
+    from backend.models.dataset import Dataset
+    from backend.models.crime import CrimeEvent
+    from backend.services.analytics_service import AnalyticsService
+    from backend.core.exceptions import NoActiveDatasetException
+    from backend.core.analytics_cache import AnalyticsCache
+    from backend.services.dataset_service import DatasetService
+    from datetime import date, datetime
+    import pytest
+
+    service = AnalyticsService(db_session)
+
+    # 1. Mock get_active_dataset_ids to return [] -> raises NoActiveDatasetException
+    monkeypatch.setattr(DatasetService, "get_active_dataset_ids", lambda self: [])
+    with pytest.raises(NoActiveDatasetException):
+        service.get_dashboard_summary()
+
+    # Restore the original get_active_dataset_ids for the rest of the test
+    monkeypatch.undo()
+
+    # Create two ready datasets
+    ds1 = Dataset(name="ds1", display_name="DS 1", original_filename="ds1.csv", source_type="CSV", status="Ready", is_active=True)
+    ds2 = Dataset(name="ds2", display_name="DS 2", original_filename="ds2.csv", source_type="CSV", status="Ready", is_active=False)
+    db_session.add_all([ds1, ds2])
+    db_session.commit()
+
+    # Add crime events
+    c1 = CrimeEvent(dataset_id=ds1.id, crime_type="Theft", crime_category="Property", severity=4.0, crime_date=date(2025, 5, 10), status="reported")
+    c2 = CrimeEvent(dataset_id=ds2.id, crime_type="Assault", crime_category="Violent", severity=7.0, crime_date=date(2025, 5, 11), status="reported")
+    db_session.add_all([c1, c2])
+    db_session.commit()
+
+    # Clear caches before starting test to isolate
+    AnalyticsCache.clear()
+
+    # 2. Test analytics loading from ds1
+    summary = service.get_dashboard_summary()
+    assert summary["total_crimes"] == 1
+    assert summary["average_severity"] == 4.0
+
+    # 3. Test caching hit
+    # Modify data directly in the database without updating the dataset timestamp to test cache persistence
+    c1.severity = 10.0
+    db_session.commit()
+    
+    # Cache hit should return the old average severity (4.0)
+    summary_cached = service.get_dashboard_summary()
+    assert summary_cached["average_severity"] == 4.0
+
+    # 4. Invalidate cache: update the dataset's updated_at timestamp
+    ds1.updated_at = datetime.utcnow()
+    db_session.commit()
+    
+    # Re-fetch -> cache miss, recompute -> average severity becomes 10.0
+    summary_new = service.get_dashboard_summary()
+    assert summary_new["average_severity"] == 10.0
+
+    # 5. Multi-dataset combination: activate ds2 as well
+    # Set limit to 2 first
+    from backend.models.dataset import DatasetConfig
+    config = db_session.query(DatasetConfig).first()
+    if config:
+        config.max_active_datasets = "2"
+    else:
+        db_session.add(DatasetConfig(max_active_datasets="2"))
+    db_session.commit()
+
+    ds2.is_active = True
+    db_session.commit()
+
+    # Analytics should now combine ds1 and ds2 (total crimes = 2)
+    summary_multi = service.get_dashboard_summary()
+    assert summary_multi["total_crimes"] == 2
+
+
+

@@ -13,7 +13,8 @@ async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
     signal,
   });
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${path}`);
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `API error ${res.status}: ${path}`);
   }
   return res.json() as Promise<T>;
 }

@@ -190,6 +190,9 @@ export default function DatasetManagerPage() {
         setDescriptionInput("");
         setUploading(false);
         loadDatasets();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("activeDatasetChanged"));
+        }
       }, 400);
     } catch (err: any) {
       clearInterval(progressInterval);
@@ -211,6 +214,9 @@ export default function DatasetManagerPage() {
         setSuccess(`Dataset "${ds.display_name}" activated successfully.`);
       }
       await loadDatasets();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("activeDatasetChanged"));
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to switch active status.");
     } finally {
@@ -229,6 +235,9 @@ export default function DatasetManagerPage() {
       setSettingsOpen(false);
       await loadDatasets();
       await loadConfig();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("activeDatasetChanged"));
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to update settings configuration.");
     } finally {
@@ -246,6 +255,9 @@ export default function DatasetManagerPage() {
       setSuccess(`Dataset "${deleteConfirmDataset.display_name}" archived successfully.`);
       setDeleteConfirmDataset(null);
       await loadDatasets();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("activeDatasetChanged"));
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to delete dataset.");
     } finally {
