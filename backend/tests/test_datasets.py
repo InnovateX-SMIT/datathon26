@@ -172,3 +172,74 @@ def test_dataset_operations(client_as_admin, db_session):
     # Verify that NO crimes were imported for this dataset (transactional rollback)
     failed_crimes = db_session.query(CrimeEvent).filter(CrimeEvent.dataset_id == failed_ds.id).all()
     assert len(failed_crimes) == 0
+
+def test_new_dataset_features(client_as_admin, db_session):
+    # Get auto-seeded default dataset ID
+    response = client_as_admin.get("/api/v1/admin/datasets/")
+    assert response.status_code == 200
+    datasets = response.json()
+    default_dataset_id = datasets[0]["id"]
+
+    # 1. Test Dataset Details API
+    resp_details = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}")
+    assert resp_details.status_code == 200
+    details = resp_details.json()
+    assert details["name"] == "System Seed"
+    assert details["original_filename"] == "crime_events.csv"
+    assert "column_count" in details
+    assert "upload_status" in details
+    assert "storage_path" in details
+
+    # 2. Test Dataset Preview API
+    resp_preview = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}/preview")
+    assert resp_preview.status_code == 200
+    preview = resp_preview.json()
+    assert "first_20_rows" in preview
+    assert "total_rows" in preview
+    assert "total_columns" in preview
+    assert "columns" in preview
+    assert "data_types" in preview
+    assert len(preview["first_20_rows"]) <= 20
+    assert "district" in preview["columns"]
+
+    # 3. Test Dataset Statistics API
+    resp_stats = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}/statistics")
+    assert resp_stats.status_code == 200
+    stats = resp_stats.json()
+    assert "total_rows" in stats
+    assert "total_columns" in stats
+    assert "missing_values" in stats
+    assert "duplicate_rows" in stats
+    assert "numeric_columns" in stats
+    assert "categorical_columns" in stats
+    assert stats["total_rows"] > 0
+    assert "district" in stats["missing_values"]
+
+    # 4. Test Multi-File Upload API
+    csv_content_1 = (
+        "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
+        "FIR101,Theft,2025-05-10,14:30,Bengaluru,Koramangala PS,34,22,Male,Driver,1,3.0,reported\n"
+    )
+    csv_content_2 = (
+        "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
+        "FIR202,Assault,2025-05-11,09:15,Bengaluru,Koramangala PS,45,28,Female,Business,0,2.0,reported\n"
+    )
+    
+    file_payload = [
+        ("files", ("test_multi_1.csv", io.BytesIO(csv_content_1.encode("utf-8")), "text/csv")),
+        ("files", ("test_multi_2.csv", io.BytesIO(csv_content_2.encode("utf-8")), "text/csv"))
+    ]
+    form_data = {"display_name": "Multi Upload"}
+    
+    resp_multi = client_as_admin.post(
+        "/api/v1/admin/datasets/upload",
+        data=form_data,
+        files=file_payload
+    )
+    assert resp_multi.status_code == 200
+    multi_res = resp_multi.json()
+    assert isinstance(multi_res, list)
+    assert len(multi_res) == 2
+    assert multi_res[0]["row_count"] == 1
+    assert multi_res[1]["row_count"] == 1
+

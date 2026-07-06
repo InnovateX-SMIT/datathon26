@@ -209,3 +209,68 @@ export async function fetchDatasetSummary(datasetId: number): Promise<DatasetSum
   );
   return res.data;
 }
+
+export interface DatasetPreview {
+  first_20_rows: Array<Record<string, any>>;
+  total_rows: number;
+  total_columns: number;
+  columns: string[];
+  data_types: Record<string, string>;
+}
+
+export interface DatasetStatistics {
+  total_rows: number;
+  total_columns: number;
+  missing_values: Record<string, number>;
+  duplicate_rows: number;
+  numeric_columns: string[];
+  categorical_columns: string[];
+}
+
+export async function fetchDatasetPreview(datasetId: number): Promise<DatasetPreview> {
+  const res = await axios.get<DatasetPreview>(
+    `${API_BASE}/api/v1/admin/datasets/${datasetId}/preview`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+export async function fetchDatasetStatistics(datasetId: number): Promise<DatasetStatistics> {
+  const res = await axios.get<DatasetStatistics>(
+    `${API_BASE}/api/v1/admin/datasets/${datasetId}/statistics`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+export async function uploadDatasets(
+  displayName: string | null,
+  description: string | null,
+  files: File[]
+): Promise<DatasetInfo | DatasetInfo[]> {
+  const formData = new FormData();
+  if (displayName) formData.append("display_name", displayName);
+  if (description) formData.append("description", description);
+  
+  if (files.length === 1) {
+    formData.append("file", files[0]);
+  } else {
+    files.forEach(f => {
+      formData.append("files", f);
+    });
+  }
+
+  const res = await axios.post<DatasetInfo | DatasetInfo[]>(
+    `${API_BASE}/api/v1/admin/datasets/upload`,
+    formData,
+    {
+      headers: getAuthHeaders(true),
+    }
+  );
+  return res.data;
+}
+

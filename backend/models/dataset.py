@@ -13,8 +13,11 @@ class Dataset(Base):
     source_type = Column(String(50), nullable=False, default="CSV") # "CSV", "Excel", "System Seed"
     upload_time = Column(DateTime(timezone=True), server_default=func.now())
     row_count = Column(Integer, default=0)
+    column_count = Column(Integer, default=0)
     file_size = Column(Integer, default=0)
     status = Column(String(50), default="Processing") # "Processing", "Ready", "Failed"
+    upload_status = Column(String(50), default="Completed") # "Completed", "Uploading", "Failed"
+    storage_path = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=False)
     import_summary = Column(Text, nullable=True) # JSON field as string
     

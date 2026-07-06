@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 from backend.core.database import get_db
 from backend.api.admin.database import require_admin, get_current_user_id
-from backend.schemas.dataset import DatasetResponse, DatasetSwitchRequest, DatasetSummaryResponse
+from backend.schemas.dataset import (
+    DatasetResponse,
+    DatasetSwitchRequest,
+    DatasetSummaryResponse,
+    DatasetPreviewResponse,
+    DatasetStatisticsResponse,
+)
 from backend.services.dataset_service import DatasetService
+from backend.models.dataset import Dataset
 from backend.core.logging import logger
 
 router = APIRouter()
@@ -27,39 +34,74 @@ def get_datasets(
             detail="Failed to retrieve registered datasets."
         )
 
-@router.post("/upload", response_model=DatasetResponse)
+@router.post("/upload", response_model=Union[DatasetResponse, List[DatasetResponse]])
 async def upload_dataset_file(
-    display_name: str = Form(...),
+    display_name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     current_user = Depends(require_admin)
 ):
     """
     Registers and uploads a new dataset, importing crime events, criminals,
-    victims, and participations.
+    victims, and participations. Supports single file or multiple files upload.
     """
-    # Verify file extension
-    filename = file.filename
-    if not (filename.lower().endswith(".csv") or filename.lower().endswith(".xlsx") or filename.lower().endswith(".xls")):
+    # Collect all files to process
+    upload_files = []
+    if file is not None:
+        upload_files.append(file)
+    if files is not None:
+        upload_files.extend(files)
+
+    if not upload_files:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file format. Only CSV and Excel (.xlsx, .xls) files are supported."
+            detail="No files uploaded. Please upload at least one CSV or Excel file."
         )
 
+    # Verify file extensions for all uploaded files
+    for f in upload_files:
+        filename = f.filename
+        if not (filename.lower().endswith(".csv") or filename.lower().endswith(".xlsx") or filename.lower().endswith(".xls")):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file format for '{filename}'. Only CSV and Excel (.xlsx, .xls) files are supported."
+            )
+
     try:
-        file_bytes = await file.read()
         service = DatasetService(db)
         admin_id = get_current_user_id(current_user)
-        
-        db_dataset = service.import_dataset(
-            display_name=display_name,
-            description=description,
-            file_name=filename,
-            file_bytes=file_bytes,
-            user_id=admin_id
-        )
-        return db_dataset
+        results = []
+
+        for f in upload_files:
+            file_bytes = await f.read()
+            # If multiple files are uploaded, display name is customized
+            if len(upload_files) > 1:
+                # If display name was provided, suffix it
+                if display_name:
+                    current_display_name = f"{display_name} - {f.filename}"
+                else:
+                    # Clean filename as display name
+                    current_display_name = f.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
+            else:
+                current_display_name = display_name or f.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
+
+            db_dataset = service.import_dataset(
+                display_name=current_display_name,
+                description=description,
+                file_name=f.filename,
+                file_bytes=file_bytes,
+                user_id=admin_id
+            )
+            results.append(db_dataset)
+
+        # If a single file was uploaded, return the single response (compatibility with tests)
+        if len(upload_files) == 1 and file is not None:
+            return results[0]
+        else:
+            return results
+
     except ValueError as ve:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -71,6 +113,7 @@ async def upload_dataset_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process dataset file: {str(e)}"
         )
+
 
 @router.post("/activate", response_model=DatasetResponse)
 def activate_dataset(
@@ -157,3 +200,79 @@ def get_dataset_summary_metrics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to compile dataset summary statistics."
         )
+
+@router.get("/{dataset_id}", response_model=DatasetResponse)
+def get_dataset_details(
+    dataset_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Retrieves the metadata details of a specific dataset by ID.
+    """
+    try:
+        service = DatasetService(db)
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found."
+            )
+        return dataset
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve dataset details."
+        )
+
+@router.get("/{dataset_id}/preview", response_model=DatasetPreviewResponse)
+def get_dataset_preview(
+    dataset_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Retrieves a preview of the dataset including columns, datatypes, and first 20 rows.
+    """
+    try:
+        service = DatasetService(db)
+        return service.get_dataset_preview(dataset_id)
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error previewing dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate dataset preview: {str(e)}"
+        )
+
+@router.get("/{dataset_id}/statistics", response_model=DatasetStatisticsResponse)
+def get_dataset_statistics(
+    dataset_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Computes statistical analysis metrics on the dataset's file.
+    """
+    try:
+        service = DatasetService(db)
+        return service.get_dataset_statistics(dataset_id)
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error generating statistics for dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to compute dataset statistics: {str(e)}"
+        )
+

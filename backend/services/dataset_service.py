@@ -1,5 +1,11 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import os
+import io
+import re
+import json
+import pandas as pd
+import numpy as np
 from backend.models.dataset import Dataset
 from backend.core.exceptions import NoActiveDatasetException
 from backend.core.logging import logger
@@ -138,13 +144,23 @@ class DatasetService:
         and inserts CrimeEvent, Criminal, Victim, and CrimeParticipation records in transactional batches under 'Importing'.
         If any validation fails, rolls back completely and marks dataset as 'Failed'.
         """
-        import json
-        import pandas as pd
-        import io
-        import numpy as np
-        import re
+        # Validate File Extension
+        if not (file_name.lower().endswith(".csv") or file_name.lower().endswith(".xlsx") or file_name.lower().endswith(".xls")):
+            raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx, .xls) files are supported.")
+
+        # Validate Empty File size
+        if len(file_bytes) == 0:
+            raise ValueError("File is empty. No data found.")
+
+        # Validate Duplicate Filename (excluding failed ones)
+        duplicate_check = self.db.query(Dataset).filter(
+            Dataset.original_filename == file_name,
+            Dataset.status != "Failed"
+        ).first()
+        if duplicate_check:
+            raise ValueError(f"A dataset with filename '{file_name}' has already been uploaded.")
+
         from datetime import datetime
-        from backend.models.dataset import Dataset
         from backend.models.crime import CrimeEvent
         from backend.models.criminal import Criminal
         from backend.models.victim import Victim
@@ -160,8 +176,11 @@ class DatasetService:
             description=description,
             source_type="CSV" if file_name.lower().endswith(".csv") else "Excel",
             row_count=0,
+            column_count=0,
             file_size=len(file_bytes),
             status="Uploading",
+            upload_status="Uploading",
+            storage_path=None,
             is_active=False
         )
         self.db.add(db_dataset)
@@ -169,17 +188,43 @@ class DatasetService:
         self.db.refresh(db_dataset)
 
         try:
+            # Create folder if not exists
+            os.makedirs("datasets/uploaded", exist_ok=True)
+            
+            # Write file bytes
+            storage_filename = f"{db_dataset.id}_{file_name}"
+            storage_path = os.path.join("datasets", "uploaded", storage_filename)
+            with open(storage_path, "wb") as f:
+                f.write(file_bytes)
+            
+            db_dataset.storage_path = storage_path
+            db_dataset.upload_status = "Completed"
+            self.db.commit()
+
             # Transition to 'Validating'
             db_dataset.status = "Validating"
             self.db.commit()
 
             # Parse CSV or Excel
             if file_name.lower().endswith(".xlsx") or file_name.lower().endswith(".xls"):
-                df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+                try:
+                    df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+                except Exception as parse_err:
+                    raise ValueError(f"Failed to parse Excel file. It may be corrupted or invalid. Error: {str(parse_err)}")
             elif file_name.lower().endswith(".csv"):
-                df = pd.read_csv(io.BytesIO(file_bytes))
+                try:
+                    df = pd.read_csv(io.BytesIO(file_bytes))
+                except Exception as parse_err:
+                    raise ValueError(f"Failed to parse CSV file. It may be corrupted or invalid. Error: {str(parse_err)}")
             else:
                 raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx) are supported.")
+
+            if df.empty or len(df) == 0:
+                raise ValueError("File is empty. No data rows found.")
+
+            # Record column count
+            db_dataset.column_count = len(df.columns)
+            self.db.commit()
 
             df = df.replace({np.nan: None})
 
@@ -519,6 +564,7 @@ class DatasetService:
         except Exception as file_err:
             self.db.rollback()
             db_dataset.status = "Failed"
+            db_dataset.upload_status = "Failed"
             
             # Parse row number for statistical tracking
             row_num_err = "unknown"
@@ -584,3 +630,90 @@ class DatasetService:
             "upload_time": dataset.upload_time,
             "file_size": dataset.file_size
         }
+
+    def get_dataset_preview(self, dataset_id: int) -> dict:
+        """
+        Reads the first 20 rows and column metadata from the stored dataset file.
+        """
+        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+
+        # Resolve path
+        path = dataset.storage_path
+        if not path and dataset.name == "System Seed":
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            path = os.path.join(base_dir, "datasets", "processed", "crime_events.csv")
+        
+        if not path or not os.path.exists(path):
+            raise ValueError(f"Dataset storage file not found for dataset ID {dataset_id}.")
+
+        # Load file
+        if path.lower().endswith(".xlsx") or path.lower().endswith(".xls"):
+            df = pd.read_excel(path, engine="openpyxl")
+        else:
+            df = pd.read_csv(path)
+
+        df = df.replace({np.nan: None})
+
+        # Columns & Types
+        dtypes_map = {}
+        for col, dtype in df.dtypes.items():
+            dtype_str = str(dtype)
+            if "int" in dtype_str:
+                dtypes_map[col] = "integer"
+            elif "float" in dtype_str:
+                dtypes_map[col] = "float"
+            elif "datetime" in dtype_str:
+                dtypes_map[col] = "datetime"
+            elif "bool" in dtype_str:
+                dtypes_map[col] = "boolean"
+            else:
+                dtypes_map[col] = "string"
+
+        return {
+            "first_20_rows": df.head(20).to_dict(orient="records"),
+            "total_rows": len(df),
+            "total_columns": len(df.columns),
+            "columns": list(df.columns),
+            "data_types": dtypes_map
+        }
+
+    def get_dataset_statistics(self, dataset_id: int) -> dict:
+        """
+        Computes row/column count, missing values, duplicates, and numeric/categorical columns.
+        """
+        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+
+        # Resolve path
+        path = dataset.storage_path
+        if not path and dataset.name == "System Seed":
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            path = os.path.join(base_dir, "datasets", "processed", "crime_events.csv")
+        
+        if not path or not os.path.exists(path):
+            raise ValueError(f"Dataset storage file not found for dataset ID {dataset_id}.")
+
+        # Load file
+        if path.lower().endswith(".xlsx") or path.lower().endswith(".xls"):
+            df = pd.read_excel(path, engine="openpyxl")
+        else:
+            df = pd.read_csv(path)
+
+        missing_values = {col: int(val) for col, val in df.isnull().sum().items()}
+        duplicate_rows = int(df.duplicated().sum())
+        
+        numeric_columns = df.select_dtypes(include=[np.number]).columns.tolist()
+        categorical_columns = df.select_dtypes(exclude=[np.number]).columns.tolist()
+
+        return {
+            "total_rows": int(df.shape[0]),
+            "total_columns": int(df.shape[1]),
+            "missing_values": missing_values,
+            "duplicate_rows": duplicate_rows,
+            "numeric_columns": numeric_columns,
+            "categorical_columns": categorical_columns
+        }
+

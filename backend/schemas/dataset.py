@@ -18,8 +18,11 @@ class DatasetBase(BaseModel):
     original_filename: str
     source_type: str
     row_count: Optional[int] = 0
+    column_count: Optional[int] = 0
     file_size: Optional[int] = 0
     status: str = "Processing"
+    upload_status: Optional[str] = "Completed"
+    storage_path: Optional[str] = None
     is_active: bool = False
     import_summary: Optional[str] = None
 
@@ -36,4 +39,20 @@ class DatasetResponse(DatasetBase):
 
 class DatasetSwitchRequest(BaseModel):
     dataset_id: int
+
+class DatasetPreviewResponse(BaseModel):
+    first_20_rows: List[Dict[str, Any]]
+    total_rows: int
+    total_columns: int
+    columns: List[str]
+    data_types: Dict[str, str]
+
+class DatasetStatisticsResponse(BaseModel):
+    total_rows: int
+    total_columns: int
+    missing_values: Dict[str, int]
+    duplicate_rows: int
+    numeric_columns: List[str]
+    categorical_columns: List[str]
+
 

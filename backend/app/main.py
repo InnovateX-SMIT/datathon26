@@ -37,6 +37,20 @@ def migrate_database_schema(db_engine):
                     logger.info(f"Adding dataset_id column to {table_name} table...")
                     conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN dataset_id INTEGER REFERENCES datasets(id) ON DELETE CASCADE"))
 
+            # 1b. Scoping datasets table migrations
+            result = conn.execute(text("PRAGMA table_info(datasets)"))
+            ds_cols = {row[1] for row in result.fetchall()}
+            if ds_cols:
+                if "column_count" not in ds_cols:
+                    logger.info("Adding column_count column to datasets table...")
+                    conn.execute(text("ALTER TABLE datasets ADD COLUMN column_count INTEGER DEFAULT 0"))
+                if "upload_status" not in ds_cols:
+                    logger.info("Adding upload_status column to datasets table...")
+                    conn.execute(text("ALTER TABLE datasets ADD COLUMN upload_status VARCHAR(50) DEFAULT 'Completed'"))
+                if "storage_path" not in ds_cols:
+                    logger.info("Adding storage_path column to datasets table...")
+                    conn.execute(text("ALTER TABLE datasets ADD COLUMN storage_path VARCHAR(500) NULL"))
+
             # 2. Ensure default dataset exists and map existing rows to it
             res = conn.execute(text("SELECT id FROM datasets WHERE name = 'System Seed' LIMIT 1")).fetchone()
             if not res:
