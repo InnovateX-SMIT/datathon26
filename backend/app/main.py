@@ -51,6 +51,19 @@ def migrate_database_schema(db_engine):
                     logger.info("Adding storage_path column to datasets table...")
                     conn.execute(text("ALTER TABLE datasets ADD COLUMN storage_path VARCHAR(500) NULL"))
 
+            # 1c. Scoping dataset_configs table migrations
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS dataset_configs ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "max_active_datasets VARCHAR(20) DEFAULT '1'"
+                ")"
+            ))
+            # Seed default config row if empty
+            res_config = conn.execute(text("SELECT id FROM dataset_configs LIMIT 1")).fetchone()
+            if not res_config:
+                logger.info("Initializing dataset_configs with default row...")
+                conn.execute(text("INSERT INTO dataset_configs (max_active_datasets) VALUES ('1')"))
+
             # 2. Ensure default dataset exists and map existing rows to it
             res = conn.execute(text("SELECT id FROM datasets WHERE name = 'System Seed' LIMIT 1")).fetchone()
             if not res:

@@ -29,3 +29,10 @@ class Dataset(Base):
     criminals = relationship("Criminal", back_populates="dataset", cascade="all, delete-orphan")
     victims = relationship("Victim", back_populates="dataset", cascade="all, delete-orphan")
     crime_participations = relationship("CrimeParticipation", back_populates="dataset", cascade="all, delete-orphan")
+
+class DatasetConfig(Base):
+    __tablename__ = "dataset_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    max_active_datasets = Column(String(20), nullable=False, default="1")
+

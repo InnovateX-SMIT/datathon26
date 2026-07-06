@@ -19,7 +19,8 @@ class DatasetService:
         Resolves the currently active dataset ID. Auto-seeds a default active dataset if
         no datasets exist in the database (ensuring seamless operation and backward-compatibility).
         """
-        active_id = self.db.query(Dataset.id).filter(Dataset.is_active == True).scalar()
+        active_row = self.db.query(Dataset.id).filter(Dataset.is_active == True).first()
+        active_id = active_row[0] if active_row else None
         if active_id is None:
             try:
                 first_any = self.db.query(Dataset.id).first()
@@ -89,21 +90,142 @@ class DatasetService:
 
     def activate_dataset(self, dataset_id: int) -> Dataset:
         """
-        Sets the specified dataset as active and deactivates all others.
+        Sets the specified dataset as active. Enforces the maximum active datasets limit,
+        deactivating the oldest active dataset(s) if necessary.
         """
+        from backend.models.dataset import DatasetConfig
+        from datetime import datetime
+
         dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if not dataset:
             raise ValueError(f"Dataset with ID {dataset_id} not found.")
 
-        # Deactivate all datasets
-        self.db.query(Dataset).update({Dataset.is_active: False})
-        
+        if dataset.status == "Archived":
+            raise ValueError("Cannot activate an archived dataset.")
+
+        if dataset.status != "Ready":
+            raise ValueError("Cannot activate a dataset that is not in Ready state.")
+
+        if dataset.is_active:
+            # Already active, no action needed
+            return dataset
+
+        # Load config
+        config = self.db.query(DatasetConfig).first()
+        max_active = config.max_active_datasets if config else "1"
+
+        if max_active != "All":
+            limit = int(max_active)
+            # Find currently active datasets ordered by upload_time ascending (oldest first)
+            active_datasets = self.db.query(Dataset).filter(Dataset.is_active == True).order_by(Dataset.upload_time.asc()).all()
+            if len(active_datasets) >= limit:
+                # Deactivate oldest active datasets to make space
+                num_to_deactivate = len(active_datasets) - limit + 1
+                for i in range(num_to_deactivate):
+                    old_ds = active_datasets[i]
+                    old_ds.is_active = False
+                    logger.info(f"[Dataset Activation Change] Dataset ID: {old_ds.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
+
         # Activate this dataset
         dataset.is_active = True
+        logger.info(f"[Dataset Activation Change] Dataset ID: {dataset.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Inactive, New Status: Active")
+
         self.db.commit()
-        
-        logger.info(f"Dataset ID {dataset_id} ('{dataset.display_name}') set as active.")
         return dataset
+
+    def deactivate_dataset(self, dataset_id: int) -> Dataset:
+        """
+        Sets the specified dataset as inactive.
+        """
+        from datetime import datetime
+        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+
+        if not dataset.is_active:
+            return dataset
+
+        # Deactivate
+        dataset.is_active = False
+        logger.info(f"[Dataset Activation Change] Dataset ID: {dataset.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
+        self.db.commit()
+        return dataset
+
+    def get_active_datasets(self) -> List[Dataset]:
+        """
+        Gets all currently active Dataset objects.
+        """
+        self.get_active_dataset_id()
+        return self.db.query(Dataset).filter(Dataset.is_active == True).all()
+
+    def get_active_dataset_ids(self) -> List[int]:
+        """
+        Gets the IDs of all currently active datasets.
+        """
+        self.get_active_dataset_id()
+        active_ids = self.db.query(Dataset.id).filter(Dataset.is_active == True).all()
+        return [row[0] for row in active_ids]
+
+    def get_active_datasets_metadata(self) -> List[dict]:
+        """
+        Returns basic metadata dicts for all active datasets.
+        """
+        active_ds = self.get_active_datasets()
+        return [
+            {
+                "id": ds.id,
+                "name": ds.name,
+                "display_name": ds.display_name,
+                "original_filename": ds.original_filename,
+                "row_count": ds.row_count,
+                "column_count": ds.column_count,
+                "file_size": ds.file_size
+            }
+            for ds in active_ds
+        ]
+
+    def get_dataset_config(self):
+        """
+        Retrieves the dataset settings configuration, creating the default one if missing.
+        """
+        from backend.models.dataset import DatasetConfig
+        config = self.db.query(DatasetConfig).first()
+        if not config:
+            config = DatasetConfig(max_active_datasets="1")
+            self.db.add(config)
+            self.db.commit()
+            self.db.refresh(config)
+        return config
+
+    def update_dataset_config(self, max_active: str):
+        """
+        Updates the dataset settings configuration and enforces active count limits.
+        """
+        from backend.models.dataset import DatasetConfig
+        from datetime import datetime
+        
+        if max_active not in ["1", "2", "3", "All"]:
+            raise ValueError("Invalid maximum active count. Options are '1', '2', '3', or 'All'.")
+
+        config = self.get_dataset_config()
+        config.max_active_datasets = max_active
+        self.db.commit()
+
+        # If the new limit is a number, we may need to deactivate some datasets
+        if max_active != "All":
+            limit = int(max_active)
+            active_datasets = self.db.query(Dataset).filter(Dataset.is_active == True).order_by(Dataset.upload_time.asc()).all()
+            if len(active_datasets) > limit:
+                # Deactivate the oldest active datasets
+                num_to_deactivate = len(active_datasets) - limit
+                for i in range(num_to_deactivate):
+                    old_ds = active_datasets[i]
+                    old_ds.is_active = False
+                    logger.info(f"[Dataset Activation Change] Dataset ID: {old_ds.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
+                self.db.commit()
+
+        return config
+
 
     def delete_dataset(self, dataset_id: int) -> bool:
         """

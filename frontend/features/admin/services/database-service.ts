@@ -277,3 +277,40 @@ export async function uploadDatasets(
   return res.data;
 }
 
+export interface DatasetConfig {
+  max_active_datasets: string;
+}
+
+export async function fetchDatasetConfig(): Promise<DatasetConfig> {
+  const res = await axios.get<DatasetConfig>(
+    `${API_BASE}/api/v1/admin/datasets/config`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+export async function updateDatasetConfig(maxActive: string): Promise<DatasetConfig> {
+  const res = await axios.put<DatasetConfig>(
+    `${API_BASE}/api/v1/admin/datasets/config`,
+    { max_active_datasets: maxActive },
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+export async function deactivateDataset(datasetId: number): Promise<DatasetInfo> {
+  const res = await axios.post<DatasetInfo>(
+    `${API_BASE}/api/v1/admin/datasets/deactivate`,
+    { dataset_id: datasetId },
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+

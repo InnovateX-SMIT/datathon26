@@ -9,6 +9,8 @@ from backend.schemas.dataset import (
     DatasetSummaryResponse,
     DatasetPreviewResponse,
     DatasetStatisticsResponse,
+    DatasetConfigRequest,
+    DatasetConfigResponse,
 )
 from backend.services.dataset_service import DatasetService
 from backend.models.dataset import Dataset
@@ -32,6 +34,90 @@ def get_datasets(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve registered datasets."
+        )
+
+@router.get("/active", response_model=List[DatasetResponse])
+def get_active_datasets_endpoint(
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Retrieves all currently active datasets.
+    """
+    try:
+        service = DatasetService(db)
+        return service.get_active_datasets()
+    except Exception as e:
+        logger.error(f"Error fetching active datasets: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve active datasets."
+        )
+
+@router.post("/deactivate", response_model=DatasetResponse)
+def deactivate_dataset_endpoint(
+    payload: DatasetSwitchRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Deactivates a specific dataset by setting is_active to False.
+    """
+    try:
+        service = DatasetService(db)
+        return service.deactivate_dataset(payload.dataset_id)
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error deactivating dataset {payload.dataset_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to deactivate dataset."
+        )
+
+@router.get("/config", response_model=DatasetConfigResponse)
+def get_dataset_config_endpoint(
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Retrieves the dataset selection configuration (Maximum Active Datasets setting).
+    """
+    try:
+        service = DatasetService(db)
+        return service.get_dataset_config()
+    except Exception as e:
+        logger.error(f"Error fetching dataset config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve dataset configuration."
+        )
+
+@router.put("/config", response_model=DatasetConfigResponse)
+def update_dataset_config_endpoint(
+    payload: DatasetConfigRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Updates the dataset selection configuration (Maximum Active Datasets setting).
+    """
+    try:
+        service = DatasetService(db)
+        return service.update_dataset_config(payload.max_active_datasets)
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error updating dataset config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update dataset configuration."
         )
 
 @router.post("/upload", response_model=Union[DatasetResponse, List[DatasetResponse]])
@@ -275,4 +361,7 @@ def get_dataset_statistics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to compute dataset statistics: {str(e)}"
         )
+
+
+
 

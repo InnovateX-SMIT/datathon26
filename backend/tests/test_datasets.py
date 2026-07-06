@@ -243,3 +243,86 @@ def test_new_dataset_features(client_as_admin, db_session):
     assert multi_res[0]["row_count"] == 1
     assert multi_res[1]["row_count"] == 1
 
+
+def test_dataset_active_management(client_as_admin, db_session):
+    from backend.models.dataset import Dataset
+    from datetime import datetime, timedelta
+
+    # 1. Test GET configuration
+    response = client_as_admin.get("/api/v1/admin/datasets/config")
+    assert response.status_code == 200
+    assert response.json()["max_active_datasets"] == "1"
+
+    # 2. Test PUT configuration
+    resp_put = client_as_admin.put("/api/v1/admin/datasets/config", json={"max_active_datasets": "2"})
+    assert resp_put.status_code == 200
+    assert resp_put.json()["max_active_datasets"] == "2"
+
+    # Add 3 dummy datasets in the DB in ready status
+    now = datetime.utcnow()
+    ds1 = Dataset(
+        name="ds1", display_name="Dataset 1", original_filename="ds1.csv",
+        source_type="CSV", status="Ready", upload_time=now - timedelta(minutes=10)
+    )
+    ds2 = Dataset(
+        name="ds2", display_name="Dataset 2", original_filename="ds2.csv",
+        source_type="CSV", status="Ready", upload_time=now - timedelta(minutes=5)
+    )
+    ds3 = Dataset(
+        name="ds3", display_name="Dataset 3", original_filename="ds3.csv",
+        source_type="CSV", status="Ready", upload_time=now
+    )
+    db_session.add_all([ds1, ds2, ds3])
+    db_session.commit()
+
+    # Make sure we deactivate any other active datasets first to isolate our test
+    db_session.query(Dataset).update({Dataset.is_active: False})
+    db_session.commit()
+
+    # 3. Activate ds1
+    resp_act1 = client_as_admin.post("/api/v1/admin/datasets/activate", json={"dataset_id": ds1.id})
+    assert resp_act1.status_code == 200
+    assert resp_act1.json()["is_active"] is True
+
+    # 4. Activate ds2
+    resp_act2 = client_as_admin.post("/api/v1/admin/datasets/activate", json={"dataset_id": ds2.id})
+    assert resp_act2.status_code == 200
+    assert resp_act2.json()["is_active"] is True
+
+    # Verify both ds1 and ds2 are active (active count = 2)
+    db_session.refresh(ds1)
+    db_session.refresh(ds2)
+    assert ds1.is_active is True
+    assert ds2.is_active is True
+
+    # 5. Activate ds3 -> should trigger overflow deactivation since limit is 2
+    # ds1 is the oldest (uploaded 10m ago), so it must be automatically deactivated.
+    resp_act3 = client_as_admin.post("/api/v1/admin/datasets/activate", json={"dataset_id": ds3.id})
+    assert resp_act3.status_code == 200
+    assert resp_act3.json()["is_active"] is True
+
+    db_session.refresh(ds1)
+    db_session.refresh(ds2)
+    db_session.refresh(ds3)
+    assert ds1.is_active is False  # Oldest deactivated
+    assert ds2.is_active is True
+    assert ds3.is_active is True
+
+    # 6. Test GET active datasets
+    resp_act = client_as_admin.get("/api/v1/admin/datasets/active")
+    assert resp_act.status_code == 200
+    active_list = resp_act.json()
+    assert len(active_list) == 2
+    active_ids = {d["id"] for d in active_list}
+    assert ds2.id in active_ids
+    assert ds3.id in active_ids
+
+    # 7. Test POST deactivate
+    resp_deact = client_as_admin.post("/api/v1/admin/datasets/deactivate", json={"dataset_id": ds2.id})
+    assert resp_deact.status_code == 200
+    assert resp_deact.json()["is_active"] is False
+
+    db_session.refresh(ds2)
+    assert ds2.is_active is False
+
+

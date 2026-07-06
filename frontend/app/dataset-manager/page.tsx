@@ -18,7 +18,12 @@ import {
   Calendar,
   Sparkles,
   BarChart,
-  FileCode
+  FileCode,
+  Settings,
+  ToggleLeft,
+  ToggleRight,
+  Play,
+  Pause
 } from "lucide-react";
 import {
   fetchDatasets,
@@ -26,15 +31,21 @@ import {
   deleteDataset,
   fetchDatasetPreview,
   fetchDatasetStatistics,
+  activateDataset,
+  deactivateDataset,
+  fetchDatasetConfig,
+  updateDatasetConfig,
   DatasetInfo,
   DatasetPreview,
-  DatasetStatistics
+  DatasetStatistics,
+  DatasetConfig
 } from "@/features/admin/services/database-service";
 
 type PreviewTabId = "data" | "schema" | "statistics";
 
 export default function DatasetManagerPage() {
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
+  const [config, setConfig] = useState<DatasetConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +66,10 @@ export default function DatasetManagerPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewTab, setPreviewTab] = useState<PreviewTabId>("data");
 
+  // Settings Panel state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [maxActiveInput, setMaxActiveInput] = useState("1");
+
   // Delete Confirm Modal state
   const [deleteConfirmDataset, setDeleteConfirmDataset] = useState<DatasetInfo | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -63,6 +78,7 @@ export default function DatasetManagerPage() {
 
   useEffect(() => {
     loadDatasets();
+    loadConfig();
   }, []);
 
   const loadDatasets = async () => {
@@ -75,6 +91,16 @@ export default function DatasetManagerPage() {
       setError(err.response?.data?.detail || "Failed to fetch dataset registry.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadConfig = async () => {
+    try {
+      const cfg = await fetchDatasetConfig();
+      setConfig(cfg);
+      setMaxActiveInput(cfg.max_active_datasets);
+    } catch (err: any) {
+      console.error("Failed to load settings configuration", err);
     }
   };
 
@@ -172,6 +198,44 @@ export default function DatasetManagerPage() {
     }
   };
 
+  const handleToggleActive = async (ds: DatasetInfo) => {
+    setActionLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      if (ds.is_active) {
+        await deactivateDataset(ds.id);
+        setSuccess(`Dataset "${ds.display_name}" deactivated successfully.`);
+      } else {
+        await activateDataset(ds.id);
+        setSuccess(`Dataset "${ds.display_name}" activated successfully.`);
+      }
+      await loadDatasets();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to switch active status.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await updateDatasetConfig(maxActiveInput);
+      setSuccess(`Maximum active dataset limit set to "${maxActiveInput}".`);
+      setSettingsOpen(false);
+      await loadDatasets();
+      await loadConfig();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to update settings configuration.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirmDataset) return;
     setActionLoading(true);
@@ -217,13 +281,22 @@ export default function DatasetManagerPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, is_active: boolean) => {
+    if (is_active) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Active
+        </span>
+      );
+    }
+    
     switch (status) {
       case "Ready":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Ready
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-700 text-slate-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            Inactive
           </span>
         );
       case "Failed":
@@ -235,8 +308,8 @@ export default function DatasetManagerPage() {
         );
       case "Archived":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-700 text-slate-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-900 border border-slate-850 text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-650" />
             Archived
           </span>
         );
@@ -257,6 +330,10 @@ export default function DatasetManagerPage() {
         );
     }
   };
+
+  const activeDatasetsList = datasets.filter(d => d.is_active);
+  const activeCount = activeDatasetsList.length;
+  const maxActiveStr = config?.max_active_datasets || "1";
 
   // Filters search results
   const filteredDatasets = datasets.filter(
@@ -283,20 +360,20 @@ export default function DatasetManagerPage() {
                 Dataset Manager
               </h1>
               <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Phase 1 — Dynamic Dataset Management Foundation
+                Phase 2 — Active Dataset Management & Switching
               </p>
             </div>
           </div>
           <p className="text-slate-400 text-sm mt-3 max-w-2xl leading-relaxed">
-            Register, validate, preview, and review statistical integrity parameters of incident files. Supported extensions are CSV and Excel.
+            Configure dataset active limits, switch active data source context on the fly, and view preview diagnostics schemas.
           </p>
         </div>
 
         {/* Global Active indicator */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/20 rounded-2xl self-start">
+        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-violet-500/10 border border-violet-500/20 rounded-2xl self-start">
           <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-          <span className="text-violet-400 text-xs font-black uppercase tracking-wider">
-            Registry Connected
+          <span className="text-violet-400 text-xs font-black uppercase tracking-wider font-mono">
+            Active: {activeCount} / {maxActiveStr}
           </span>
         </div>
       </div>
@@ -332,7 +409,7 @@ export default function DatasetManagerPage() {
               <span>Multi-File Upload Portal</span>
             </h3>
             <p className="text-[11px] text-slate-500 mt-1">
-              Select or drop multiple spreadsheet datasets simultaneously.
+              Select or drop multiple CSV/Excel datasets simultaneously.
             </p>
           </div>
 
@@ -391,7 +468,7 @@ export default function DatasetManagerPage() {
                   <p className="text-xs text-slate-350">
                     Click to browse or drag & drop files here
                   </p>
-                  <p className="text-[10px] text-slate-550 mt-1 uppercase font-mono tracking-widest">
+                  <p className="text-[10px] text-slate-555 mt-1 uppercase font-mono tracking-widest">
                     Accepts CSV, XLSX or XLS formats
                   </p>
                 </div>
@@ -421,7 +498,7 @@ export default function DatasetManagerPage() {
                           e.stopPropagation();
                           removeUploadFile(idx);
                         }}
-                        className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                        className="text-slate-505 hover:text-red-400 transition-colors p-1"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -490,41 +567,67 @@ export default function DatasetManagerPage() {
             <h3 className="text-sm font-black text-slate-300 uppercase tracking-wider">
               Registry Summary
             </h3>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Platform state overview across all registered file contexts.
+            <p className="text-[11px] text-slate-555 mt-1">
+              Active configuration controls for data switching.
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-2xl">
-              <span className="text-[9px] font-bold text-slate-550 uppercase tracking-widest block font-mono">
-                Total Registered Datasets
-              </span>
-              <p className="text-4xl font-black text-violet-400 font-mono mt-1">
-                {datasets.length}
-              </p>
-            </div>
-            <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-2xl">
-              <span className="text-[9px] font-bold text-slate-550 uppercase tracking-widest block font-mono">
-                Active Dataset Context
-              </span>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold text-slate-200 font-mono truncate max-w-[200px]">
-                  {datasets.find(d => d.is_active)?.display_name || "System Seed"}
+            <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-2xl flex justify-between items-center">
+              <div>
+                <span className="text-[9px] font-bold text-slate-550 uppercase tracking-widest block font-mono">
+                  Active Limit config
                 </span>
+                <p className="text-xl font-black text-slate-200 font-mono mt-0.5">
+                  Max: {maxActiveStr} Active
+                </p>
+              </div>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="p-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-xl cursor-pointer transition-all"
+                title="Open settings panel"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-2xl">
+              <span className="text-[9px] font-bold text-slate-555 uppercase tracking-widest block font-mono">
+                Active Dataset Context ({activeCount} / {maxActiveStr})
+              </span>
+              <div className="mt-1.5 space-y-1 max-h-[80px] overflow-y-auto">
+                {activeDatasetsList.map(ds => (
+                  <div key={ds.id} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span className="text-[11px] font-bold text-slate-300 font-mono truncate max-w-[200px]" title={ds.display_name}>
+                      {ds.display_name}
+                    </span>
+                  </div>
+                ))}
+                {activeCount === 0 && (
+                  <span className="text-[11px] text-slate-600 italic">No datasets are currently active.</span>
+                )}
               </div>
             </div>
           </div>
 
-          <button
-            onClick={loadDatasets}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-100 text-xs font-bold rounded-xl cursor-pointer transition-all disabled:opacity-50 font-mono uppercase tracking-wider"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Sync Directory</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-250 text-xs font-bold rounded-xl cursor-pointer transition-all font-mono uppercase tracking-wider"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Config Limits</span>
+            </button>
+            <button
+              onClick={loadDatasets}
+              disabled={loading}
+              className="p-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-xl cursor-pointer transition-all disabled:opacity-50"
+              title="Sync Directory"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -561,6 +664,7 @@ export default function DatasetManagerPage() {
                 <th className="px-6 py-3.5 text-right">Row Count</th>
                 <th className="px-6 py-3.5 text-right">Col Count</th>
                 <th className="px-6 py-3.5 text-left">Upload Time</th>
+                <th className="px-6 py-3.5 text-center">Active Status</th>
                 <th className="px-6 py-3.5 text-center">Actions</th>
               </tr>
             </thead>
@@ -568,7 +672,7 @@ export default function DatasetManagerPage() {
               {loading && datasets.length === 0 ? (
                 [...Array(3)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={7} className="px-6 py-6 text-center">
+                    <td colSpan={8} className="px-6 py-6 text-center">
                       <div className="h-4 bg-slate-950 rounded w-1/3 mx-auto" />
                     </td>
                   </tr>
@@ -576,8 +680,8 @@ export default function DatasetManagerPage() {
               ) : filteredDatasets.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
-                    className="px-6 py-12 text-center text-slate-500 text-xs uppercase tracking-widest select-none"
+                    colSpan={8}
+                    className="px-6 py-12 text-center text-slate-550 text-xs uppercase tracking-widest select-none"
                   >
                     {searchQuery ? "No matching files found." : "No datasets uploaded."}
                   </td>
@@ -587,7 +691,7 @@ export default function DatasetManagerPage() {
                   <tr
                     key={ds.id}
                     className={`hover:bg-slate-950/20 transition-all ${
-                      ds.is_active ? "bg-violet-500/[0.02]" : ""
+                      ds.is_active ? "bg-violet-500/[0.01] border-l-2 border-violet-500" : ""
                     }`}
                   >
                     <td className="px-6 py-4 font-sans font-bold text-slate-200">
@@ -607,12 +711,12 @@ export default function DatasetManagerPage() {
                       <div className="text-slate-300 max-w-xs truncate font-mono text-[11px]" title={ds.original_filename}>
                         {ds.original_filename}
                       </div>
-                      <div className="text-[10px] text-slate-550 mt-0.5">
+                      <div className="text-[10px] text-slate-555 mt-0.5">
                         {ds.source_type} • {formatBytes(ds.file_size)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(ds.status)}
+                      {getStatusBadge(ds.status, ds.is_active)}
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-slate-200">
                       {ds.status === "Ready" ? ds.row_count.toLocaleString() : "-"}
@@ -625,17 +729,44 @@ export default function DatasetManagerPage() {
                         ? new Date(ds.upload_time).toLocaleString("en-IN")
                         : new Date(ds.created_at || "").toLocaleString("en-IN")}
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      {ds.status === "Ready" ? (
+                        <button
+                          onClick={() => handleToggleActive(ds)}
+                          disabled={actionLoading}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold font-sans cursor-pointer transition-all disabled:opacity-50 ${
+                            ds.is_active
+                              ? "bg-violet-600/10 text-violet-400 border-violet-500/20 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20"
+                              : "bg-slate-950 border-slate-850 hover:border-violet-500/40 text-slate-300"
+                          }`}
+                          title={ds.is_active ? "Deactivate dataset" : "Activate dataset"}
+                        >
+                          {ds.is_active ? (
+                            <>
+                              <Pause className="w-3.5 h-3.5 shrink-0" />
+                              <span>Deactivate</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-3.5 h-3.5 shrink-0 fill-slate-300" />
+                              <span>Activate</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-slate-600 text-xs font-sans">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         {/* Preview button */}
                         {ds.status === "Ready" && (
                           <button
                             onClick={() => handleOpenPreview(ds)}
-                            className="p-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 hover:border-slate-750 text-slate-400 hover:text-violet-400 rounded-lg cursor-pointer transition-all flex items-center gap-1 text-[11px] font-bold font-sans"
-                            title="Preview file contents & statistics"
+                            className="p-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 hover:border-slate-750 text-slate-400 hover:text-violet-400 rounded-lg cursor-pointer transition-all"
+                            title="Preview dataset schema & stats"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>Preview</span>
                           </button>
                         )}
                         
@@ -643,11 +774,10 @@ export default function DatasetManagerPage() {
                         {ds.name !== "System Seed" && ds.display_name !== "Synthetic 50K" && ds.status !== "Archived" && !ds.is_active && (
                           <button
                             onClick={() => setDeleteConfirmDataset(ds)}
-                            className="p-1.5 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-400 rounded-lg cursor-pointer transition-all flex items-center gap-1 text-[11px] font-bold font-sans"
+                            className="p-1.5 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-400 rounded-lg cursor-pointer transition-all"
                             title="Soft delete / archive"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            <span>Delete</span>
                           </button>
                         )}
                       </div>
@@ -659,6 +789,86 @@ export default function DatasetManagerPage() {
           </table>
         </div>
       </div>
+
+      {/* ── SETTINGS CONFIGURATION MODAL ── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-6 shadow-2xl relative animate-zoom-in text-slate-200">
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-200 rounded-full hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <h3 className="text-base font-black text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                <Settings className="w-5 h-5 text-violet-400" />
+                <span>Dataset Config settings</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure dataset execution constraints for intelligence modules.
+              </p>
+            </div>
+
+            <form onSubmit={handleSettingsSubmit} className="space-y-5">
+              <div className="flex flex-col gap-2.5">
+                <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">
+                  Maximum Active Datasets *
+                </span>
+                <div className="grid grid-cols-4 gap-2 font-mono text-xs">
+                  {["1", "2", "3", "All"].map((opt) => (
+                    <label
+                      key={opt}
+                      className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl cursor-pointer transition-all ${
+                        maxActiveInput === opt
+                          ? "bg-violet-600/10 border-violet-500 text-violet-450 font-black shadow-[0_4px_12px_rgba(99,102,241,0.05)]"
+                          : "bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-800"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="maxActive"
+                        value={opt}
+                        checked={maxActiveInput === opt}
+                        onChange={(e) => setMaxActiveInput(e.target.value)}
+                        className="hidden"
+                      />
+                      <span>{opt}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="bg-slate-950/40 border border-slate-850/60 rounded-xl p-3.5 text-[10px] text-slate-500 leading-normal font-mono uppercase tracking-wider">
+                  {maxActiveInput === "1" ? (
+                    "Activating any dataset deactivates all others immediately."
+                  ) : maxActiveInput === "All" ? (
+                    "Unlimited datasets can remain active simultaneously."
+                  ) : (
+                    `Up to ${maxActiveInput} active. Exceeding deactivates oldest active sets.`
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-850 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(false)}
+                  className="px-5 py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 text-slate-400 hover:text-slate-205 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-6 py-2.5 bg-violet-600 hover:bg-violet-750 text-white rounded-xl text-xs font-bold cursor-pointer transition-all disabled:opacity-50 uppercase tracking-wider"
+                >
+                  Save Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── PREVIEW MODAL ── */}
       {previewDataset && (
@@ -674,7 +884,7 @@ export default function DatasetManagerPage() {
                   <h3 className="text-base font-black text-slate-100 uppercase tracking-tight">
                     Dataset Inspector
                   </h3>
-                  <p className="text-[10px] text-slate-550 font-mono">
+                  <p className="text-[10px] text-slate-500 font-mono">
                     {previewDataset.display_name} • {previewDataset.original_filename}
                   </p>
                 </div>
@@ -688,7 +898,7 @@ export default function DatasetManagerPage() {
             </div>
 
             {/* Modal tabs */}
-            <div className="flex border-b border-slate-855 px-6 bg-slate-950/20">
+            <div className="flex border-b border-slate-850 px-6 bg-slate-950/20">
               {(["data", "schema", "statistics"] as PreviewTabId[]).map((tab) => (
                 <button
                   key={tab}
@@ -696,7 +906,7 @@ export default function DatasetManagerPage() {
                   className={`py-3 px-4 text-[10px] uppercase tracking-widest font-black transition-all border-b-2 relative cursor-pointer ${
                     previewTab === tab
                       ? "text-violet-400 border-violet-500 bg-violet-500/[0.02]"
-                      : "text-slate-500 hover:text-slate-355 border-transparent"
+                      : "text-slate-500 hover:text-slate-350 border-transparent"
                   }`}
                 >
                   {tab === "data" ? "Data Preview (20 Rows)" : tab === "schema" ? "Columns Schema" : "Dataset Statistics"}
@@ -707,7 +917,7 @@ export default function DatasetManagerPage() {
             {/* Modal content body */}
             <div className="flex-1 overflow-y-auto p-6 min-h-[300px]">
               {previewLoading ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-505 text-xs font-bold gap-3 font-mono">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs font-bold gap-3 font-mono">
                   <RefreshCw className="w-7 h-7 animate-spin text-violet-400" />
                   <span>Analyzing dataset properties...</span>
                 </div>
@@ -726,7 +936,7 @@ export default function DatasetManagerPage() {
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-900/60 font-mono text-[11px] text-slate-350">
+                          <tbody className="divide-y divide-slate-900/60 font-mono text-[11px] text-slate-355">
                             {previewData.first_20_rows.map((row, idx) => (
                               <tr key={idx} className="hover:bg-slate-950/40">
                                 <td className="px-4 py-2 text-center bg-slate-950/30 text-slate-550 border-r border-slate-900 font-bold">
@@ -746,7 +956,7 @@ export default function DatasetManagerPage() {
                           </tbody>
                         </table>
                       </div>
-                      <p className="text-[10px] text-slate-500 font-mono mt-3 uppercase tracking-wider">
+                      <p className="text-[10px] text-slate-505 font-mono mt-3 uppercase tracking-wider">
                         Showing first 20 records • Total Rows: {previewData.total_rows.toLocaleString()} • Columns: {previewData.total_columns}
                       </p>
                     </div>
@@ -766,7 +976,7 @@ export default function DatasetManagerPage() {
                               <span className="text-slate-450 block font-bold text-xs truncate max-w-[200px]" title={col}>
                                 {col}
                               </span>
-                              <span className="text-[9px] text-slate-600 block uppercase tracking-widest mt-1">
+                              <span className="text-[9px] text-slate-605 block uppercase tracking-widest mt-1">
                                 Column Header
                               </span>
                             </div>
@@ -790,22 +1000,22 @@ export default function DatasetManagerPage() {
                     <div className="space-y-6">
                       {/* Metric cards */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center font-mono">
-                        <div className="bg-slate-950/50 p-4 border border-slate-855 rounded-2xl">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Total Rows</p>
+                        <div className="bg-slate-950/50 p-4 border border-slate-850 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-550 uppercase tracking-widest">Total Rows</p>
                           <p className="text-2xl font-black text-slate-200 mt-1">{previewStats.total_rows.toLocaleString()}</p>
                         </div>
-                        <div className="bg-slate-950/50 p-4 border border-slate-855 rounded-2xl">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Total Columns</p>
+                        <div className="bg-slate-950/50 p-4 border border-slate-850 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-555 uppercase tracking-widest">Total Columns</p>
                           <p className="text-2xl font-black text-slate-200 mt-1">{previewStats.total_columns}</p>
                         </div>
-                        <div className="bg-slate-950/50 p-4 border border-slate-855 rounded-2xl">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Duplicate Rows</p>
+                        <div className="bg-slate-950/50 p-4 border border-slate-850 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-555 uppercase tracking-widest">Duplicate Rows</p>
                           <p className={`text-2xl font-black mt-1 ${previewStats.duplicate_rows > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                             {previewStats.duplicate_rows}
                           </p>
                         </div>
-                        <div className="bg-slate-950/50 p-4 border border-slate-855 rounded-2xl">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Corrupted/Empty Cells</p>
+                        <div className="bg-slate-950/50 p-4 border border-slate-850 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-555 uppercase tracking-widest">Corrupted/Empty Cells</p>
                           <p className="text-2xl font-black text-slate-200 mt-1">
                             {Object.values(previewStats.missing_values).reduce((a, b) => a + b, 0).toLocaleString()}
                           </p>
@@ -838,7 +1048,7 @@ export default function DatasetManagerPage() {
                           </h5>
                           <div className="flex flex-wrap gap-1.5">
                             {previewStats.categorical_columns.map(col => (
-                              <span key={col} className="bg-slate-900 border border-slate-855 px-2 py-0.5 rounded text-[10px] text-slate-400">
+                              <span key={col} className="bg-slate-900 border border-slate-850 px-2 py-0.5 rounded text-[10px] text-slate-400">
                                 {col}
                               </span>
                             ))}
@@ -856,7 +1066,7 @@ export default function DatasetManagerPage() {
                         </h5>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                           {Object.entries(previewStats.missing_values).map(([col, count]) => (
-                            <div key={col} className="flex justify-between items-center text-[11px] p-2 bg-slate-900 rounded-xl border border-slate-855/60">
+                            <div key={col} className="flex justify-between items-center text-[11px] p-2 bg-slate-900 rounded-xl border border-slate-850/60">
                               <span className="text-slate-400 truncate max-w-[130px] font-bold" title={col}>{col}</span>
                               <span className={`font-black ${count > 0 ? "text-amber-400" : "text-slate-600"}`}>{count}</span>
                             </div>
@@ -873,7 +1083,7 @@ export default function DatasetManagerPage() {
             <div className="p-6 border-t border-slate-850 flex justify-end">
               <button
                 onClick={() => setPreviewDataset(null)}
-                className="px-5 py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-855 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-bold cursor-pointer"
+                className="px-5 py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-bold cursor-pointer"
               >
                 Close Inspector
               </button>

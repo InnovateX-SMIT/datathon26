@@ -55,4 +55,13 @@ class DatasetStatisticsResponse(BaseModel):
     numeric_columns: List[str]
     categorical_columns: List[str]
 
+class DatasetConfigRequest(BaseModel):
+    max_active_datasets: str
+
+class DatasetConfigResponse(BaseModel):
+    max_active_datasets: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 
