@@ -129,15 +129,22 @@ def test_category_distribution(client):
     assert categories[0]["count"] == 2
 
 def test_historical_comparison(client):
-    response = client.get("/api/v1/analytics/comparison")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["current_month"] == 2
-    assert data["previous_month"] == 1
-    assert data["month_change_percent"] == 100.0
-    assert data["current_year"] == 3
-    assert data["previous_year"] == 1
-    assert data["year_change_percent"] == 200.0
+    from unittest.mock import patch
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 6, 15)
+
+    with patch("backend.services.analytics_service.date", MockDate):
+        response = client.get("/api/v1/analytics/comparison")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["current_month"] == 2
+        assert data["previous_month"] == 1
+        assert data["month_change_percent"] == 100.0
+        assert data["current_year"] == 3
+        assert data["previous_year"] == 1
+        assert data["year_change_percent"] == 200.0
 
 def test_trends_invalid_granularity(client):
     response = client.get("/api/v1/analytics/trends?granularity=hourly")

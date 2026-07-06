@@ -49,21 +49,26 @@ def migrate_database_schema(db_engine):
                 missing_cols.append("ALTER TABLE alerts ADD COLUMN assigned_user_id INTEGER NULL")
             if "metadata_payload" not in columns:
                 missing_cols.append("ALTER TABLE alerts ADD COLUMN metadata_payload VARCHAR(2000) NULL")
-            if "updated_at" not in columns:
-                missing_cols.append("ALTER TABLE alerts ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
                 
             for sql in missing_cols:
                 logger.info(f"Running migration SQL: {sql}")
                 conn.execute(text(sql))
-            if missing_cols:
-                logger.info("Database schema migration completed successfully.")
 
+            if "updated_at" not in columns:
+                logger.info("Adding updated_at to alerts table...")
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN updated_at DATETIME"))
+                conn.execute(text("UPDATE alerts SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+
+            if missing_cols or "updated_at" not in columns:
+                logger.info("Database schema migration completed successfully.")
+ 
             # Handle recommendations table migration
             result = conn.execute(text("PRAGMA table_info(recommendations)"))
             rec_columns = {row[1] for row in result.fetchall()}
             if rec_columns and "updated_at" not in rec_columns:
-                conn.execute(text("ALTER TABLE recommendations ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"))
-                logger.info("Added missing 'updated_at' column to recommendations table.")
+                logger.info("Adding updated_at to recommendations table...")
+                conn.execute(text("ALTER TABLE recommendations ADD COLUMN updated_at DATETIME"))
+                conn.execute(text("UPDATE recommendations SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
 
             # Handle reports table migration
             result = conn.execute(text("PRAGMA table_info(reports)"))

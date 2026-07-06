@@ -67,7 +67,10 @@ class ReportService:
         # Fast path: return cached payload if available
         if db_report.data_payload:
             try:
-                return json.loads(db_report.data_payload)
+                data = json.loads(db_report.data_payload)
+                data["report_id"] = db_report.id
+                data["generated_at"] = db_report.generated_at
+                return data
             except (json.JSONDecodeError, TypeError):
                 pass
         # Slow path: re-assemble (only for legacy reports without payload)
@@ -98,23 +101,28 @@ class ReportService:
             overview, predictions, networks, recs, alerts
         )
 
+        # Persist report metadata initially without payload
+        db_report = self.repo.create_report(
+            title=title,
+            report_type=report_type,
+            summary=summary_text,
+            data_payload=None
+        )
+
+        # Fill dynamic DB-generated values
+        assembled["report_id"] = db_report.id
+        assembled["generated_at"] = db_report.generated_at
+
         # Serialize assembled payload for fast-path cache
         try:
             payload_json = json.dumps(assembled, default=str)
         except (TypeError, ValueError):
             payload_json = None
 
-        # Persist report metadata with cached payload
-        db_report = self.repo.create_report(
-            title=title,
-            report_type=report_type,
-            summary=summary_text,
-            data_payload=payload_json
-        )
+        # Save the serialized JSON with IDs
+        db_report.data_payload = payload_json
+        self.db.commit()
 
-        # Return with correct report_id from the persisted row
-        assembled["report_id"] = db_report.id
-        assembled["generated_at"] = db_report.generated_at
         return assembled
 
     def _assemble_report_response(
