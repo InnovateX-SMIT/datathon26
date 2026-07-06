@@ -69,6 +69,17 @@ export function useAnalytics() {
     }
   }, [granularity, loadInitialData, loadTrendsOnly]);
 
+  useEffect(() => {
+    const handleDatasetChange = () => {
+      initialLoadDone.current = false;
+      loadInitialData(granularity);
+    };
+    window.addEventListener("activeDatasetChanged", handleDatasetChange);
+    return () => {
+      window.removeEventListener("activeDatasetChanged", handleDatasetChange);
+    };
+  }, [granularity, loadInitialData]);
+
   const changeGranularity = (newGran: string) => {
     setGranularity(newGran);
   };

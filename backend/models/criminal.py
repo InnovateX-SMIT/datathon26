@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from backend.core.database import Base
 
@@ -13,9 +13,11 @@ class Criminal(Base):
     caste = Column(String(100), nullable=True)
     risk_score = Column(Float, index=True, default=0.0)
     status = Column(String(50), default="accused")
+    dataset_id = Column(Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     participations = relationship("CrimeParticipation", back_populates="criminal")
+    dataset = relationship("Dataset", back_populates="criminals")

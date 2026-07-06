@@ -54,6 +54,10 @@ class ReportService:
         self.recommendation_service = RecommendationService(db)
         self.alert_service = AlertService(db)
 
+    def _get_active_id(self) -> int:
+        from backend.core.dataset_resolver import DatasetResolver
+        return DatasetResolver(self.db).get_active_dataset_id()
+
     def get_supported_types(self) -> List[Dict[str, str]]:
         return list(REPORT_TYPES.values())
 
@@ -101,52 +105,33 @@ class ReportService:
             overview, predictions, networks, recs, alerts
         )
 
-        # Persist report metadata initially without payload
-        db_report = self.repo.create_report(
-            title=title,
-            report_type=report_type,
-            summary=summary_text,
-            data_payload=None
-        )
-
-        # Fill dynamic DB-generated values
-        assembled["report_id"] = db_report.id
-        assembled["generated_at"] = db_report.generated_at
-
-        # Serialize assembled payload for fast-path cache
+        # Serialize assembled payload for text field in database
         try:
             payload_json = json.dumps(assembled, default=str)
         except (TypeError, ValueError):
             payload_json = None
 
-        # Save the serialized JSON with IDs
-        db_report.data_payload = payload_json
-        self.db.commit()
-
+        # Persist report to database
+        db_report = self.repo.create_report(
+            title=title,
+            report_type=report_type,
+            summary=summary_text,
+            data_payload=payload_json
+        )
+        
+        assembled["report_id"] = db_report.id
+        assembled["generated_at"] = db_report.generated_at
         return assembled
 
     def _assemble_report_response(
         self,
         db_report: Report,
-        overview: Optional[Dict[str, Any]] = None,
-        predictions: Optional[Dict[str, Any]] = None,
-        networks: Optional[Dict[str, Any]] = None,
-        recs: Optional[List[Dict[str, Any]]] = None,
-        alerts: Optional[List[Dict[str, Any]]] = None
+        overview: Dict[str, Any],
+        predictions: Dict[str, Any],
+        networks: Dict[str, Any],
+        recs: List[Dict[str, Any]],
+        alerts: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        
-        # Gather live aggregations if not already provided
-        if overview is None:
-            overview = self._get_crime_overview()
-        if predictions is None:
-            predictions = self._get_predictive_insights()
-        if networks is None:
-            networks = self._get_network_insights()
-        if recs is None:
-            recs = self._get_recommendations()
-        if alerts is None:
-            alerts = self._get_alerts()
-
         return {
             "report_id": db_report.id,
             "report_type": db_report.report_type,
@@ -161,7 +146,8 @@ class ReportService:
         }
 
     def _get_crime_overview(self) -> Dict[str, Any]:
-        total_crimes = self.db.query(CrimeEvent).count()
+        active_id = self._get_active_id()
+        total_crimes = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == active_id).count()
         
         categories_raw = self.analytics_service.get_category_breakdown()
         top_categories = []
@@ -190,6 +176,7 @@ class ReportService:
         }
 
     def _get_predictive_insights(self) -> Dict[str, Any]:
+        active_id = self._get_active_id()
         # High risk locations (top districts with highest counts)
         high_risk_locations = []
         try:
@@ -210,16 +197,20 @@ class ReportService:
         except Exception:
             pass
 
-        # Hotspot count based on recent active hotspot predictions
-        hotspot_count = self.db.query(Prediction).filter(
+        # Hotspot count based on recent active hotspot predictions associated with this dataset or ad-hoc
+        hotspot_count = self.db.query(Prediction).outerjoin(CrimeEvent).filter(
+            (CrimeEvent.dataset_id == active_id) | (Prediction.crime_event_id.is_(None)),
             Prediction.prediction_type == "hotspot",
             Prediction.confidence_score >= 0.70
         ).count()
 
         # Risk score summary statistics
-        avg_score_raw = self.db.query(func.avg(Criminal.risk_score)).scalar()
+        avg_score_raw = self.db.query(func.avg(Criminal.risk_score)).filter(Criminal.dataset_id == active_id).scalar()
         avg_score = round(float(avg_score_raw), 2) if avg_score_raw is not None else 0.0
-        high_risk_criminals = self.db.query(Criminal).filter(Criminal.risk_score >= 7.0).count()
+        high_risk_criminals = self.db.query(Criminal).filter(
+            Criminal.dataset_id == active_id,
+            Criminal.risk_score >= 7.0
+        ).count()
 
         return {
             "high_risk_locations": high_risk_locations,
@@ -227,7 +218,7 @@ class ReportService:
             "risk_score_summary": {
                 "average_criminal_risk": avg_score,
                 "high_risk_criminals_count": high_risk_criminals,
-                "total_criminals_tracked": self.db.query(Criminal).count()
+                "total_criminals_tracked": self.db.query(Criminal).filter(Criminal.dataset_id == active_id).count()
             }
         }
 

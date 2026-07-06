@@ -29,8 +29,15 @@ class PredictionRepository:
         self.db.refresh(db_prediction)
         return db_prediction
 
-    def get_predictions(self, limit: int = 100):
+    def get_predictions(self, active_dataset_id: Optional[int] = None, limit: int = 100):
         """
         Retrieve prediction log.
         """
-        return self.db.query(Prediction).order_by(Prediction.generated_at.desc()).limit(limit).all()
+        from backend.models.crime import CrimeEvent
+        from typing import Optional
+        q = self.db.query(Prediction)
+        if active_dataset_id is not None:
+            q = q.outerjoin(Prediction.crime_event).filter(
+                (CrimeEvent.dataset_id == active_dataset_id) | (Prediction.crime_event_id.is_(None))
+            )
+        return q.order_by(Prediction.generated_at.desc()).limit(limit).all()

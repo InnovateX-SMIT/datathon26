@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from backend.models.police_station import PoliceStation
 from backend.models.prediction import Prediction
 from backend.models.recommendation import Recommendation, ResourceAllocation
+from backend.models.crime import CrimeEvent
 from backend.repositories.recommendation_repository import RecommendationRepository
 from backend.schemas.recommendation import RecommendationCreate, BeatAllocation
 
@@ -14,6 +15,10 @@ class RecommendationService:
     def __init__(self, db: Session):
         self.db = db
         self.repo = RecommendationRepository(db)
+
+    def _get_active_id(self) -> int:
+        from backend.core.dataset_resolver import DatasetResolver
+        return DatasetResolver(self.db).get_active_dataset_id()
 
     def run_resource_optimization(
         self,
@@ -26,24 +31,35 @@ class RecommendationService:
         Allocates personnel (ASI, CHC, CPC) to beats/stations in a district based on crime severity weights.
         Uses SciPy linear programming (L1-minimization) and falls back to greedy proportional allocation.
         """
-        # Fetch all stations in the district with eager loading of crime events
-        from sqlalchemy.orm import joinedload
+        active_id = self._get_active_id()
         stations = (
             self.db.query(PoliceStation)
-            .options(joinedload(PoliceStation.crime_events))
             .filter(PoliceStation.district == district)
             .all()
         )
         if not stations:
             return []
 
+        station_ids = [s.id for s in stations]
+        crimes = (
+            self.db.query(CrimeEvent)
+            .filter(CrimeEvent.police_station_id.in_(station_ids))
+            .filter(CrimeEvent.dataset_id == active_id)
+            .all()
+        )
+
+        station_crimes = {s_id: [] for s_id in station_ids}
+        for c in crimes:
+            station_crimes[c.police_station_id].append(c)
+
         # Calculate severity scores for each station
         total_severity = 0.0
         station_weights = []
         
         for s in stations:
-            crime_count = len(s.crime_events)
-            severity_sum = sum(c.severity for c in s.crime_events if c.severity)
+            s_crimes = station_crimes[s.id]
+            crime_count = len(s_crimes)
+            severity_sum = sum(c.severity for c in s_crimes if c.severity)
             
             # Severity score formula: crimes count + weighted severity sum
             score = (crime_count * 1.0) + (severity_sum * 1.5)

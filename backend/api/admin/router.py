@@ -23,6 +23,10 @@ router = APIRouter()
 from backend.api.admin.database import router as database_router
 router.include_router(database_router, prefix="/database")
 
+# Include datasets sub-router
+from backend.api.admin.datasets import router as datasets_router
+router.include_router(datasets_router, prefix="/datasets")
+
 
 
 

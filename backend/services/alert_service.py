@@ -1,6 +1,7 @@
 import json
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from datetime import date, timedelta
 from typing import List, Optional, Dict, Any
 
 from backend.models.alert import Alert
@@ -22,6 +23,9 @@ class AlertService:
         Runs the platform operational rules engine to convert predictions, networks,
         geo-stats, and pending recommendations into real-time alerts.
         """
+        from backend.core.dataset_resolver import DatasetResolver
+        active_id = DatasetResolver(self.db).get_active_dataset_id()
+        
         alerts_to_create = []
         seen_identifiers = set()
         active_statuses = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS"]
@@ -50,8 +54,10 @@ class AlertService:
         # ==========================================
         # 1. PREDICTIVE ALERTS
         # ==========================================
-        preds = self.db.query(Prediction).options(
+        preds = self.db.query(Prediction).join(CrimeEvent).options(
             joinedload(Prediction.crime_event).joinedload(CrimeEvent.location)
+        ).filter(
+            CrimeEvent.dataset_id == active_id
         ).order_by(Prediction.generated_at.desc()).limit(50).all()
 
         for p in preds:
@@ -134,8 +140,8 @@ class AlertService:
         # ==========================================
         # 3. DECISION SUPPORT ALERTS
         # ==========================================
-        # Unresolved high priority recommendations
-        unresolved_recs = self.db.query(Recommendation).filter(
+        unresolved_recs = self.db.query(Recommendation).outerjoin(CrimeEvent).filter(
+            (CrimeEvent.dataset_id == active_id) | (Recommendation.crime_event_id.is_(None)),
             Recommendation.status == "pending",
             Recommendation.priority == "high"
         ).limit(10).all()
@@ -175,14 +181,16 @@ class AlertService:
         # ==========================================
         # High crime density concentration alerts — restricted to last 30 days to avoid
         # stale historical counts permanently triggering alerts
-        from datetime import date, timedelta
-        thirty_days_ago = date.today() - timedelta(days=30)
+        max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()
+        anchor_date = max_date if max_date is not None else date.today()
+        thirty_days_ago = anchor_date - timedelta(days=30)
 
         geo_results = self.db.query(
             Location.district, func.count(CrimeEvent.id).label("crime_count")
         ).join(
             Location, CrimeEvent.location_id == Location.id
         ).filter(
+            CrimeEvent.dataset_id == active_id,
             CrimeEvent.crime_date >= thirty_days_ago
         ).group_by(Location.district).all()
 

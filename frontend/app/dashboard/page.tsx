@@ -78,6 +78,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadAll();
+
+    const handleDatasetChange = () => {
+      loadAll();
+    };
+    window.addEventListener("activeDatasetChanged", handleDatasetChange);
+    return () => {
+      window.removeEventListener("activeDatasetChanged", handleDatasetChange);
+    };
   }, []);
 
   // Clock tick effect

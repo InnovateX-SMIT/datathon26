@@ -132,3 +132,87 @@ export async function exportTable(
   });
   return res.data;
 }
+
+export interface DatasetInfo {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string | null;
+  original_filename: string;
+  source_type: string;
+  row_count: number;
+  file_size: number;
+  status: string;
+  is_active: boolean;
+  import_summary: string | null;
+  upload_time: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DatasetSummary {
+  total_crimes: number;
+  criminals: number;
+  victims: number;
+  date_range: {
+    min: string | null;
+    max: string | null;
+  };
+  districts: string[];
+  upload_time: string;
+  file_size: number;
+}
+
+export async function fetchDatasets(): Promise<DatasetInfo[]> {
+  const res = await axios.get<DatasetInfo[]>(`${API_BASE}/api/v1/admin/datasets/`, {
+    headers: getAuthHeaders(),
+  });
+  return res.data;
+}
+
+export async function uploadDataset(
+  displayName: string,
+  description: string | null,
+  file: File
+): Promise<DatasetInfo> {
+  const formData = new FormData();
+  formData.append("display_name", displayName);
+  if (description) formData.append("description", description);
+  formData.append("file", file);
+
+  const res = await axios.post<DatasetInfo>(
+    `${API_BASE}/api/v1/admin/datasets/upload`,
+    formData,
+    {
+      headers: getAuthHeaders(true),
+    }
+  );
+  return res.data;
+}
+
+export async function activateDataset(datasetId: number): Promise<DatasetInfo> {
+  const res = await axios.post<DatasetInfo>(
+    `${API_BASE}/api/v1/admin/datasets/activate`,
+    { dataset_id: datasetId },
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+export async function deleteDataset(datasetId: number): Promise<void> {
+  await axios.delete(`${API_BASE}/api/v1/admin/datasets/${datasetId}`, {
+    headers: getAuthHeaders(),
+  });
+}
+
+export async function fetchDatasetSummary(datasetId: number): Promise<DatasetSummary> {
+  const res = await axios.get<DatasetSummary>(
+    `${API_BASE}/api/v1/admin/datasets/${datasetId}/summary`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}

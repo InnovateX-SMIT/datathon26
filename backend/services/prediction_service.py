@@ -182,4 +182,6 @@ class PredictionService:
         return {"probability": res["probability"], "repeat": res["risk_level"] == "HIGH"}
 
     def fetch_historical_predictions(self):
-        return self.repo.get_predictions()
+        from backend.core.dataset_resolver import DatasetResolver
+        active_id = DatasetResolver(self.db).get_active_dataset_id()
+        return self.repo.get_predictions(active_dataset_id=active_id)

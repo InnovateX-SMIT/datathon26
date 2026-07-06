@@ -6,6 +6,7 @@ from backend.repositories.network_repository import NetworkRepository
 class NetworkAnalyticsService:
     # Class-level caches to avoid rebuilding/recalculating on every API request
     _cached_graph: Optional[nx.Graph] = None
+    _cached_dataset_id: Optional[int] = None
     _cached_centrality: Optional[Dict[str, List[Dict[str, Any]]]] = None
     _cached_clusters: Optional[List[Dict[str, Any]]] = None
     _cached_associations: Optional[List[Dict[str, Any]]] = None
@@ -15,11 +16,16 @@ class NetworkAnalyticsService:
         self.db = db
         self.repo = NetworkRepository(db)
 
+    def _get_active_id(self) -> int:
+        from backend.core.dataset_resolver import DatasetResolver
+        return DatasetResolver(self.db).get_active_dataset_id()
+
     def get_graph(self, force_rebuild: bool = False) -> nx.Graph:
         """
-        Retrieves the cached network graph. If the cache is empty or in-memory testing
-        database is active, rebuilds the graph dynamically to guarantee test isolation.
+        Retrieves the cached network graph. If the cache is empty, the active dataset has changed,
+        or in-memory testing database is active, rebuilds the graph dynamically.
         """
+        active_id = self._get_active_id()
         # Test database checks
         is_test = False
         try:
@@ -29,8 +35,11 @@ class NetworkAnalyticsService:
         except Exception:
             pass
 
-        if NetworkAnalyticsService._cached_graph is None or force_rebuild or is_test:
-            NetworkAnalyticsService._cached_graph = self.build_graph()
+        if (NetworkAnalyticsService._cached_graph is None or 
+            NetworkAnalyticsService._cached_dataset_id != active_id or 
+            force_rebuild or is_test):
+            NetworkAnalyticsService._cached_graph = self.build_graph(active_id)
+            NetworkAnalyticsService._cached_dataset_id = active_id
             # Invalidate all caches when graph is rebuilt
             NetworkAnalyticsService._cached_centrality = None
             NetworkAnalyticsService._cached_clusters = None
@@ -38,17 +47,17 @@ class NetworkAnalyticsService:
             NetworkAnalyticsService._cached_location_intel = None
         return NetworkAnalyticsService._cached_graph
 
-    def build_graph(self) -> nx.Graph:
+    def build_graph(self, dataset_id: int) -> nx.Graph:
         """
-        Queries bulk records from the repository and constructs an undirected NetworkX Graph.
+        Queries bulk records from the repository filtered by dataset_id and constructs an undirected NetworkX Graph.
         """
         G = nx.Graph()
 
         # 1. Load entities
-        criminals = self.repo.get_all_criminals()
-        crimes = self.repo.get_all_crimes()
+        criminals = self.repo.get_all_criminals(dataset_id=dataset_id)
+        crimes = self.repo.get_all_crimes(dataset_id=dataset_id)
         locations = self.repo.get_all_locations()
-        participations = self.repo.get_all_participations()
+        participations = self.repo.get_all_participations(dataset_id=dataset_id)
 
         # 2. Add criminal nodes
         for c in criminals:

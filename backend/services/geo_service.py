@@ -9,6 +9,10 @@ class GeoService:
     def __init__(self, db: Session):
         self.db = db
 
+    def _get_active_id(self) -> int:
+        from backend.core.dataset_resolver import DatasetResolver
+        return DatasetResolver(self.db).get_active_dataset_id()
+
     def get_district_crime_distribution(
         self,
         district: str = None,
@@ -16,6 +20,7 @@ class GeoService:
         start_date: datetime.date = None,
         end_date: datetime.date = None
     ) -> list[dict]:
+        active_id = self._get_active_id()
         from analytics.geo_analysis.district_map import aggregate_district_crime
         
         query = self.db.query(
@@ -23,6 +28,8 @@ class GeoService:
             func.count(CrimeEvent.id).label("crime_count")
         ).join(
             Location, CrimeEvent.location_id == Location.id
+        ).filter(
+            CrimeEvent.dataset_id == active_id
         )
         
         if district:
@@ -46,6 +53,7 @@ class GeoService:
         start_date: datetime.date = None,
         end_date: datetime.date = None
     ) -> list[dict]:
+        active_id = self._get_active_id()
         from analytics.geo_analysis.station_map import aggregate_station_crime
         
         query = self.db.query(
@@ -57,6 +65,8 @@ class GeoService:
             PoliceStation, CrimeEvent.police_station_id == PoliceStation.id
         ).join(
             Location, PoliceStation.location_id == Location.id
+        ).filter(
+            CrimeEvent.dataset_id == active_id
         )
         
         if district:
@@ -86,6 +96,7 @@ class GeoService:
         start_date: datetime.date = None,
         end_date: datetime.date = None
     ) -> list[dict]:
+        active_id = self._get_active_id()
         from analytics.geo_analysis.heatmap import generate_heatmap_json
         
         query = self.db.query(
@@ -94,6 +105,8 @@ class GeoService:
             func.count(CrimeEvent.id).label("crime_count")
         ).join(
             Location, CrimeEvent.location_id == Location.id
+        ).filter(
+            CrimeEvent.dataset_id == active_id
         )
         
         if district:
@@ -122,6 +135,7 @@ class GeoService:
         start_date: datetime.date = None,
         end_date: datetime.date = None
     ) -> list[dict]:
+        active_id = self._get_active_id()
         from analytics.geo_analysis.hotspot import find_hotspots_dbscan
         
         query = self.db.query(
@@ -130,6 +144,8 @@ class GeoService:
             func.count(CrimeEvent.id).label("crime_count")
         ).select_from(CrimeEvent).join(
             Location, CrimeEvent.location_id == Location.id
+        ).filter(
+            CrimeEvent.dataset_id == active_id
         )
         
         if district:

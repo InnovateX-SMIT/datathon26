@@ -102,6 +102,14 @@ export default function ReportsPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadInitialData();
+
+    const handleDatasetChange = () => {
+      loadInitialData();
+    };
+    window.addEventListener("activeDatasetChanged", handleDatasetChange);
+    return () => {
+      window.removeEventListener("activeDatasetChanged", handleDatasetChange);
+    };
   }, [loadInitialData]);
 
   const handleGenerate = async (e: React.FormEvent) => {

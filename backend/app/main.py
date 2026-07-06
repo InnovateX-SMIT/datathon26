@@ -29,38 +29,64 @@ def migrate_database_schema(db_engine):
             return
 
         with db_engine.begin() as conn:
+            # 1. Scoping column migrations
+            for table_name in ["crime_events", "criminals", "victims", "crime_participation"]:
+                result = conn.execute(text(f"PRAGMA table_info({table_name})"))
+                cols = {row[1] for row in result.fetchall()}
+                if cols and "dataset_id" not in cols:
+                    logger.info(f"Adding dataset_id column to {table_name} table...")
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN dataset_id INTEGER REFERENCES datasets(id) ON DELETE CASCADE"))
+
+            # 2. Ensure default dataset exists and map existing rows to it
+            res = conn.execute(text("SELECT id FROM datasets WHERE name = 'System Seed' LIMIT 1")).fetchone()
+            if not res:
+                logger.info("Default System Seed dataset not found. Seeding it in registry...")
+                conn.execute(text(
+                    "INSERT INTO datasets (name, original_filename, display_name, description, source_type, status, is_active, created_at, updated_at) "
+                    "VALUES ('System Seed', 'crime_events.csv', 'Synthetic 50K', 'System default seeded dataset', 'System Seed', 'Ready', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                ))
+                default_id = conn.execute(text("SELECT last_insert_rowid()")).scalar()
+                logger.info(f"Default dataset registered with ID: {default_id}. Associating existing orphaned rows...")
+                for table_name in ["crime_events", "criminals", "victims", "crime_participation"]:
+                    conn.execute(text(f"UPDATE {table_name} SET dataset_id = {default_id} WHERE dataset_id IS NULL"))
+
+            # Ensure at least one dataset is active
+            active_dataset = conn.execute(text("SELECT id FROM datasets WHERE is_active = 1 LIMIT 1")).fetchone()
+            if not active_dataset:
+                first_dataset = conn.execute(text("SELECT id FROM datasets LIMIT 1")).fetchone()
+                if first_dataset:
+                    logger.info(f"No active dataset found. Setting dataset ID {first_dataset[0]} as active.")
+                    conn.execute(text(f"UPDATE datasets SET is_active = 1 WHERE id = {first_dataset[0]}"))
+
             # Check table info for alerts
             result = conn.execute(text("PRAGMA table_info(alerts)"))
             columns = {row[1] for row in result.fetchall()}
             
-            if not columns:
-                logger.info("Alerts table does not exist; skipping schema migration.")
-                return
-                
-            # Columns to add if they are missing
-            missing_cols = []
-            if "title" not in columns:
-                missing_cols.append("ALTER TABLE alerts ADD COLUMN title VARCHAR(150) NOT NULL DEFAULT ''")
-            if "description" not in columns:
-                missing_cols.append("ALTER TABLE alerts ADD COLUMN description VARCHAR(1000) NOT NULL DEFAULT ''")
-            if "source" not in columns:
-                missing_cols.append("ALTER TABLE alerts ADD COLUMN source VARCHAR(100) NOT NULL DEFAULT 'prediction'")
-            if "assigned_user_id" not in columns:
-                missing_cols.append("ALTER TABLE alerts ADD COLUMN assigned_user_id INTEGER NULL")
-            if "metadata_payload" not in columns:
-                missing_cols.append("ALTER TABLE alerts ADD COLUMN metadata_payload VARCHAR(2000) NULL")
-                
-            for sql in missing_cols:
-                logger.info(f"Running migration SQL: {sql}")
-                conn.execute(text(sql))
+            if columns:
+                # Columns to add if they are missing
+                missing_cols = []
+                if "title" not in columns:
+                    missing_cols.append("ALTER TABLE alerts ADD COLUMN title VARCHAR(150) NOT NULL DEFAULT ''")
+                if "description" not in columns:
+                    missing_cols.append("ALTER TABLE alerts ADD COLUMN description VARCHAR(1000) NOT NULL DEFAULT ''")
+                if "source" not in columns:
+                    missing_cols.append("ALTER TABLE alerts ADD COLUMN source VARCHAR(100) NOT NULL DEFAULT 'prediction'")
+                if "assigned_user_id" not in columns:
+                    missing_cols.append("ALTER TABLE alerts ADD COLUMN assigned_user_id INTEGER NULL")
+                if "metadata_payload" not in columns:
+                    missing_cols.append("ALTER TABLE alerts ADD COLUMN metadata_payload VARCHAR(2000) NULL")
+                    
+                for sql in missing_cols:
+                    logger.info(f"Running migration SQL: {sql}")
+                    conn.execute(text(sql))
 
-            if "updated_at" not in columns:
-                logger.info("Adding updated_at to alerts table...")
-                conn.execute(text("ALTER TABLE alerts ADD COLUMN updated_at DATETIME"))
-                conn.execute(text("UPDATE alerts SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+                if "updated_at" not in columns:
+                    logger.info("Adding updated_at to alerts table...")
+                    conn.execute(text("ALTER TABLE alerts ADD COLUMN updated_at DATETIME"))
+                    conn.execute(text("UPDATE alerts SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
 
-            if missing_cols or "updated_at" not in columns:
-                logger.info("Database schema migration completed successfully.")
+                if missing_cols or "updated_at" not in columns:
+                    logger.info("Database schema migration completed successfully.")
  
             # Handle recommendations table migration
             result = conn.execute(text("PRAGMA table_info(recommendations)"))
@@ -189,6 +215,15 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 # Custom Exception Handler
+from backend.core.exceptions import NoActiveDatasetException
+
+@app.exception_handler(NoActiveDatasetException)
+async def no_active_dataset_exception_handler(request: Request, exc: NoActiveDatasetException):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": exc.message},
+    )
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global error handler caught: {str(exc)}", exc_info=True)

@@ -18,6 +18,7 @@ class CrimeEvent(Base):
     
     location_id = Column(Integer, ForeignKey("locations.id"), index=True, nullable=True)
     police_station_id = Column(Integer, ForeignKey("police_stations.id"), index=True, nullable=True)
+    dataset_id = Column(Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=True)
     
     victim_count = Column(Integer, default=0)
     accused_count = Column(Integer, default=0)
@@ -28,6 +29,7 @@ class CrimeEvent(Base):
     # Relationships
     location = relationship("Location", back_populates="crime_events")
     police_station = relationship("PoliceStation", back_populates="crime_events")
+    dataset = relationship("Dataset", back_populates="crime_events")
     
     victims = relationship("Victim", back_populates="crime_event")
     participations = relationship("CrimeParticipation", back_populates="crime_event")

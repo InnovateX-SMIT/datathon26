@@ -84,6 +84,16 @@ export default function GeoPage() {
     return () => clearTimeout(timer);
   }, [filters]);
 
+  useEffect(() => {
+    const handleDatasetChange = () => {
+      loadData(filters);
+    };
+    window.addEventListener("activeDatasetChanged", handleDatasetChange);
+    return () => {
+      window.removeEventListener("activeDatasetChanged", handleDatasetChange);
+    };
+  }, [filters]);
+
   const handleRetry = () => {
     loadData(filters);
   };

@@ -18,6 +18,7 @@ import {
   ChevronRight,
   HelpCircle,
   X,
+  Layers,
 } from "lucide-react";
 import {
   fetchDatabaseStats,
@@ -30,6 +31,7 @@ import {
   DatabaseStats,
   BulkUploadSummary,
 } from "@/features/admin/services/database-service";
+import DatasetRegistryManager from "./dataset-registry-manager";
 
 const TABLES = [
   { id: "crime_events", name: "📂 Crime Events", desc: "Incident history, categories, and severity" },
@@ -458,6 +460,7 @@ export default function DatabaseManagementPanel() {
           {(
             [
               { id: "dashboard", label: "Dashboard", icon: Database },
+              { id: "datasets", label: "Dataset Manager", icon: Layers },
               { id: "records", label: "Explorer", icon: Search },
               { id: "form", label: editingId ? "Edit Record" : "Add Record", icon: Plus },
               { id: "bulk", label: "Bulk Import", icon: Upload },
@@ -1007,17 +1010,9 @@ export default function DatabaseManagementPanel() {
                                   <td key={c.key} className="px-3 py-2 text-slate-400 font-mono">
                                     {row[c.key] !== null ? String(row[c.key]) : "-"}
                                   </td>
-                                ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                         {/* === VIEW: DATASETS === */}
+        {viewMode === "datasets" && (
+          <DatasetRegistryManager onDatasetSwitched={() => { loadStats(); }} />
         )}
 
         {/* === VIEW: EXPORT === */}
@@ -1067,7 +1062,7 @@ export default function DatabaseManagementPanel() {
               {/* Status filtering check for export */}
               {TABLE_FORM_FIELDS[activeTable].some(f => f.name === "status") && (
                 <div className="flex flex-col gap-1.5 pt-2">
-                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">
+                  <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">
                     Status Filter
                   </label>
                   <select

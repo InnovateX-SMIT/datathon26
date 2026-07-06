@@ -50,8 +50,13 @@ class NetworkService:
             }
         }
 
+    def _get_active_id(self) -> int:
+        from backend.core.dataset_resolver import DatasetResolver
+        return DatasetResolver(self.db).get_active_dataset_id()
+
     def build_criminal_network(self, criminal_id: int) -> Optional[Dict[str, Any]]:
-        criminal = self.repo.get_criminal_network(criminal_id)
+        active_id = self._get_active_id()
+        criminal = self.repo.get_criminal_network(criminal_id, dataset_id=active_id)
         if not criminal:
             return None
 
@@ -67,7 +72,7 @@ class NetworkService:
 
         for participation in criminal.participations:
             crime = participation.crime_event
-            if crime:
+            if crime and crime.dataset_id == active_id:
                 crime_id_str = f"crime_{crime.id}"
                 if crime_id_str not in seen_nodes:
                     cr_node = self._serialize_crime(crime)
@@ -110,7 +115,8 @@ class NetworkService:
         }
 
     def build_crime_network(self, crime_id: int) -> Optional[Dict[str, Any]]:
-        crime = self.repo.get_crime_network(crime_id)
+        active_id = self._get_active_id()
+        crime = self.repo.get_crime_network(crime_id, dataset_id=active_id)
         if not crime:
             return None
 
@@ -145,7 +151,7 @@ class NetworkService:
 
         for participation in crime.participations:
             criminal = participation.criminal
-            if criminal:
+            if criminal and criminal.dataset_id == active_id:
                 criminal_id_str = f"criminal_{criminal.id}"
                 if criminal_id_str not in seen_nodes:
                     c_node = self._serialize_criminal(criminal)
@@ -170,7 +176,8 @@ class NetworkService:
         }
 
     def build_location_network(self, location_id: int) -> Optional[Dict[str, Any]]:
-        location = self.repo.get_location_network(location_id)
+        active_id = self._get_active_id()
+        location = self.repo.get_location_network(location_id, dataset_id=active_id)
         if not location:
             return None
 
@@ -185,6 +192,8 @@ class NetworkService:
         seen_nodes.add(l_node["id"])
 
         for crime in location.crime_events:
+            if crime.dataset_id != active_id:
+                continue
             crime_id_str = f"crime_{crime.id}"
             if crime_id_str not in seen_nodes:
                 cr_node = self._serialize_crime(crime)
@@ -203,7 +212,7 @@ class NetworkService:
 
             for participation in crime.participations:
                 criminal = participation.criminal
-                if criminal:
+                if criminal and criminal.dataset_id == active_id:
                     criminal_id_str = f"criminal_{criminal.id}"
                     if criminal_id_str not in seen_nodes:
                         c_node = self._serialize_criminal(criminal)

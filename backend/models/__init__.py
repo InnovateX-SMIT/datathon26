@@ -11,22 +11,24 @@ from backend.models.alert import Alert
 from backend.models.recommendation import Recommendation, ResourceAllocation
 from backend.models.report import Report
 from backend.models.audit_log import AuditLog
+from backend.models.dataset import Dataset
 
 # Expose them all in __all__
 __all__ = [
-    "Base",
-    "User",
-    "UserRole",
-    "Location",
-    "PoliceStation",
-    "CrimeEvent",
-    "Criminal",
-    "Victim",
-    "CrimeParticipation",
-    "Prediction",
-    "Alert",
-    "Recommendation",
-    "ResourceAllocation",
-    "Report",
-    "AuditLog",
+  "Base",
+  "User",
+  "UserRole",
+  "Location",
+  "PoliceStation",
+  "CrimeEvent",
+  "Criminal",
+  "Victim",
+  "CrimeParticipation",
+  "Prediction",
+  "Alert",
+  "Recommendation",
+  "ResourceAllocation",
+  "Report",
+  "AuditLog",
+  "Dataset",
 ]

@@ -105,6 +105,17 @@ export function useAlerts() {
     loadSummary();
   }, [loadAlerts, loadSummary]);
 
+  useEffect(() => {
+    const handleDatasetChange = () => {
+      loadAlerts();
+      loadSummary();
+    };
+    window.addEventListener("activeDatasetChanged", handleDatasetChange);
+    return () => {
+      window.removeEventListener("activeDatasetChanged", handleDatasetChange);
+    };
+  }, [loadAlerts, loadSummary]);
+
   return {
     alerts,
     summary,
