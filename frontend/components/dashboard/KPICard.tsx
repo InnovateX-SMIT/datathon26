@@ -5,7 +5,7 @@ import { LucideIcon, AlertCircle } from "lucide-react";
 
 interface KPICardProps {
   title: string;
-  value: number;
+  value: number | string;
   subtitle?: string;
   icon: LucideIcon;
   accentColor?: "indigo" | "red" | "green" | "amber";
@@ -27,11 +27,12 @@ export default function KPICard({
   const [displayValue, setDisplayValue] = useState(0);
   const rafRef = useRef<number | null>(null);
   const startValRef = useRef(0);
-  const targetValRef = useRef(value);
+  const targetValRef = useRef<number>(typeof value === "number" ? value : 0);
 
   // Number counting animation
   useEffect(() => {
     if (loading || error) return;
+    if (typeof value === "string") return;
 
     // Reset animation when target value changes
     startValRef.current = displayValue;
@@ -143,7 +144,7 @@ export default function KPICard({
       </div>
       <div>
         <h2 className="text-3xl font-extrabold text-slate-50 tracking-tight leading-none mt-2">
-          {displayValue.toLocaleString()}
+          {typeof value === "string" ? value : displayValue.toLocaleString()}
         </h2>
         {subtitle && (
           <p className="text-[10px] text-slate-500 font-semibold tracking-wider mt-1 uppercase">

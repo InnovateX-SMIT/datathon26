@@ -36,3 +36,7 @@ class CrimeEvent(Base):
     predictions = relationship("Prediction", back_populates="crime_event")
     alerts = relationship("Alert", back_populates="crime_event")
     recommendations = relationship("Recommendation", back_populates="crime_event")
+
+# Centralized status categorizations
+ACTIVE_CASE_STATUSES = ["Under Investigation", "Chargesheet Filed", "Pending Trial"]
+CLOSED_CASE_STATUSES = ["Closed"]

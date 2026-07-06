@@ -8,7 +8,7 @@ class DatasetSummaryResponse(BaseModel):
     victims: int
     date_range: Dict[str, Optional[str]]
     districts: List[str]
-    upload_time: datetime
+    upload_time: Optional[datetime] = None
     file_size: int
 
 class DatasetBase(BaseModel):
@@ -17,8 +17,8 @@ class DatasetBase(BaseModel):
     description: Optional[str] = None
     original_filename: str
     source_type: str
-    row_count: int = 0
-    file_size: int = 0
+    row_count: Optional[int] = 0
+    file_size: Optional[int] = 0
     status: str = "Processing"
     is_active: bool = False
     import_summary: Optional[str] = None
@@ -28,11 +28,12 @@ class DatasetCreate(DatasetBase):
 
 class DatasetResponse(DatasetBase):
     id: int
-    upload_time: datetime
-    created_at: datetime
-    updated_at: datetime
+    upload_time: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 class DatasetSwitchRequest(BaseModel):
     dataset_id: int
+

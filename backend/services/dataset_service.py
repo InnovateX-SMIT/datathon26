@@ -26,7 +26,9 @@ class DatasetService:
                         description="Auto-created default dataset",
                         source_type="System Seed",
                         status="Ready",
-                        is_active=True
+                        is_active=True,
+                        row_count=50000,
+                        file_size=5872123
                     )
                     self.db.add(default_ds)
                     self.db.commit()
@@ -180,6 +182,128 @@ class DatasetService:
                 raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx) are supported.")
 
             df = df.replace({np.nan: None})
+
+            # Normalization alias mapping: normalized header name to the standard database column name
+            def normalize_header(header: str) -> str:
+                h = str(header).strip().lower()
+                # Remove BOM characters
+                h = h.lstrip('\ufeff')
+                # Replace various separators with underscore
+                h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
+                # Remove non-alphanumeric, non-underscore characters
+                h = re.sub(r'[^a-z0-9_]', '', h)
+                # Collapse multiple underscores
+                h = re.sub(r'_+', '_', h)
+                # Strip leading/trailing underscores
+                h = h.strip('_')
+                return h
+
+            ALIAS_MAP = {
+                # FIR ID
+                "fir_id": "fir_id",
+                "firid": "fir_id",
+                "fir_no": "fir_id",
+                "fir_number": "fir_id",
+                "firno": "fir_id",
+                "case_id": "fir_id",
+                "case_number": "fir_id",
+                # Crime Type
+                "crime_type": "crime_type",
+                "crimetype": "crime_type",
+                "type_of_crime": "crime_type",
+                "offence_type": "crime_type",
+                "offencetype": "crime_type",
+                "offense_type": "crime_type",
+                "type": "crime_type",
+                "crime": "crime_type",
+                # Crime Category
+                "crime_category": "crime_category",
+                "crimecategory": "crime_category",
+                "category": "crime_category",
+                # District
+                "district": "district",
+                "dist": "district",
+                "district_name": "district",
+                "districtname": "district",
+                # Police Station
+                "police_station": "police_station",
+                "policestation": "police_station",
+                "ps": "police_station",
+                "ps_name": "police_station",
+                "station": "police_station",
+                "station_name": "police_station",
+                "stationname": "police_station",
+                "police_station_name": "police_station",
+                "policestationname": "police_station",
+                # Crime Date
+                "crime_date": "crime_date",
+                "crimedate": "crime_date",
+                "date": "crime_date",
+                "date_of_crime": "crime_date",
+                "incident_date": "crime_date",
+                "incidentdate": "crime_date",
+                "offence_date": "crime_date",
+                # Crime Time
+                "crime_time": "crime_time",
+                "crimetime": "crime_time",
+                "time": "crime_time",
+                "time_of_crime": "crime_time",
+                "incident_time": "crime_time",
+                # Latitude / Longitude
+                "latitude": "latitude",
+                "lat": "latitude",
+                "longitude": "longitude",
+                "lng": "longitude",
+                "lon": "longitude",
+                "long": "longitude",
+                # Victim Age
+                "victim_age": "victim_age",
+                "victimage": "victim_age",
+                "victim_s_age": "victim_age",
+                "age_of_victim": "victim_age",
+                # Accused Age
+                "accused_age": "accused_age",
+                "accusedage": "accused_age",
+                "accused_s_age": "accused_age",
+                "age_of_accused": "accused_age",
+                "criminal_age": "accused_age",
+                # Gender
+                "gender": "gender",
+                "sex": "gender",
+                "victim_gender": "gender",
+                # Occupation
+                "occupation": "occupation",
+                "victim_occupation": "occupation",
+                # Severity
+                "severity": "severity",
+                "crime_severity": "severity",
+                "crimeseverity": "severity",
+                "seriousness": "severity",
+                # Repeat Offender
+                "repeat_offender": "repeat_offender",
+                "repeatoffender": "repeat_offender",
+                "recidivist": "repeat_offender",
+                "repeat": "repeat_offender",
+                # Status
+                "status": "status",
+                "case_status": "status",
+                "casestatus": "status",
+                "crime_status": "status",
+            }
+
+            df.columns = [normalize_header(c) for c in df.columns]
+            rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
+            df = df.rename(columns=rename_dict)
+
+            # Verify required columns exist after normalization
+            required_cols = {"district", "police_station", "crime_date", "crime_type"}
+            actual_cols = set(df.columns)
+            missing_cols = required_cols - actual_cols
+            if missing_cols:
+                raise ValueError(
+                    f"Missing required columns after header normalization: {sorted(missing_cols)}. "
+                    f"Columns found in file: {sorted(actual_cols)}"
+                )
             
             # Fetch location and station mappings
             locations = self.db.query(Location).all()
@@ -200,9 +324,14 @@ class DatasetService:
             for idx, row in enumerate(rows):
                 row_num = idx + 2
                 
-                # Required fields check
-                if not row.get("district") or not row.get("police_station") or not row.get("crime_date") or not row.get("crime_type"):
-                    raise ValueError(f"Row {row_num}: Missing required fields: district, police_station, crime_date, crime_type")
+                # Required fields check (value must be non-empty after normalization)
+                missing_fields = []
+                for field in ["district", "police_station", "crime_date", "crime_type"]:
+                    val = row.get(field)
+                    if val is None or (isinstance(val, str) and val.strip() == ""):
+                        missing_fields.append(field)
+                if missing_fields:
+                    raise ValueError(f"Row {row_num}: Missing required field values: {', '.join(missing_fields)}")
 
                 dist = str(row["district"]).strip()
                 ps = str(row["police_station"]).strip()

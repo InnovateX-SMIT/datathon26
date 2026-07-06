@@ -27,11 +27,14 @@ htmlcov/
 *.log
 frontend/.vercel
 
-# Database data folders
+# Database data folders and SQLite files
 pgdata/
-
 crime_intel.db
 crime_intel.sqlite3
+backend/crime_intel.db
+*.db
+*.sqlite
+*.sqlite3
 *.db-journal
 *.db-wal
 *.db-shm

@@ -145,7 +145,7 @@ const TABLE_FORM_FIELDS: Record<string, { name: string; label: string; type: "te
   ]
 };
 
-type ViewMode = "dashboard" | "records" | "form" | "bulk" | "export";
+type ViewMode = "dashboard" | "datasets" | "records" | "form" | "bulk" | "export";
 
 export default function DatabaseManagementPanel() {
   const [activeTable, setActiveTable] = useState<string>("crime_events");
@@ -1010,7 +1010,20 @@ export default function DatabaseManagementPanel() {
                                   <td key={c.key} className="px-3 py-2 text-slate-400 font-mono">
                                     {row[c.key] !== null ? String(row[c.key]) : "-"}
                                   </td>
-                         {/* === VIEW: DATASETS === */}
+                                ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* === VIEW: DATASETS === */}
         {viewMode === "datasets" && (
           <DatasetRegistryManager onDatasetSwitched={() => { loadStats(); }} />
         )}

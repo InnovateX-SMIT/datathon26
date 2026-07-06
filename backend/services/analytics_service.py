@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from backend.models.crime import CrimeEvent
 from backend.models.criminal import Criminal
@@ -14,20 +14,50 @@ class AnalyticsService:
         return DatasetResolver(self.db).get_active_dataset_id()
 
     def get_dashboard_summary(self) -> dict:
+        from backend.models.crime import CLOSED_CASE_STATUSES, ACTIVE_CASE_STATUSES
+        from backend.models.location import Location
+        from backend.models.police_station import PoliceStation
+        
         active_id = self._get_active_id()
-        total_crimes = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == active_id).count()
-        total_victims = self.db.query(func.coalesce(func.sum(CrimeEvent.victim_count), 0)).filter(CrimeEvent.dataset_id == active_id).scalar()
-        total_accused = self.db.query(func.coalesce(func.sum(CrimeEvent.accused_count), 0)).filter(CrimeEvent.dataset_id == active_id).scalar()
-        active_cases = self.db.query(CrimeEvent).filter(
+        
+        # 1. Combined single-pass query on CrimeEvent
+        stats = self.db.query(
+            func.count(CrimeEvent.id),
+            func.coalesce(func.sum(CrimeEvent.victim_count), 0),
+            func.coalesce(func.sum(CrimeEvent.accused_count), 0),
+            func.sum(case((CrimeEvent.status.in_(CLOSED_CASE_STATUSES), 1), else_=0)),
+            func.sum(case((CrimeEvent.status.in_(ACTIVE_CASE_STATUSES), 1), else_=0)),
+            func.coalesce(func.avg(CrimeEvent.severity), 0.0)
+        ).filter(CrimeEvent.dataset_id == active_id).first()
+        
+        total_crimes = stats[0] or 0
+        total_victims = stats[1] or 0
+        total_accused = stats[2] or 0
+        closed_cases = stats[3] or 0
+        active_cases = stats[4] or 0
+        average_severity = float(stats[5]) if stats[5] is not None else 0.0
+        
+        # 2. Query covered districts & stations count
+        districts_count = self.db.query(Location.district).join(CrimeEvent).filter(
+            CrimeEvent.dataset_id == active_id
+        ).distinct().count()
+        
+        stations_count = self.db.query(CrimeEvent.police_station_id).filter(
             CrimeEvent.dataset_id == active_id,
-            CrimeEvent.status.in_(["reported", "under_investigation"])
-        ).count()
-        high_risk_criminals = self.db.query(Criminal).filter(
-            Criminal.dataset_id == active_id,
-            Criminal.risk_score >= 7.0
-        ).count()
-        total_criminals = self.db.query(Criminal).filter(Criminal.dataset_id == active_id).count()
-
+            CrimeEvent.police_station_id.isnot(None)
+        ).distinct().count()
+        
+        # 3. Query criminal stats
+        criminals_stats = self.db.query(
+            func.count(Criminal.id),
+            func.sum(case((Criminal.risk_score >= 7.0, 1), else_=0))
+        ).filter(Criminal.dataset_id == active_id).first()
+        
+        total_criminals = criminals_stats[0] or 0
+        high_risk_criminals = criminals_stats[1] or 0
+        
+        crime_resolution_rate = (closed_cases / total_crimes * 100.0) if total_crimes > 0 else 0.0
+        
         return {
             "total_crimes": total_crimes,
             "total_victims": total_victims,
@@ -35,6 +65,10 @@ class AnalyticsService:
             "active_cases": active_cases,
             "high_risk_criminals": high_risk_criminals,
             "total_criminals": total_criminals,
+            "crime_resolution_rate": round(crime_resolution_rate, 2),
+            "average_severity": round(average_severity, 2),
+            "districts_count": districts_count,
+            "stations_count": stations_count
         }
 
     def get_crime_trend(self, days: int = 30) -> list[dict]:

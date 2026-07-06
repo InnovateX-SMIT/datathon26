@@ -230,88 +230,145 @@ export default function DashboardPage() {
       </header>
 
       {/* 2. KPI Section */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        <KPICard
-          title="Total Crimes"
-          value={summary?.total_crimes ?? 0}
-          subtitle="Registered cases"
-          icon={ShieldAlert}
-          accentColor="indigo"
-          loading={summaryLoading}
-          error={summaryError ?? undefined}
-          onRetry={loadSummary}
-        />
-        <KPICard
-          title="Active Cases"
-          value={summary?.active_cases ?? 0}
-          subtitle="Under active review"
-          icon={Activity}
-          accentColor="amber"
-          loading={summaryLoading}
-          error={summaryError ?? undefined}
-          onRetry={loadSummary}
-        />
-        <KPICard
-          title="Citizen Impact"
-          value={summary?.total_victims ?? 0}
-          subtitle="Recorded victims"
-          icon={Users}
-          accentColor="red"
-          loading={summaryLoading}
-          error={summaryError ?? undefined}
-          onRetry={loadSummary}
-        />
-        <KPICard
-          title="High-Risk Offenders"
-          value={summary?.high_risk_criminals ?? 0}
-          subtitle="Risk rating >= 7.0"
-          icon={Shield}
-          accentColor="red"
-          loading={summaryLoading}
-          error={summaryError ?? undefined}
-          onRetry={loadSummary}
-        />
-      </section>
+      {summary?.total_crimes === 0 ? (
+        <section className="py-12">
+          <div className="p-8 bg-slate-900/45 border border-slate-800/80 rounded-3xl text-center max-w-xl mx-auto space-y-4 backdrop-blur-md">
+            <ShieldAlert className="w-12 h-12 text-slate-500 mx-auto animate-pulse" />
+            <h3 className="text-base font-extrabold text-slate-200 uppercase tracking-tight">
+              Empty Operational Dataset
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              No crime logs, victim listings, or criminal registries are associated with the currently active dataset. To query operational analytics, switch datasets via the Dataset Manager or upload a valid csv/xlsx file.
+            </p>
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+            <KPICard
+              title="Total Incident Reports"
+              value={summary?.total_crimes ?? 0}
+              subtitle="Registered crime events"
+              icon={ShieldAlert}
+              accentColor="indigo"
+              loading={summaryLoading}
+              error={summaryError ?? undefined}
+              onRetry={loadSummary}
+            />
+            <KPICard
+              title="Active Investigations"
+              value={summary?.active_cases ?? 0}
+              subtitle="Open cases (non-closed)"
+              icon={Activity}
+              accentColor="amber"
+              loading={summaryLoading}
+              error={summaryError ?? undefined}
+              onRetry={loadSummary}
+            />
+            <KPICard
+              title="Crime Resolution Rate"
+              value={
+                summary?.crime_resolution_rate !== undefined
+                  ? `${summary.crime_resolution_rate.toFixed(2)}%`
+                  : "0.00%"
+              }
+              subtitle="Percentage of cases closed"
+              icon={Users}
+              accentColor="green"
+              loading={summaryLoading}
+              error={summaryError ?? undefined}
+              onRetry={loadSummary}
+            />
+            <KPICard
+              title="Average Severity Score"
+              value={
+                summary?.average_severity !== undefined
+                  ? `${summary.average_severity.toFixed(2)} / 10`
+                  : "0.00 / 10"
+              }
+              subtitle="Mean severity rating (1-10)"
+              icon={Shield}
+              accentColor="red"
+              loading={summaryLoading}
+              error={summaryError ?? undefined}
+              onRetry={loadSummary}
+            />
+          </section>
 
-      {/* 3. Charts Row (Trend 60% + Category 40%) */}
-      <section className="grid grid-cols-1 lg:grid-cols-5 gap-4 w-full">
-        <div className="lg:col-span-3 min-w-0">
-          <CrimeTrendChart
-            data={trend}
-            loading={trendLoading}
-            error={trendError ?? undefined}
-            onRetry={loadTrend}
-          />
-        </div>
-        <div className="lg:col-span-2 min-w-0">
-          <CategoryChart
-            data={categories}
-            loading={categoriesLoading}
-            error={categoriesError ?? undefined}
-            onRetry={loadCategories}
-          />
-        </div>
-      </section>
+          {/* Secondary Scope Stats Row */}
+          {summary && !summaryLoading && !summaryError && (
+            <div className="bg-slate-950/40 p-4 border border-slate-900 rounded-2xl backdrop-blur-md flex flex-wrap items-center justify-around gap-4 text-xs font-semibold text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Offender Registry:</span>
+                <span className="text-slate-200 font-bold">
+                  {summary.total_criminals.toLocaleString()} Criminals
+                </span>
+                <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                  {summary.high_risk_criminals.toLocaleString()} High Risk
+                </span>
+              </div>
+              <div className="h-4 w-px bg-slate-800 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Citizen Impact:</span>
+                <span className="text-slate-200 font-bold">
+                  {summary.total_victims.toLocaleString()} Victims
+                </span>
+              </div>
+              <div className="h-4 w-px bg-slate-800 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Jurisdictional Coverage:</span>
+                <span className="text-slate-200 font-bold">
+                  {summary.districts_count.toLocaleString()} Districts
+                </span>
+                <span className="text-slate-500">/</span>
+                <span className="text-slate-200 font-bold">
+                  {summary.stations_count.toLocaleString()} Stations
+                </span>
+              </div>
+            </div>
+          )}
 
-      {/* 4. District Ranking Chart */}
-      <section className="w-full">
-        <DistrictChart
-          data={districts}
-          loading={districtsLoading}
-          error={districtsError ?? undefined}
-          onRetry={loadDistricts}
-        />
-      </section>
+          {/* 3. Charts Row (Trend 60% + Category 40%) */}
+          <section className="grid grid-cols-1 lg:grid-cols-5 gap-4 w-full">
+            <div className="lg:col-span-3 min-w-0">
+              <CrimeTrendChart
+                data={trend}
+                loading={trendLoading}
+                error={trendError ?? undefined}
+                onRetry={loadTrend}
+              />
+            </div>
+            <div className="lg:col-span-2 min-w-0">
+              <CategoryChart
+                data={categories}
+                loading={categoriesLoading}
+                error={categoriesError ?? undefined}
+                onRetry={loadCategories}
+              />
+            </div>
+          </section>
 
-      {/* 5. Recent Crimes Table */}
-      <section className="w-full">
-        <RecentCrimesTable
-          data={recentCrimes}
-          loading={recentLoading}
-          error={recentError ?? undefined}
-          onRetry={loadRecentCrimes}
-        />
-      </section>
+          {/* 4. District Ranking Chart */}
+          <section className="w-full">
+            <DistrictChart
+              data={districts}
+              loading={districtsLoading}
+              error={districtsError ?? undefined}
+              onRetry={loadDistricts}
+            />
+          </section>
+
+          {/* 5. Recent Crimes Table */}
+          <section className="w-full">
+            <RecentCrimesTable
+              data={recentCrimes}
+              loading={recentLoading}
+              error={recentError ?? undefined}
+              onRetry={loadRecentCrimes}
+            />
+          </section>
+        </>
+      )}
 
       {/* 6. System Status Bar */}
       <section className="w-full">

@@ -381,7 +381,7 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
                       {formatBytes(ds.file_size)}
                     </td>
                     <td className="px-6 py-4.5 text-slate-400 font-mono text-xs">
-                      {new Date(ds.upload_time || ds.created_at).toLocaleString("en-IN")}
+                      {(ds.upload_time || ds.created_at) ? new Date(ds.upload_time || ds.created_at || "").toLocaleString("en-IN") : "—"}
                     </td>
                     <td className="px-6 py-4.5">
                       <div className="flex items-center justify-center gap-2">
@@ -399,7 +399,7 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
                         )}
                         {ds.is_active && (
                           <span className="px-3 py-1.5 text-[10px] font-black text-indigo-400 font-mono uppercase tracking-widest bg-indigo-500/5 border border-indigo-500/10 rounded-lg select-none">
-                            Active
+                            ✓ Active
                           </span>
                         )}
                         {/* Info / Diagnostics */}
@@ -498,7 +498,7 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
                     {selectedFile ? (
                       <div>
                         <p className="text-xs font-bold text-slate-300">{selectedFile.name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono mt-1">{formatBytes(selectedFile.file_size)}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-1">{formatBytes(selectedFile.size)}</p>
                       </div>
                     ) : (
                       <div>

@@ -7,6 +7,10 @@ class DashboardSummaryResponse(BaseModel):
     active_cases: int
     high_risk_criminals: int
     total_criminals: int
+    crime_resolution_rate: float
+    average_severity: float
+    districts_count: int
+    stations_count: int
 
 class TrendDataPoint(BaseModel):
     date: str       # "YYYY-MM-DD"

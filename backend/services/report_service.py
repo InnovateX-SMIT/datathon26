@@ -77,7 +77,7 @@ class ReportService:
                 return data
             except (json.JSONDecodeError, TypeError):
                 pass
-        # Slow path: re-assemble (only for legacy reports without payload)
+        # Slow path: re-assemble from live data (for legacy reports without payload)
         return self._assemble_report_response(db_report)
 
     def trigger_report_generation(self, title: str, report_type: str) -> Dict[str, Any]:
@@ -126,12 +126,24 @@ class ReportService:
     def _assemble_report_response(
         self,
         db_report: Report,
-        overview: Dict[str, Any],
-        predictions: Dict[str, Any],
-        networks: Dict[str, Any],
-        recs: List[Dict[str, Any]],
-        alerts: List[Dict[str, Any]]
+        overview: Optional[Dict[str, Any]] = None,
+        predictions: Optional[Dict[str, Any]] = None,
+        networks: Optional[Dict[str, Any]] = None,
+        recs: Optional[List[Dict[str, Any]]] = None,
+        alerts: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
+        # If pre-computed data not provided, fetch live data (legacy/slow path)
+        if overview is None:
+            overview = self._get_crime_overview()
+        if predictions is None:
+            predictions = self._get_predictive_insights()
+        if networks is None:
+            networks = self._get_network_insights()
+        if recs is None:
+            recs = self._get_recommendations()
+        if alerts is None:
+            alerts = self._get_alerts()
+
         return {
             "report_id": db_report.id,
             "report_type": db_report.report_type,

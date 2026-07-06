@@ -145,9 +145,9 @@ export interface DatasetInfo {
   status: string;
   is_active: boolean;
   import_summary: string | null;
-  upload_time: string;
-  created_at: string;
-  updated_at: string;
+  upload_time: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface DatasetSummary {
@@ -159,7 +159,7 @@ export interface DatasetSummary {
     max: string | null;
   };
   districts: string[];
-  upload_time: string;
+  upload_time: string | null;
   file_size: number;
 }
 

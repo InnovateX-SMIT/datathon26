@@ -5,6 +5,10 @@ export interface DashboardSummary {
   active_cases: number;
   high_risk_criminals: number;
   total_criminals: number;
+  crime_resolution_rate: number;
+  average_severity: number;
+  districts_count: number;
+  stations_count: number;
 }
 
 export interface TrendDataPoint {

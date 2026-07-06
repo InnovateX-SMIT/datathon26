@@ -42,13 +42,19 @@ def migrate_database_schema(db_engine):
             if not res:
                 logger.info("Default System Seed dataset not found. Seeding it in registry...")
                 conn.execute(text(
-                    "INSERT INTO datasets (name, original_filename, display_name, description, source_type, status, is_active, created_at, updated_at) "
-                    "VALUES ('System Seed', 'crime_events.csv', 'Synthetic 50K', 'System default seeded dataset', 'System Seed', 'Ready', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                    "INSERT INTO datasets (name, original_filename, display_name, description, source_type, status, is_active, row_count, file_size, created_at, updated_at) "
+                    "VALUES ('System Seed', 'crime_events.csv', 'Synthetic 50K', 'System default seeded dataset', 'System Seed', 'Ready', 1, 50000, 5872123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
                 ))
                 default_id = conn.execute(text("SELECT last_insert_rowid()")).scalar()
                 logger.info(f"Default dataset registered with ID: {default_id}. Associating existing orphaned rows...")
                 for table_name in ["crime_events", "criminals", "victims", "crime_participation"]:
                     conn.execute(text(f"UPDATE {table_name} SET dataset_id = {default_id} WHERE dataset_id IS NULL"))
+            else:
+                # Heal existing record if row_count/file_size are NULL
+                conn.execute(text(
+                    "UPDATE datasets SET row_count = 50000, file_size = 5872123 "
+                    "WHERE name = 'System Seed' AND (row_count IS NULL OR file_size IS NULL)"
+                ))
 
             # Ensure at least one dataset is active
             active_dataset = conn.execute(text("SELECT id FROM datasets WHERE is_active = 1 LIMIT 1")).fetchone()
