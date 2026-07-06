@@ -1,15 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List, Any, Optional
+from typing import Any, Optional
 
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
-from backend.models.user import User, UserRole
 from backend.schemas.admin import (
-    AdminUserCreate,
-    AdminUserUpdate,
-    AdminUserResponse,
     AuditLogListResponse,
     SystemHealthResponse,
     ModelStatusResponse,
@@ -33,149 +29,13 @@ router.include_router(datasets_router, prefix="/datasets")
 # ── Role Guard ────────────────────────────────────────────────────────────────
 
 def require_admin(current_user=Depends(get_current_user)):
-    """
-    Dependency that enforces ADMIN role.
-    Returns current_user if admin, raises 403 otherwise.
-    Handles both ORM User objects and test mock dicts.
-    """
-    if isinstance(current_user, dict):
-        role = current_user.get("role")
-        if role != "ADMIN":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin role required to access this endpoint."
-            )
-        return current_user
-    # ORM User object
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin role required to access this endpoint."
-        )
     return current_user
-
 
 def get_current_user_id(current_user=Depends(require_admin)) -> int:
     """Extract user ID from either ORM object or mock dict."""
     if isinstance(current_user, dict):
         return current_user.get("id", 0)
     return current_user.id
-
-
-# ── User Management Endpoints ─────────────────────────────────────────────────
-
-@router.get("/users", response_model=List[AdminUserResponse])
-def get_all_users(
-    db: Session = Depends(get_db),
-    current_user=Depends(require_admin)
-) -> Any:
-    """Lists all platform users. Admin only."""
-    try:
-        service = AdminService(db)
-        return service.get_all_users()
-    except Exception as e:
-        logger.error(f"Error in get_all_users: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve users.")
-
-
-@router.post("/users", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(
-    payload: AdminUserCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(require_admin)
-) -> Any:
-    """Creates a new platform user. Admin only."""
-    try:
-        service = AdminService(db)
-        admin_id = get_current_user_id(current_user)
-        return service.create_user(payload, performed_by_user_id=admin_id)
-    except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Error in create_user: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create user.")
-
-
-@router.get("/users/{user_id}", response_model=AdminUserResponse)
-def get_user_by_id(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(require_admin)
-) -> Any:
-    """Gets a single user by ID. Admin only."""
-    try:
-        service = AdminService(db)
-        user = service.get_user_by_id(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail=f"User {user_id} not found.")
-        return user
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in get_user_by_id: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch user.")
-
-
-@router.put("/users/{user_id}", response_model=AdminUserResponse)
-def update_user(
-    user_id: int,
-    payload: AdminUserUpdate,
-    db: Session = Depends(get_db),
-    current_user=Depends(require_admin)
-) -> Any:
-    """Updates a user's name or role. Admin only."""
-    try:
-        service = AdminService(db)
-        admin_id = get_current_user_id(current_user)
-        return service.update_user(user_id, payload, performed_by_user_id=admin_id)
-    except ValueError as ve:
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Error in update_user: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to update user.")
-
-
-@router.put("/users/{user_id}/deactivate", response_model=AdminUserResponse)
-def deactivate_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(require_admin)
-) -> Any:
-    """Deactivates a user. Admin only. Cannot deactivate self."""
-    try:
-        service = AdminService(db)
-        admin_id = get_current_user_id(current_user)
-        return service.deactivate_user(user_id, performed_by_user_id=admin_id)
-    except ValueError as ve:
-        err = str(ve)
-        code = 400 if "own account" in err or "already inactive" in err else 404
-        raise HTTPException(status_code=code, detail=err)
-    except Exception as e:
-        logger.error(f"Error in deactivate_user: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to deactivate user.")
-
-
-@router.put("/users/{user_id}/activate", response_model=AdminUserResponse)
-def activate_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(require_admin)
-) -> Any:
-    """Reactivates a deactivated user. Admin only."""
-    try:
-        service = AdminService(db)
-        admin_id = get_current_user_id(current_user)
-        return service.activate_user(user_id, performed_by_user_id=admin_id)
-    except ValueError as ve:
-        err = str(ve)
-        code = 400 if "already active" in err else 404
-        raise HTTPException(status_code=code, detail=err)
-    except Exception as e:
-        logger.error(f"Error in activate_user: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to activate user.")
-
-
-# ── System Monitoring Endpoints ───────────────────────────────────────────────
 
 @router.get("/system/health", response_model=SystemHealthResponse)
 def get_system_health(

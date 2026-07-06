@@ -11,18 +11,6 @@ export interface AdminUser {
   updated_at: string;
 }
 
-export interface CreateUserPayload {
-  name: string;
-  email: string;
-  password: string;
-  role: UserRole;
-}
-
-export interface UpdateUserPayload {
-  name?: string;
-  role?: UserRole;
-}
-
 export interface AuditLogEntry {
   id: number;
   user_id: number | null;

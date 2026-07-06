@@ -3,150 +3,20 @@ import sys
 import json
 import importlib.metadata
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from backend.core.config import settings
 from backend.core.logging import logger
-from backend.core.security import get_password_hash
-from backend.models.user import User, UserRole
 from backend.repositories.admin_repository import AdminRepository
-from backend.schemas.admin import AdminUserCreate, AdminUserUpdate
 
 
 class AdminService:
     def __init__(self, db: Session):
         self.db = db
         self.repo = AdminRepository(db)
-
-    # ── User Management ──────────────────────────────────────────────────────
-
-    def get_all_users(self) -> List[User]:
-        return self.repo.get_all_users()
-
-    def get_user_by_id(self, user_id: int) -> Optional[User]:
-        return self.repo.get_user_by_id(user_id)
-
-    def create_user(
-        self,
-        data: AdminUserCreate,
-        performed_by_user_id: int
-    ) -> User:
-        # Step 1: Duplicate email check
-        existing = self.repo.get_user_by_email(data.email)
-        if existing:
-            raise ValueError("Email already registered")
-
-        # Step 2: Hash password
-        password_hash = get_password_hash(data.password)
-
-        # Step 3: Create user
-        new_user = self.repo.create_user(
-            name=data.name,
-            email=data.email,
-            password_hash=password_hash,
-            role=data.role
-        )
-
-        # Step 4: Audit log
-        self.repo.create_audit_log(
-            user_id=performed_by_user_id,
-            action="USER_CREATED",
-            entity_type="user",
-            entity_id=new_user.id,
-            details=json.dumps({"email": data.email, "role": data.role.value if hasattr(data.role, 'value') else str(data.role)})
-        )
-
-        return new_user
-
-    def update_user(
-        self,
-        user_id: int,
-        data: AdminUserUpdate,
-        performed_by_user_id: int
-    ) -> User:
-        # Step 1: Validate user exists
-        existing = self.repo.get_user_by_id(user_id)
-        if not existing:
-            raise ValueError("User not found")
-
-        # Step 2: Update
-        updated = self.repo.update_user(user_id, data.name, data.role)
-
-        # Step 3: Build changes dict
-        changes: Dict[str, Any] = {}
-        if data.name is not None:
-            changes["name"] = data.name
-        if data.role is not None:
-            changes["role"] = data.role.value if hasattr(data.role, 'value') else str(data.role)
-
-        # Step 4: Audit log
-        self.repo.create_audit_log(
-            user_id=performed_by_user_id,
-            action="USER_UPDATED",
-            entity_type="user",
-            entity_id=user_id,
-            details=json.dumps({"changes": changes})
-        )
-
-        return updated
-
-    def deactivate_user(self, user_id: int, performed_by_user_id: int) -> User:
-        # Step 1: Cannot deactivate self
-        if user_id == performed_by_user_id:
-            raise ValueError("Cannot deactivate your own account")
-
-        # Step 2: Fetch user
-        user = self.repo.get_user_by_id(user_id)
-        if not user:
-            raise ValueError("User not found")
-
-        # Step 3: Already inactive?
-        if user.status == "inactive":
-            raise ValueError("User is already inactive")
-
-        # Step 4: Deactivate
-        updated = self.repo.set_user_status(user_id, "inactive")
-
-        # Step 5: Audit log
-        self.repo.create_audit_log(
-            user_id=performed_by_user_id,
-            action="USER_DEACTIVATED",
-            entity_type="user",
-            entity_id=user_id,
-            details=json.dumps({"email": user.email})
-        )
-
-        return updated
-
-    def activate_user(self, user_id: int, performed_by_user_id: int) -> User:
-        # Step 1: Fetch user
-        user = self.repo.get_user_by_id(user_id)
-        if not user:
-            raise ValueError("User not found")
-
-        # Step 2: Already active?
-        if user.status == "active":
-            raise ValueError("User is already active")
-
-        # Step 3: Activate
-        updated = self.repo.set_user_status(user_id, "active")
-
-        # Step 4: Audit log
-        self.repo.create_audit_log(
-            user_id=performed_by_user_id,
-            action="USER_ACTIVATED",
-            entity_type="user",
-            entity_id=user_id,
-            details=json.dumps({"email": user.email})
-        )
-
-        return updated
-
-    # ── System Monitoring ────────────────────────────────────────────────────
-
     def get_system_health(self, performed_by_user_id: int) -> Dict[str, Any]:
         # Step 1: Test DB connection
         db_status = "healthy"

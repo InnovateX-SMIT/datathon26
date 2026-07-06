@@ -4,11 +4,7 @@ import type { Report, ReportSummary, ReportType } from "../types/report";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function getAuthHeaders() {
-  const token = typeof window !== "undefined" ? localStorage.getItem("datathon_auth_token") : null;
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  return { "Content-Type": "application/json" };
 }
 
 export async function fetchReports(): Promise<ReportSummary[]> {

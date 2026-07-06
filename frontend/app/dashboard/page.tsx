@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { ShieldAlert, Activity, Users, Shield } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 import {
   fetchDashboardSummary,
   fetchCrimeTrend,
@@ -28,7 +27,6 @@ import RecentCrimesTable from "@/components/dashboard/RecentCrimesTable";
 import SystemStatusBar from "@/components/dashboard/SystemStatusBar";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   // Data states
@@ -183,19 +181,6 @@ export default function DashboardPage() {
     }
   };
 
-  const getRoleBadgeClass = (role: string) => {
-    switch (role) {
-      case "ADMIN":
-        return "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30";
-      case "SUPERINTENDENT":
-        return "bg-amber-500/20 text-amber-400 border border-amber-500/30";
-      case "OFFICER":
-        return "bg-green-500/20 text-green-400 border border-green-500/30";
-      default:
-        return "bg-slate-500/20 text-slate-400 border border-slate-500/30";
-    }
-  };
-
   return (
     <div className="space-y-6 flex flex-col min-w-0">
       {/* 1. Page Header */}
@@ -214,16 +199,6 @@ export default function DashboardPage() {
           {mounted && currentTime && (
             <div className="text-xs font-mono font-bold tracking-wider text-indigo-400 px-3 py-1 bg-indigo-500/5 border border-indigo-500/10 rounded-lg">
               {currentTime}
-            </div>
-          )}
-          {user && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-200 uppercase truncate max-w-[150px]">
-                {user.name}
-              </span>
-              <span className={`text-[10px] font-extrabold tracking-wider px-2 py-0.5 rounded border ${getRoleBadgeClass(user.role)}`}>
-                {user.role}
-              </span>
             </div>
           )}
         </div>

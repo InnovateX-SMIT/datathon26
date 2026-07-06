@@ -3,14 +3,7 @@ import axios from "axios";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function getAuthHeaders(isMultipart = false) {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("datathon_auth_token")
-      : null;
-  return {
-    ...(isMultipart ? {} : { "Content-Type": "application/json" }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  return isMultipart ? {} : { "Content-Type": "application/json" };
 }
 
 export interface DatabaseStats {

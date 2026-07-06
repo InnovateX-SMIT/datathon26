@@ -3,15 +3,13 @@
 import React, { useState } from "react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
-import UserManagementPanel from "@/features/admin/components/user-management-panel";
 import SystemHealthPanel from "@/features/admin/components/system-health-panel";
 import AuditLogsPanel from "@/features/admin/components/audit-logs-panel";
 import DatasetManagementPanel from "@/features/admin/components/dataset-management-panel";
 
-type TabId = "users" | "system" | "audit" | "dataset";
+type TabId = "system" | "audit" | "dataset";
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "users", label: "User Management" },
   { id: "system", label: "System Monitoring" },
   { id: "audit", label: "Audit Logs" },
   { id: "dataset", label: "Dataset Status" },
@@ -19,18 +17,15 @@ const TABS: { id: TabId; label: string }[] = [
 
 export default function AdminPage() {
   const {
-    users,
     systemHealth,
     modelStatus,
     auditLogs,
     datasetStatus,
 
-    usersLoading,
     healthLoading,
     modelsLoading,
     auditLoading,
     datasetLoading,
-    actionLoading,
 
     error,
 
@@ -40,18 +35,13 @@ export default function AdminPage() {
     setAuditPage,
     setAuditActionFilter,
 
-    loadUsers,
-    createUser,
-    updateUser,
-    deactivateUser,
-    activateUser,
     loadSystemHealth,
     loadModelStatus,
     loadAuditLogs,
     loadDatasetStatus,
   } = useAdmin();
 
-  const [activeTab, setActiveTab] = useState<TabId>("users");
+  const [activeTab, setActiveTab] = useState<TabId>("system");
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -91,9 +81,7 @@ export default function AdminPage() {
             </div>
           </div>
           <p className="text-slate-400 text-sm mt-3 max-w-2xl leading-relaxed">
-            Centralized control layer for managing platform users, monitoring
-            system health, inspecting ML model availability, and reviewing the
-            full operational audit trail.
+            Centralized control layer for monitoring system health, inspecting ML model availability, reviewing audit activity, and validating dataset readiness.
           </p>
         </div>
 
@@ -137,18 +125,6 @@ export default function AdminPage() {
 
       {/* ── Tab Panels ───────────────────────────────────────────────────────── */}
       <div className="min-h-[400px]">
-        {activeTab === "users" && (
-          <UserManagementPanel
-            users={users}
-            loading={usersLoading}
-            actionLoading={actionLoading}
-            onCreateUser={createUser}
-            onUpdateUser={updateUser}
-            onDeactivate={deactivateUser}
-            onActivate={activateUser}
-          />
-        )}
-
         {activeTab === "system" && (
           <SystemHealthPanel
             health={systemHealth}

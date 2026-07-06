@@ -3,39 +3,56 @@ frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/build/
+frontend/.turbo/
 frontend/.env*.local
+frontend/.vercel/
+*.tsbuildinfo
 
 # Python / FastAPI
 backend/.venv/
-backend/__pycache__/
-backend/*.pyc
-backend/.env
 .venv/
 venv/
 ENV/
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+.temp/
+temp_analysis/
+uploads/
+backend/uploads/
+frontend/.cache/
 
 # IDE / OS
 .idea/
 .vscode/
 .DS_Store
-*.log
-frontend/.vercel
+Thumbs.db
 
-# Database data folders and SQLite files
+# Database data folders and local SQLite/runtime files
 pgdata/
 crime_intel.db
 crime_intel.sqlite3
 backend/crime_intel.db
-*.db
 *.sqlite
 *.sqlite3
 *.db-journal
 *.db-wal
 *.db-shm
-*.tsbuildinfo
+*.db.tmp
+*.test.db
+
+# Keep the active root development database available locally but do not add new SQLite caches.
+# If a production database snapshot is needed, document it explicitly before committing.
