@@ -29,13 +29,39 @@ class PredictionService:
         self.repo = PredictionRepository(db)
 
     def _load_model(self, name: str):
-        """
-        Loads a serialized model dict into memory if not cached.
-        """
+        from backend.models.ml_model import MLModel
+        
+        # 1. Query registry for active production model of this type
+        reg_model = self.db.query(MLModel).filter(
+            MLModel.model_type == name,
+            MLModel.status == "Completed",
+            MLModel.is_production == True
+        ).first()
+        
+        # 2. Fallback to latest completed model if no production model marked
+        if not reg_model:
+            reg_model = self.db.query(MLModel).filter(
+                MLModel.model_type == name,
+                MLModel.status == "Completed"
+            ).order_by(MLModel.created_at.desc()).first()
+
+        if reg_model and reg_model.model_path and os.path.exists(reg_model.model_path):
+            cache_key = f"reg_{reg_model.id}"
+            if cache_key not in self._cached_models:
+                try:
+                    self._cached_models[cache_key] = joblib.load(reg_model.model_path)
+                except Exception as e:
+                    logger.error(f"Error loading registered model {reg_model.id}: {e}")
+                    return self._load_bundled_model(name)
+            return self._cached_models[cache_key]
+        else:
+            return self._load_bundled_model(name)
+
+    def _load_bundled_model(self, name: str):
         if name not in self._cached_models:
             path = MODEL_PATHS[name]
             if not os.path.exists(path):
-                raise FileNotFoundError(f"Model file not found at: {path}")
+                raise FileNotFoundError(f"Model engine is currently unavailable. No trained models are registered and standard bundled models are missing for: {name}")
             self._cached_models[name] = joblib.load(path)
         return self._cached_models[name]
 
@@ -43,9 +69,19 @@ class PredictionService:
         """
         Checks model loading health.
         """
+        from backend.models.ml_model import MLModel
         loaded = {}
-        for name, path in MODEL_PATHS.items():
-            loaded[name] = os.path.exists(path)
+        for name in MODEL_PATHS.keys():
+            # Check registry first
+            reg_exists = self.db.query(MLModel).filter(
+                MLModel.model_type == name,
+                MLModel.status == "Completed"
+            ).first() is not None
+            
+            if reg_exists:
+                loaded[name] = True
+            else:
+                loaded[name] = os.path.exists(MODEL_PATHS[name])
         
         status = "healthy" if all(loaded.values()) else "degraded"
         return {

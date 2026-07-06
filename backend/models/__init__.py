@@ -12,6 +12,7 @@ from backend.models.recommendation import Recommendation, ResourceAllocation
 from backend.models.report import Report
 from backend.models.audit_log import AuditLog
 from backend.models.dataset import Dataset
+from backend.models.ml_model import MLModel
 
 # Expose them all in __all__
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
   "Report",
   "AuditLog",
   "Dataset",
+  "MLModel",
 ]

@@ -23,6 +23,10 @@ router.include_router(database_router, prefix="/database")
 from backend.api.admin.datasets import router as datasets_router
 router.include_router(datasets_router, prefix="/datasets")
 
+# Include models sub-router
+from backend.api.admin.models import router as models_router
+router.include_router(models_router, prefix="/models")
+
 
 
 

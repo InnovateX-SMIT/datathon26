@@ -58,9 +58,9 @@ export default function HotspotCard({ onSuccess, onSelect, isActive }: HotspotCa
       const shap = await fetchShapExplanation("hotspot", data);
       setResult(res);
       onSuccess(res, shap);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Prediction failed. Please ensure the backend engine is running.");
+      setError(err.response?.data?.detail || "Prediction failed. Please ensure the backend engine is running.");
     } finally {
       setLoading(false);
     }

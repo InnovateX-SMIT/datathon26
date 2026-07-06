@@ -81,9 +81,9 @@ export default function RepeatOffenderCard({ onSuccess, onSelect, isActive }: Re
       const shap = await fetchShapExplanation("repeat-offender", data);
       setResult(res);
       onSuccess(res, shap);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Prediction failed. Please ensure the backend engine is running.");
+      setError(err.response?.data?.detail || "Prediction failed. Please ensure the backend engine is running.");
     } finally {
       setLoading(false);
     }

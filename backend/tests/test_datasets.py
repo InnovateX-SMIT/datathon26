@@ -401,4 +401,108 @@ def test_analytics_dynamic_integration(client_as_admin, db_session, monkeypatch)
     assert summary_multi["total_crimes"] == 2
 
 
+def test_ml_pipeline_and_registry(client_as_admin, db_session, monkeypatch):
+    from backend.models.dataset import Dataset
+    from backend.models.crime import CrimeEvent
+    from backend.models.criminal import Criminal
+    from backend.models.crime_participation import CrimeParticipation
+    from backend.models.location import Location
+    from backend.models.ml_model import MLModel
+    from backend.services.ml_training_service import MLTrainingService
+    from backend.services.prediction_service import PredictionService
+    from datetime import date
+    import pytest
+    import os
+
+    # Mock SessionLocal to return the test db_session
+    from backend.services import ml_training_service
+    monkeypatch.setattr(ml_training_service, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(db_session, "close", lambda: None)
+    monkeypatch.setattr(db_session, "commit", db_session.flush)
+
+    # 1. Clean DB
+    db_session.query(MLModel).delete()
+    db_session.query(Dataset).delete()
+    db_session.flush()
+
+    service = MLTrainingService(db_session)
+
+    # Validate dataset raises ValueError on empty active_ids
+    with pytest.raises(Exception):
+        service.validate_dataset_for_ml("repeat_offender", [])
+
+    # Seed dataset and 12 criminals + events to pass validation
+    ds = Dataset(name="ml_ds", display_name="ML DS", original_filename="ml.csv", source_type="CSV", status="Ready", is_active=True)
+    db_session.add(ds)
+    db_session.commit()
+
+    loc = Location(district="D1", latitude=12.0, longitude=77.0)
+    db_session.add(loc)
+    db_session.commit()
+
+    for i in range(40):
+        score = 0.85 if i % 2 == 0 else 0.20
+        c = Criminal(dataset_id=ds.id, name=f"Criminal {i}", age=25.0 + i, occupation="Unemployed", caste="General", risk_score=score)
+        ce = CrimeEvent(dataset_id=ds.id, location_id=loc.id, crime_type="Theft", crime_category="Property", severity=4.0, crime_date=date(2025, 5, 10), status="reported")
+        db_session.add_all([c, ce])
+        db_session.commit()
+        
+        cp = CrimeParticipation(dataset_id=ds.id, criminal_id=c.id, crime_event_id=ce.id, role="accused")
+        db_session.add(cp)
+        db_session.commit()
+
+    # 2. Trigger retraining (returns Queued model)
+    model = service.trigger_retraining("repeat_offender")
+    assert model.status == "Queued"
+    assert model.is_production is False
+
+    # 3. Execute training pipeline synchronously in test
+    service._run_training_pipeline_thread(model.id, [ds.id])
+
+    # Refresh and assert completed status
+    db_session.refresh(model)
+    if model.status == "Failed":
+        raise Exception(f"Training failed. Logs:\n{model.training_logs}")
+    assert model.status == "Completed"
+    assert model.accuracy is not None
+    assert model.is_production is True
+    assert model.model_path is not None
+    assert os.path.exists(model.model_path)
+
+    # 4. Trigger second training
+    model2 = service.trigger_retraining("repeat_offender")
+    service._run_training_pipeline_thread(model2.id, [ds.id])
+    db_session.refresh(model2)
+    assert model2.status == "Completed"
+    assert model2.is_production is False  # First model is still production
+
+    # 5. Promoted to production
+    service.mark_production(model2.id)
+    db_session.refresh(model)
+    db_session.refresh(model2)
+    assert model.is_production is False
+    assert model2.is_production is True
+
+    # 6. Verify prediction uses the new production model
+    pred_service = PredictionService(db_session)
+    res = pred_service.predict_repeat_offender(age=30, occupation="Unemployed", caste="General", district="D1")
+    assert "probability" in res
+    assert "risk_level" in res
+
+    # 7. Rollback to first model
+    service.rollback_model(model.id)
+    db_session.refresh(model)
+    db_session.refresh(model2)
+    assert model.is_production is True
+    assert model2.is_production is False
+
+    # 8. Clean up created model files
+    path1, path2 = model.model_path, model2.model_path
+    service.delete_model(model.id)
+    service.delete_model(model2.id)
+    assert not os.path.exists(path1)
+    assert not os.path.exists(path2)
+
+
+
 

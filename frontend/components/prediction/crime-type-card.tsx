@@ -85,9 +85,9 @@ export default function CrimeTypeCard({ onSuccess, onSelect, isActive }: CrimeTy
       const shap = await fetchShapExplanation("crime-type", data);
       setResult(res);
       onSuccess(res, shap);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Prediction failed. Please ensure the backend engine is running.");
+      setError(err.response?.data?.detail || "Prediction failed. Please ensure the backend engine is running.");
     } finally {
       setLoading(false);
     }
