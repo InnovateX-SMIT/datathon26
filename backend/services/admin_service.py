@@ -3,7 +3,8 @@ import sys
 import json
 import importlib.metadata
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from backend.models.user import User
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -204,3 +205,91 @@ class AdminService:
         except Exception as e:
             self.db.rollback()
             raise ValueError(f"Failed to re-import data: {str(e)}")
+
+    # ── User Management wrapper methods ───────────────────────────────────────
+
+    def list_users(self) -> List[User]:
+        return self.repo.get_all_users()
+
+    def get_user_by_id(self, user_id: int) -> User:
+        user = self.repo.get_user_by_id(user_id)
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found.")
+        return user
+
+    def create_user(self, payload: Any, performed_by_user_id: int) -> User:
+        existing = self.repo.get_user_by_email(payload.email)
+        if existing:
+            raise ValueError(f"User with email '{payload.email}' is already registered.")
+        
+        from backend.core.security import get_password_hash
+        hashed = get_password_hash(payload.password)
+        
+        user = self.repo.create_user(
+            name=payload.name,
+            email=payload.email,
+            password_hash=hashed,
+            role=payload.role
+        )
+        
+        self.repo.create_audit_log(
+            user_id=performed_by_user_id,
+            action="USER_CREATED",
+            entity_type="user",
+            entity_id=user.id,
+            details=json.dumps({"email": user.email, "role": str(user.role)})
+        )
+        return user
+
+    def update_user(self, user_id: int, payload: Any, performed_by_user_id: int) -> User:
+        user = self.repo.get_user_by_id(user_id)
+        if not user:
+            raise ValueError("User not found.")
+        
+        updated = self.repo.update_user(
+            user_id=user_id,
+            name=payload.name,
+            role=payload.role
+        )
+        
+        self.repo.create_audit_log(
+            user_id=performed_by_user_id,
+            action="USER_UPDATED",
+            entity_type="user",
+            entity_id=user_id,
+            details=json.dumps({"name": payload.name, "role": str(payload.role) if payload.role else None})
+        )
+        return updated
+
+    def deactivate_user(self, user_id: int, performed_by_user_id: int) -> User:
+        if user_id == performed_by_user_id:
+            raise ValueError("You cannot deactivate your own account.")
+            
+        user = self.repo.get_user_by_id(user_id)
+        if not user:
+            raise ValueError("User not found.")
+            
+        updated = self.repo.set_user_status(user_id, "inactive")
+        
+        self.repo.create_audit_log(
+            user_id=performed_by_user_id,
+            action="USER_DEACTIVATED",
+            entity_type="user",
+            entity_id=user_id
+        )
+        return updated
+
+    def activate_user(self, user_id: int, performed_by_user_id: int) -> User:
+        user = self.repo.get_user_by_id(user_id)
+        if not user:
+            raise ValueError("User not found.")
+            
+        updated = self.repo.set_user_status(user_id, "active")
+        
+        self.repo.create_audit_log(
+            user_id=performed_by_user_id,
+            action="USER_ACTIVATED",
+            entity_type="user",
+            entity_id=user_id
+        )
+        return updated

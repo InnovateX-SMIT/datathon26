@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from backend.core.database import get_db
 from backend.core.logging import logger
@@ -10,6 +10,9 @@ from backend.schemas.admin import (
     SystemHealthResponse,
     ModelStatusResponse,
     DatasetStatusResponse,
+    AdminUserCreate,
+    AdminUserUpdate,
+    AdminUserResponse,
 )
 from backend.services.admin_service import AdminService
 
@@ -32,8 +35,24 @@ router.include_router(models_router, prefix="/models")
 
 # ── Role Guard ────────────────────────────────────────────────────────────────
 
+from backend.models.user import UserRole
+
 def require_admin(current_user=Depends(get_current_user)):
+    role = None
+    if isinstance(current_user, dict):
+        role = current_user.get("role")
+    elif current_user:
+        role = getattr(current_user, "role", None)
+        if isinstance(role, UserRole):
+            role = role.value
+    
+    if not role or str(role) != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin access required."
+        )
     return current_user
+
 
 def get_current_user_id(current_user=Depends(require_admin)) -> int:
     """Extract user ID from either ORM object or mock dict."""
@@ -140,3 +159,104 @@ def reimport_data(
     except Exception as e:
         logger.error(f"Error in reimport_data: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to reimport data.")
+
+
+# ── User Management Endpoints ─────────────────────────────────────────────────
+
+@router.get("/users", response_model=List[AdminUserResponse])
+def get_users(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Returns all registered users in the database."""
+    try:
+        service = AdminService(db)
+        return service.list_users()
+    except Exception as e:
+        logger.error(f"Error in get_users: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve users.")
+
+@router.post("/users", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(
+    payload: AdminUserCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Creates a new user profile with password hashing and audit logging."""
+    try:
+        service = AdminService(db)
+        admin_id = get_current_user_id(current_user)
+        return service.create_user(payload, performed_by_user_id=admin_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in create_user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create user.")
+
+@router.get("/users/{user_id}", response_model=AdminUserResponse)
+def get_user_by_id(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Retrieves a single user's profile by ID."""
+    try:
+        service = AdminService(db)
+        return service.get_user_by_id(user_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in get_user_by_id: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve user.")
+
+@router.put("/users/{user_id}", response_model=AdminUserResponse)
+def update_user(
+    user_id: int,
+    payload: AdminUserUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Updates name and/or role of a user."""
+    try:
+        service = AdminService(db)
+        admin_id = get_current_user_id(current_user)
+        return service.update_user(user_id, payload, performed_by_user_id=admin_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in update_user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update user.")
+
+@router.put("/users/{user_id}/deactivate", response_model=AdminUserResponse)
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Deactivates a user account (cannot deactivate self)."""
+    try:
+        service = AdminService(db)
+        admin_id = get_current_user_id(current_user)
+        return service.deactivate_user(user_id, performed_by_user_id=admin_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in deactivate_user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to deactivate user.")
+
+@router.put("/users/{user_id}/activate", response_model=AdminUserResponse)
+def activate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Re-activates a deactivated user account."""
+    try:
+        service = AdminService(db)
+        admin_id = get_current_user_id(current_user)
+        return service.activate_user(user_id, performed_by_user_id=admin_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in activate_user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to activate user.")

@@ -54,8 +54,7 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
   useEffect(() => {
     loadDatasets();
   }, []);
-
-  const loadDatasets = async () => {
+  async function loadDatasets() {
     setLoading(true);
     setError(null);
     try {
@@ -66,7 +65,7 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleActivate = async (id: number) => {
     setActionLoading(true);

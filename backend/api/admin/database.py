@@ -9,7 +9,22 @@ from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
 
+from backend.models.user import UserRole
+
 def require_admin(current_user=Depends(get_current_user)):
+    role = None
+    if isinstance(current_user, dict):
+        role = current_user.get("role")
+    elif current_user:
+        role = getattr(current_user, "role", None)
+        if isinstance(role, UserRole):
+            role = role.value
+            
+    if not role or str(role) != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin access required."
+        )
     return current_user
 
 def get_current_user_id(current_user=Depends(require_admin)) -> int:

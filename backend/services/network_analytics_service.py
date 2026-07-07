@@ -152,7 +152,6 @@ class NetworkAnalyticsService:
                 location_nodes = [n for n, attr in G.nodes(data=True) if attr.get("type") == "location"]
                 calc_G = G.copy()
                 calc_G.remove_nodes_from(location_nodes)
-
             # Calculate centralities
             deg_cent = nx.degree_centrality(calc_G)
             
@@ -160,7 +159,14 @@ class NetworkAnalyticsService:
             k_val = min(len(calc_G), 100)
             bet_cent = nx.betweenness_centrality(calc_G, k=k_val)
             
-            cloc_cent = nx.closeness_centrality(calc_G)
+            # Optimize closeness centrality for scalability by only computing it on the top 100 nodes by degree
+            if len(calc_G) > 1000:
+                top_nodes_by_deg = sorted(calc_G.nodes(), key=lambda n: calc_G.degree(n), reverse=True)[:100]
+                cloc_cent = {n: 0.0 for n in calc_G.nodes()}
+                for n in top_nodes_by_deg:
+                    cloc_cent[n] = nx.closeness_centrality(calc_G, u=n)
+            else:
+                cloc_cent = nx.closeness_centrality(calc_G)
 
             def rank_and_format(cent_dict) -> List[Dict[str, Any]]:
                 sorted_nodes = sorted(cent_dict.items(), key=lambda x: x[1], reverse=True)

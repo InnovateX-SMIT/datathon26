@@ -239,14 +239,13 @@ export default function DatabaseManagementPanel() {
     setBulkSummary(null);
     setBulkIsValidated(false);
   }, [activeTable, viewMode]);
-
   // Utility to push notifications
-  const showNotification = (type: "success" | "error", message: string) => {
+  function showNotification(type: "success" | "error", message: string) {
     setNotification({ type, message });
     setTimeout(() => {
       setNotification((curr) => (curr?.message === message ? null : curr));
     }, 6000);
-  };
+  }
 
   // Search input handler
   const handleSearchSubmit = (e: React.FormEvent) => {
