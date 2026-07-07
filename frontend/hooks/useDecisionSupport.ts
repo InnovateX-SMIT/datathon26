@@ -12,16 +12,22 @@ import {
   generateRecommendations,
   solveResourceAllocation,
   fetchResourceAllocationHistory,
+  fetchRecommendationHistory,
+  triggerPipelineSync,
+  RecommendationHistoryItem,
 } from "@/services/recommendation.service";
 
 export function useDecisionSupport() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [history, setHistory] = useState<ResourceAllocation[]>([]);
+  const [syncHistory, setSyncHistory] = useState<RecommendationHistoryItem[]>([]);
   const [solverResult, setSolverResult] = useState<BeatAllocation[] | null>(null);
   
   const [recsLoading, setRecsLoading] = useState(false);
   const [solverLoading, setSolverLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [syncHistoryLoading, setSyncHistoryLoading] = useState(false);
+  const [syncPipelineLoading, setSyncPipelineLoading] = useState(false);
   
   const [error, setError] = useState<string | null>(null);
   const [solverError, setSolverError] = useState<string | null>(null);
@@ -47,7 +53,6 @@ export function useDecisionSupport() {
       );
       setRecommendations(data);
 
-      // Compute simple metrics on the loaded set
       const stats: DecisionSupportMetrics = {
         totalCount: data.length,
         pendingCount: data.filter((r) => r.status === "pending").length,
@@ -76,6 +81,19 @@ export function useDecisionSupport() {
     }
   }, []);
 
+  // Load Sync History
+  const loadSyncHistory = useCallback(async () => {
+    setSyncHistoryLoading(true);
+    try {
+      const data = await fetchRecommendationHistory();
+      setSyncHistory(data);
+    } catch (err: unknown) {
+      console.error("Error loading sync history:", err);
+    } finally {
+      setSyncHistoryLoading(false);
+    }
+  }, []);
+
   // Run solver
   const runSolver = useCallback(async (payload: AllocationPayload) => {
     setSolverLoading(true);
@@ -85,7 +103,6 @@ export function useDecisionSupport() {
       const response = await solveResourceAllocation(payload);
       if (response.status === "success" && response.solved_allocation) {
         setSolverResult(response.solved_allocation);
-        // Reload history to show the latest run
         await loadHistory();
       } else {
         setSolverError("Solver returned failure status.");
@@ -102,11 +119,9 @@ export function useDecisionSupport() {
   const updateStatus = useCallback(async (id: number, newStatus: "resolved" | "dismissed") => {
     try {
       await updateRecommendationStatus(id, newStatus);
-      // Optimistic state update in list
       setRecommendations((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
       );
-      // Re-trigger load to sync calculations
       await loadRecommendations();
     } catch (err: unknown) {
       console.error("Error updating status:", err);
@@ -130,19 +145,43 @@ export function useDecisionSupport() {
     }
   }, [loadRecommendations]);
 
+  // Trigger end-to-end synchronization pipeline
+  const runPipelineSync = useCallback(async () => {
+    setSyncPipelineLoading(true);
+    setError(null);
+    try {
+      await triggerPipelineSync();
+      // Reload everything
+      await Promise.all([
+        loadRecommendations(),
+        loadSyncHistory(),
+        loadHistory()
+      ]);
+    } catch (err: any) {
+      console.error("Error synchronizing pipeline:", err);
+      setError(err.response?.data?.detail || "Failed to trigger end-to-end intelligence synchronization.");
+    } finally {
+      setSyncPipelineLoading(false);
+    }
+  }, [loadRecommendations, loadSyncHistory, loadHistory]);
+
   // Load initial data
   useEffect(() => {
     loadRecommendations();
     loadHistory();
-  }, [loadRecommendations, loadHistory]);
+    loadSyncHistory();
+  }, [loadRecommendations, loadHistory, loadSyncHistory]);
 
   return {
     recommendations,
     history,
+    syncHistory,
     solverResult,
     recsLoading,
     solverLoading,
     historyLoading,
+    syncHistoryLoading,
+    syncPipelineLoading,
     error,
     solverError,
     statusFilter,
@@ -153,6 +192,7 @@ export function useDecisionSupport() {
     runSolver,
     updateStatus,
     triggerRefresh,
+    runPipelineSync,
     setSolverResult,
   };
 }

@@ -124,10 +124,17 @@ def migrate_database_schema(db_engine):
             # Handle recommendations table migration
             result = conn.execute(text("PRAGMA table_info(recommendations)"))
             rec_columns = {row[1] for row in result.fetchall()}
-            if rec_columns and "updated_at" not in rec_columns:
-                logger.info("Adding updated_at to recommendations table...")
-                conn.execute(text("ALTER TABLE recommendations ADD COLUMN updated_at DATETIME"))
-                conn.execute(text("UPDATE recommendations SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+            if rec_columns:
+                if "updated_at" not in rec_columns:
+                    logger.info("Adding updated_at to recommendations table...")
+                    conn.execute(text("ALTER TABLE recommendations ADD COLUMN updated_at DATETIME"))
+                    conn.execute(text("UPDATE recommendations SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+                if "confidence" not in rec_columns:
+                    logger.info("Adding confidence to recommendations table...")
+                    conn.execute(text("ALTER TABLE recommendations ADD COLUMN confidence FLOAT DEFAULT 0.80"))
+                if "supporting_analytics" not in rec_columns:
+                    logger.info("Adding supporting_analytics to recommendations table...")
+                    conn.execute(text("ALTER TABLE recommendations ADD COLUMN supporting_analytics VARCHAR(1000) NULL"))
 
             # Handle reports table migration
             result = conn.execute(text("PRAGMA table_info(reports)"))

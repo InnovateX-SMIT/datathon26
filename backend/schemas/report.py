@@ -77,6 +77,9 @@ class ReportResponse(BaseModel):
     network_insights: NetworkInsights
     recommendations: List[Dict[str, Any]]
     alerts: List[Dict[str, Any]]
+    dataset_name: Optional[str] = None
+    model_version: Optional[str] = None
+    prediction_accuracy: Optional[float] = None
 
     class Config:
         from_attributes = True

@@ -61,3 +61,37 @@ export async function fetchResourceAllocationHistory(): Promise<ResourceAllocati
   );
   return res.data;
 }
+
+export interface RecommendationHistoryItem {
+  id: number;
+  dataset_ids: string;
+  model_version: string;
+  alert_count: number;
+  generated_recommendations_count: number;
+  status: string;
+  created_at: string;
+}
+
+export async function fetchRecommendationHistory(): Promise<RecommendationHistoryItem[]> {
+  const res = await axios.get<RecommendationHistoryItem[]>(
+    `${API_BASE}/api/v1/recommendations/history`,
+    { headers: getAuthHeaders() }
+  );
+  return res.data;
+}
+
+export async function triggerPipelineSync(): Promise<{
+  status: string;
+  active_dataset_ids: number[];
+  model_version: string;
+  recommendations_count: number;
+  alerts_count: number;
+  history_id: number;
+}> {
+  const res = await axios.post(
+    `${API_BASE}/api/v1/recommendations/sync`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+  return res.data;
+}

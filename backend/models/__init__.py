@@ -8,7 +8,7 @@ from backend.models.victim import Victim
 from backend.models.crime_participation import CrimeParticipation
 from backend.models.prediction import Prediction
 from backend.models.alert import Alert
-from backend.models.recommendation import Recommendation, ResourceAllocation
+from backend.models.recommendation import Recommendation, ResourceAllocation, RecommendationHistory
 from backend.models.report import Report
 from backend.models.audit_log import AuditLog
 from backend.models.dataset import Dataset
@@ -29,6 +29,7 @@ __all__ = [
   "Alert",
   "Recommendation",
   "ResourceAllocation",
+  "RecommendationHistory",
   "Report",
   "AuditLog",
   "Dataset",

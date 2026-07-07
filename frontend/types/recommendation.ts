@@ -5,6 +5,8 @@ export interface Recommendation {
   recommendation_text: string;
   reason: string | null;
   status: "pending" | "resolved" | "dismissed";
+  confidence?: number;
+  supporting_analytics?: string;
   created_at: string;
 }
 

@@ -152,3 +152,35 @@ def test_update_recommendation_status_api(client, db_session):
     # Verify in DB
     db_rec = db_session.query(Recommendation).filter(Recommendation.id == rec.id).first()
     assert db_rec.status == "resolved"
+
+def test_sync_pipeline_endpoint(client, db_session):
+    # Seed active dataset
+    from backend.models.dataset import Dataset
+    ds = Dataset(name="test_crimes", display_name="Test Active DS", original_filename="test_crimes.csv", row_count=2, status="Ready", is_active=True)
+    db_session.add(ds)
+    db_session.commit()
+    db_session.refresh(ds)
+
+    response = client.post("/api/v1/recommendations/sync")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["active_dataset_ids"] == [ds.id]
+    assert "model_version" in data
+    assert "recommendations_count" in data
+    assert "alerts_count" in data
+    assert "history_id" in data
+
+def test_sync_history_endpoint(client, db_session):
+    from backend.models.recommendation import RecommendationHistory
+    log = RecommendationHistory(dataset_ids="1,2", model_version="1.0.0", alert_count=5, generated_recommendations_count=2, status="completed")
+    db_session.add(log)
+    db_session.commit()
+
+    response = client.get("/api/v1/recommendations/history")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["model_version"] == "1.0.0"
+    assert data[0]["alert_count"] == 5
+    assert data[0]["generated_recommendations_count"] == 2

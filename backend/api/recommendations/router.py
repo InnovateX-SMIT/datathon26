@@ -156,3 +156,51 @@ def update_recommendation_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error occurred while updating recommendation status"
         )
+
+from backend.schemas.recommendation import RecommendationHistoryResponse
+
+@router.get("/history", response_model=List[RecommendationHistoryResponse])
+def get_recommendation_history_endpoint(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Retrieves the pipeline synchronization history.
+    """
+    try:
+        service = RecommendationService(db)
+        return service.get_recommendation_history()
+    except Exception as e:
+        logger.error(f"Error in get_recommendation_history_endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while fetching recommendation history logs"
+        )
+
+@router.post("/sync", status_code=status.HTTP_200_OK)
+def trigger_synchronization(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+) -> Any:
+    """
+    Triggers end-to-end synchronization pipeline (Warming, Batch Predictions, Recommendations, Alerts).
+    """
+    try:
+        from backend.services.synchronization_service import SynchronizationService
+        service = SynchronizationService(db)
+        res = service.synchronize_pipeline()
+        
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=current_user.id if current_user and not isinstance(current_user, dict) else (current_user.get("id") if isinstance(current_user, dict) else None),
+            action="PIPELINE_SYNCHRONIZED",
+            details=f"Synchronized intelligence pipeline (Recs: {res.get('recommendations_count', 0)}, Alerts: {res.get('alerts_count', 0)})"
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in trigger_synchronization: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to run end-to-end intelligence synchronization pipeline."
+        )

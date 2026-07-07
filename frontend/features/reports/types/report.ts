@@ -81,4 +81,7 @@ export interface Report {
   network_insights: NetworkInsights;
   recommendations: Recommendation[];
   alerts: Alert[];
+  dataset_name?: string;
+  model_version?: string;
+  prediction_accuracy?: number;
 }

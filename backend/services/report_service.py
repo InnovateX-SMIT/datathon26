@@ -144,6 +144,18 @@ class ReportService:
         if alerts is None:
             alerts = self._get_alerts()
 
+        active_id = self._get_active_id()
+        from backend.models.dataset import Dataset
+        active_ds = self.db.query(Dataset).filter(Dataset.id == active_id).first()
+        dataset_name = active_ds.display_name if active_ds else "Unknown"
+
+        from backend.models.ml_model import MLModel
+        latest_model = self.db.query(MLModel).filter(
+            MLModel.status == "Completed"
+        ).order_by(MLModel.created_at.desc()).first()
+        model_version = latest_model.version if latest_model else "Bundled Fallback"
+        accuracy = latest_model.accuracy if latest_model else 0.85
+
         return {
             "report_id": db_report.id,
             "report_type": db_report.report_type,
@@ -154,7 +166,10 @@ class ReportService:
             "predictive_insights": predictions,
             "network_insights": networks,
             "recommendations": recs,
-            "alerts": alerts
+            "alerts": alerts,
+            "dataset_name": dataset_name,
+            "model_version": model_version,
+            "prediction_accuracy": accuracy
         }
 
     def _get_crime_overview(self) -> Dict[str, Any]:

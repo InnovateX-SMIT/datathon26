@@ -7,6 +7,8 @@ class RecommendationBase(BaseModel):
     recommendation_text: str
     reason: str | None = None
     status: str = "pending"
+    confidence: float | None = 0.80
+    supporting_analytics: str | None = None
 
 class RecommendationCreate(RecommendationBase):
     pass
@@ -58,3 +60,15 @@ class ResourceAllocationResponse(BaseModel):
 class RecommendationStatusUpdate(BaseModel):
     status: str
 
+
+class RecommendationHistoryResponse(BaseModel):
+    id: int
+    dataset_ids: str
+    model_version: str
+    alert_count: int
+    generated_recommendations_count: int
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

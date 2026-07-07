@@ -14,7 +14,9 @@ class RecommendationRepository:
             priority=rec.priority,
             recommendation_text=rec.recommendation_text,
             reason=rec.reason,
-            status=rec.status
+            status=rec.status,
+            confidence=rec.confidence,
+            supporting_analytics=rec.supporting_analytics
         )
         self.db.add(db_rec)
         self.db.commit()
@@ -29,7 +31,9 @@ class RecommendationRepository:
                 priority=rec.priority,
                 recommendation_text=rec.recommendation_text,
                 reason=rec.reason,
-                status=rec.status
+                status=rec.status,
+                confidence=rec.confidence,
+                supporting_analytics=rec.supporting_analytics
             )
             self.db.add(db_rec)
             db_recs.append(db_rec)

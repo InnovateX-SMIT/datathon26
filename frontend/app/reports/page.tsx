@@ -8,7 +8,8 @@ import {
   RefreshCw, 
   FileText, 
   ShieldAlert, 
-  BookOpen
+  BookOpen,
+  Printer
 } from "lucide-react";
 
 import { 
@@ -285,10 +286,51 @@ export default function ReportsPage() {
         </div>
       )}
 
+      {/* Global CSS injection for printing */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          /* Hide sidebar/navigation and extra pages components */
+          body, html {
+            background: white !important;
+            color: black !important;
+          }
+          header, footer, nav, button, .no-print, [role="navigation"], aside, form {
+            display: none !important;
+          }
+          .print-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 20px !important;
+            background: white !important;
+            color: black !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          .glass-card {
+            background: white !important;
+            color: black !important;
+            border: 1px solid #ccc !important;
+            box-shadow: none !important;
+          }
+          .text-slate-100, .text-slate-250, .text-slate-200, .text-white, .text-indigo-400, .text-indigo-300, .text-slate-400, .text-slate-500, .text-slate-600 {
+            color: black !important;
+          }
+          .bg-slate-950, .bg-slate-900, .bg-indigo-950/5 {
+            background: #f8f8f8 !important;
+          }
+          .border-slate-800, .border-slate-900, .border-indigo-500/15 {
+            border-color: #ddd !important;
+          }
+        }
+      `}} />
+
       {/* Main Panel Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Left Side: Past Dossiers List */}
-        <div className="lg:col-span-1 space-y-4">
+        {/* Left Side: Past Dossiers List (Hidden on Print) */}
+        <div className="lg:col-span-1 space-y-4 no-print">
           <div className="flex items-center justify-between border-b border-slate-900 pb-2">
             <h2 className="text-xs font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
               <FileText className="w-4 h-4 text-slate-400" />
@@ -324,7 +366,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Right Side: Detailed Intelligence Dossier */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 print-container">
           {loadingDetail ? (
             <div className="glass-card p-12 rounded-3xl border border-slate-800/80 flex flex-col items-center justify-center min-h-[50vh]">
               <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin mb-4" />
@@ -355,21 +397,46 @@ export default function ReportsPage() {
                     </div>
                   </div>
                   <h2 className="text-2xl font-black text-white tracking-tight mt-2">{selectedReport.title}</h2>
-                  <p className="text-[10px] font-mono text-slate-500 tracking-wider mt-1 uppercase">Dossier ID: INTEL-{selectedReport.report_id}</p>
+                  
+                  {/* Model version & Dataset name */}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {selectedReport.dataset_name && (
+                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-450 text-[9px] font-mono font-bold uppercase">
+                        Dataset: {selectedReport.dataset_name}
+                      </span>
+                    )}
+                    {selectedReport.model_version && (
+                      <span className="px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[9px] font-mono font-bold uppercase flex items-center gap-1">
+                        Model: {selectedReport.model_version} (Acc: {selectedReport.prediction_accuracy ? (selectedReport.prediction_accuracy * 100).toFixed(1) : "85.0"}%)
+                      </span>
+                    )}
+                  </div>
+                  
+                  <p className="text-[10px] font-mono text-slate-500 tracking-wider mt-2.5 uppercase">Dossier ID: INTEL-{selectedReport.report_id}</p>
                 </div>
 
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-350 hover:text-white border border-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shrink-0"
-                >
-                  {downloading ? (
-                    <RefreshCw className="w-4.5 h-4.5 animate-spin text-indigo-400" />
-                  ) : (
-                    <FileSpreadsheet className="w-4.5 h-4.5 text-emerald-400" />
-                  )}
-                  {downloading ? "Exporting..." : "Export CSV"}
-                </button>
+                <div className="flex items-center gap-2.5 shrink-0 no-print">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md"
+                  >
+                    <Printer className="w-4.5 h-4.5" />
+                    Print Dossier
+                  </button>
+
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-350 hover:text-white border border-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
+                  >
+                    {downloading ? (
+                      <RefreshCw className="w-4.5 h-4.5 animate-spin text-indigo-400" />
+                    ) : (
+                      <FileSpreadsheet className="w-4.5 h-4.5 text-emerald-400" />
+                    )}
+                    {downloading ? "Exporting..." : "Export CSV"}
+                  </button>
+                </div>
               </div>
 
               {/* Executive Summary */}

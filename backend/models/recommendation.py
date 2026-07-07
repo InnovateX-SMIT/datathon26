@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, func
 from sqlalchemy.orm import relationship
 from backend.core.database import Base
 
@@ -11,6 +11,8 @@ class Recommendation(Base):
     recommendation_text = Column(String(1000), nullable=False)
     reason = Column(String(1000), nullable=True)
     status = Column(String(50), index=True, default="pending")
+    confidence = Column(Float, nullable=True, default=0.80)
+    supporting_analytics = Column(String(1000), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -30,3 +32,14 @@ class ResourceAllocation(Base):
     solved_allocation = Column(String(2000), nullable=False)  # JSON-serialized list of beat allocations
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+class RecommendationHistory(Base):
+    __tablename__ = "recommendation_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dataset_ids = Column(String(200), nullable=False)
+    model_version = Column(String(100), nullable=False)
+    alert_count = Column(Integer, nullable=False, default=0)
+    generated_recommendations_count = Column(Integer, nullable=False, default=0)
+    status = Column(String(50), nullable=False, default="completed")  # "completed", "failed"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

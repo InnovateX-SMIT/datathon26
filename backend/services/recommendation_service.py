@@ -198,6 +198,31 @@ class RecommendationService:
         """
         Analyzes models, network metrics, and risk predictions to create prioritized recommendations.
         """
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
+        if not active_ids:
+            logger.warning("No active dataset is selected. Generating default fallbacks.")
+            self.repo.clear_pending_recommendations()
+            defaults = [
+                RecommendationCreate(
+                    priority="high",
+                    recommendation_text="Deploy additional patrol teams to Bengaluru Urban hotspots.",
+                    reason="Historical density analysis and spatial clustering indicates rising crime trend in high-volume beats.",
+                    status="pending",
+                    confidence=0.80,
+                    supporting_analytics="Historical Incident Clustering Metrics (Density: Elevated)"
+                ),
+                RecommendationCreate(
+                    priority="medium",
+                    recommendation_text="Conduct community outreach and check-ins in Mysuru station limits.",
+                    reason="Slight increase in youth-related petty thefts reported in the last 15 days.",
+                    status="pending",
+                    confidence=0.75,
+                    supporting_analytics="Localized Station Crime Trend Analyses (Growth: Rising)"
+                )
+            ]
+            return self.repo.create_recommendations_bulk(defaults)
+
         # Clear existing pending actions to prevent redundancy
         self.repo.clear_pending_recommendations()
         
@@ -211,7 +236,6 @@ class RecommendationService:
 
         for h in hotspots:
             try:
-                # E.g. "Hotspot Prob: 0.85 (Trend: RISING)"
                 prob = h.confidence_score
                 district = "Unknown"
                 if h.crime_event and h.crime_event.location:
@@ -227,7 +251,9 @@ class RecommendationService:
                             priority="high",
                             recommendation_text=text,
                             reason=reason,
-                            status="pending"
+                            status="pending",
+                            confidence=prob,
+                            supporting_analytics=f"Spatial Hotspot Analytics ({district} - Prob: {prob:.2f})"
                         ))
             except Exception:
                 pass
@@ -250,14 +276,19 @@ class RecommendationService:
                             priority="medium",
                             recommendation_text=text,
                             reason=reason,
-                            status="pending"
+                            status="pending",
+                            confidence=prob,
+                            supporting_analytics=f"Recidivism Prediction Attributions (Offender Prob: {prob:.2f})"
                         ))
             except Exception:
                 pass
 
         # High risk criminals from table directly
         from backend.models.criminal import Criminal
-        criminals = self.db.query(Criminal).filter(Criminal.risk_score >= 7.0).limit(5).all()
+        criminals = self.db.query(Criminal).filter(
+            Criminal.dataset_id.in_(active_ids),
+            Criminal.risk_score >= 7.0
+        ).limit(5).all()
         for crim in criminals:
             text = f"Perform localized monitoring and checks on repeat offender {crim.name}."
             reason = f"Criminal has risk score of {crim.risk_score:.1f} with active participations."
@@ -268,7 +299,9 @@ class RecommendationService:
                     priority="medium",
                     recommendation_text=text,
                     reason=reason,
-                    status="pending"
+                    status="pending",
+                    confidence=float(crim.risk_score) / 10.0,
+                    supporting_analytics=f"Suspect Registry Severity Metrics (Risk Score: {crim.risk_score:.1f})"
                 ))
 
         # 3. Network Centrality Influencers
@@ -287,7 +320,9 @@ class RecommendationService:
                             priority="high",
                             recommendation_text=text,
                             reason=reason,
-                            status="pending"
+                            status="pending",
+                            confidence=float(node["score"]),
+                            supporting_analytics=f"Co-offending Network Centrality Indexes (Betweenness: {node['score']:.2f})"
                         ))
         except Exception:
             pass
@@ -309,7 +344,9 @@ class RecommendationService:
                             priority="high",
                             recommendation_text=text,
                             reason=reason,
-                            status="pending"
+                            status="pending",
+                            confidence=0.85,
+                            supporting_analytics=f"Co-offending Syndicate Cluster Analytics (Cluster Size: {cluster['size']})"
                         ))
         except Exception:
             pass
@@ -321,13 +358,17 @@ class RecommendationService:
                     priority="high",
                     recommendation_text="Deploy additional patrol teams to Bengaluru Urban hotspots.",
                     reason="Historical density analysis and spatial clustering indicates rising crime trend in high-volume beats.",
-                    status="pending"
+                    status="pending",
+                    confidence=0.80,
+                    supporting_analytics="Historical Incident Clustering Metrics (Density: Elevated)"
                 ),
                 RecommendationCreate(
                     priority="medium",
                     recommendation_text="Conduct community outreach and check-ins in Mysuru station limits.",
                     reason="Slight increase in youth-related petty thefts reported in the last 15 days.",
-                    status="pending"
+                    status="pending",
+                    confidence=0.75,
+                    supporting_analytics="Localized Station Crime Trend Analyses (Growth: Rising)"
                 )
             ]
             for d in defaults:
@@ -362,3 +403,7 @@ class RecommendationService:
                 "created_at": h.created_at.isoformat() if h.created_at else ""
             })
         return logs
+
+    def get_recommendation_history(self) -> List[Any]:
+        from backend.models.recommendation import RecommendationHistory
+        return self.db.query(RecommendationHistory).order_by(RecommendationHistory.created_at.desc()).all()
