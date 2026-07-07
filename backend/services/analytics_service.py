@@ -63,7 +63,8 @@ class AnalyticsService:
             from backend.models.fir_case import CaseMaster
             from backend.models.fir_people import FIRVictim, Accused
             from backend.models.fir_lookup import CaseStatusMaster, GravityOffence
-            from backend.models.fir_geography import Unit, District
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             from backend.models.prediction import Prediction
             from backend.models.crime import CLOSED_CASE_STATUSES, ACTIVE_CASE_STATUSES
             from backend.core.severity import GRAVITY_SEVERITY_MAP, DEFAULT_SEVERITY
@@ -167,19 +168,19 @@ class AnalyticsService:
         schema_type = self._get_schema_type()
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            max_date = self.db.query(func.max(CaseMaster.registered_date)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
+            max_date = self.db.query(func.max(CaseMaster.CrimeRegisteredDate)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
             anchor_date = max_date if max_date is not None else date.today()
             start_date = anchor_date - timedelta(days=days)
             results = self.db.query(
-                CaseMaster.registered_date,
+                CaseMaster.CrimeRegisteredDate,
                 func.count(CaseMaster.id)
             ).filter(
                 CaseMaster.dataset_id.in_(active_ids),
-                CaseMaster.registered_date >= start_date
+                CaseMaster.CrimeRegisteredDate >= start_date
             ).group_by(
-                CaseMaster.registered_date
+                CaseMaster.CrimeRegisteredDate
             ).order_by(
-                CaseMaster.registered_date.asc()
+                CaseMaster.CrimeRegisteredDate.asc()
             ).all()
         else:
             max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id.in_(active_ids)).scalar()
@@ -210,7 +211,7 @@ class AnalyticsService:
         schema_type = self._get_schema_type()
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_legal import CrimeHead
+            from backend.models.fir_law import CrimeHead
             results = self.db.query(
                 CrimeHead.CrimeGroupName,
                 func.count(CaseMaster.id)
@@ -246,7 +247,8 @@ class AnalyticsService:
         schema_type = self._get_schema_type()
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import Unit, District
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             results = self.db.query(
                 District.name,
                 func.count(CaseMaster.id)
@@ -287,8 +289,9 @@ class AnalyticsService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import Unit, District
-            from backend.models.fir_legal import CrimeHead, CrimeSubHead
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
+            from backend.models.fir_law import CrimeHead, CrimeSubHead
             from backend.models.fir_lookup import CaseStatusMaster, GravityOffence
             from backend.models.fir_people import FIRVictim, Accused
             from backend.core.severity import resolve_gravity_severity
@@ -325,7 +328,7 @@ class AnalyticsService:
                     "district": district_name,
                     "severity": resolve_gravity_severity(gravity),
                     "status": status,
-                    "crime_date": case.registered_date.isoformat() if case.registered_date else "",
+                    "crime_date": case.CrimeRegisteredDate.isoformat() if case.CrimeRegisteredDate else "",
                     "victim_count": v_count,
                     "accused_count": a_count
                 })
@@ -381,8 +384,8 @@ class AnalyticsService:
             max_created_at = self.db.query(func.max(CaseMaster.created_at)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
             last_updated = max_created_at.isoformat() if max_created_at else "N/A"
 
-            min_crime_date = self.db.query(func.min(CaseMaster.registered_date)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
-            max_crime_date = self.db.query(func.max(CaseMaster.registered_date)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
+            min_crime_date = self.db.query(func.min(CaseMaster.CrimeRegisteredDate)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
+            max_crime_date = self.db.query(func.max(CaseMaster.CrimeRegisteredDate)).filter(CaseMaster.dataset_id.in_(active_ids)).scalar()
         else:
             total_records = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id.in_(active_ids)).count()
             if total_records == 0:
@@ -453,15 +456,15 @@ class AnalyticsService:
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
             results = self.db.query(
-                CaseMaster.registered_date,
+                CaseMaster.CrimeRegisteredDate,
                 func.count(CaseMaster.id)
             ).filter(
                 CaseMaster.dataset_id.in_(active_ids),
-                CaseMaster.registered_date.isnot(None)
+                CaseMaster.CrimeRegisteredDate.isnot(None)
             ).group_by(
-                CaseMaster.registered_date
+                CaseMaster.CrimeRegisteredDate
             ).order_by(
-                CaseMaster.registered_date.asc()
+                CaseMaster.CrimeRegisteredDate.asc()
             ).all()
         else:
             results = self.db.query(
@@ -492,7 +495,7 @@ class AnalyticsService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            date_col = CaseMaster.registered_date
+            date_col = CaseMaster.CrimeRegisteredDate
             model_class = CaseMaster
         else:
             date_col = CrimeEvent.crime_date
@@ -541,7 +544,7 @@ class AnalyticsService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            date_col = CaseMaster.registered_date
+            date_col = CaseMaster.CrimeRegisteredDate
             model_class = CaseMaster
         else:
             date_col = CrimeEvent.crime_date
@@ -580,7 +583,7 @@ class AnalyticsService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            date_col = CaseMaster.registered_date
+            date_col = CaseMaster.CrimeRegisteredDate
             model_class = CaseMaster
         else:
             date_col = CrimeEvent.crime_date
@@ -619,7 +622,7 @@ class AnalyticsService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_legal import CrimeHead
+            from backend.models.fir_law import CrimeHead
             results = self.db.query(
                 CrimeHead.CrimeGroupName,
                 func.count(CaseMaster.id)
@@ -656,7 +659,7 @@ class AnalyticsService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_law import CrimeSubHead
             results = self.db.query(
                 CrimeSubHead.CrimeHeadName,
                 func.count(CaseMaster.id)
@@ -714,7 +717,7 @@ class AnalyticsService:
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
             model_class = CaseMaster
-            date_col = CaseMaster.registered_date
+            date_col = CaseMaster.CrimeRegisteredDate
         else:
             model_class = CrimeEvent
             date_col = CrimeEvent.crime_date

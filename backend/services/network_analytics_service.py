@@ -59,7 +59,8 @@ class NetworkAnalyticsService:
         if schema_type == "fir_normalized":
             from backend.models.fir_people import Accused
             from backend.models.fir_case import CaseMaster, Inv_OccuranceTime
-            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             from sqlalchemy import func
             
             accused_list = self.db.query(Accused).join(CaseMaster).filter(CaseMaster.dataset_id == dataset_id).all()
@@ -98,7 +99,7 @@ class NetworkAnalyticsService:
                     crime_subcategory=c.crime_minor_head.CrimeHeadName if c.crime_minor_head else "General",
                     severity=severity,
                     status=status_name,
-                    crime_date=str(c.registered_date) if c.registered_date else None
+                    crime_date=str(c.CrimeRegisteredDate) if c.CrimeRegisteredDate else None
                 )
                 
             # 4. Add location nodes

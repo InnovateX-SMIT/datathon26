@@ -34,6 +34,7 @@ temp_analysis/
 uploads/
 backend/uploads/
 frontend/.cache/
+file.txt
 
 # IDE / OS
 .idea/

@@ -49,6 +49,16 @@ class FIRSyntheticDataGenerator:
         self.categories = ["FIR", "UDR", "PAR"]
         self.gravities = ["Heinous", "Non-Heinous"]
         self.statuses = ["Under Investigation", "Chargesheeted", "Report Beece (B-Report)", "Undetected"]
+        
+        # Load Karnataka state boundary geometry
+        import os
+        import geopandas as gpd
+        geojson_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "karnataka_boundary.geojson")
+        if os.path.exists(geojson_path):
+            gdf = gpd.read_file(geojson_path)
+            self.karnataka_geom = gdf.geometry.iloc[0]
+        else:
+            self.karnataka_geom = None
 
     def generate(self, num_records: int = 100) -> list[dict]:
         """
@@ -105,8 +115,22 @@ class FIRSyntheticDataGenerator:
             inc_from = datetime.combine(reg_date - timedelta(days=1), datetime.min.time()) + timedelta(hours=random.randint(0, 23))
             inc_to = inc_from + timedelta(hours=random.randint(1, 3))
             info_received = datetime.combine(reg_date, datetime.min.time()) + timedelta(hours=random.randint(8, 12))
-            lat = round(random.uniform(12.0, 15.0), 4)
-            lon = round(random.uniform(74.0, 78.0), 4)
+            lat, lon = None, None
+            if self.karnataka_geom is not None:
+                from shapely.geometry import Point
+                for attempt in range(100):
+                    cand_lat = round(random.uniform(11.5, 18.5), 4)
+                    cand_lon = round(random.uniform(74.0, 78.5), 4)
+                    if self.karnataka_geom.contains(Point(cand_lon, cand_lat)):
+                        lat, lon = cand_lat, cand_lon
+                        break
+                if lat is None:
+                    import logging
+                    logging.warning(f"Failed to generate coordinate in Karnataka after 100 attempts at case {case_idx}")
+                    lat, lon = 12.9716, 77.5946
+            else:
+                lat = round(random.uniform(12.0, 15.0), 4)
+                lon = round(random.uniform(74.0, 78.0), 4)
             occ_facts = f"Incident details at lat {lat}, lon {lon}."
             
             # Officer details

@@ -71,8 +71,9 @@ class GeoService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import District, Unit
-            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
+            from backend.models.fir_law import CrimeSubHead
 
             query = self.db.query(
                 District.name,
@@ -86,9 +87,9 @@ class GeoService:
             if crime_type:
                 query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
             if start_date:
-                query = query.filter(CaseMaster.registered_date >= start_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate >= start_date)
             if end_date:
-                query = query.filter(CaseMaster.registered_date <= end_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate <= end_date)
                 
             results = query.group_by(District.name).all()
             records = [{"district": r[0], "crime_count": r[1]} for r in results if r[0] is not None]
@@ -138,8 +139,9 @@ class GeoService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import District, Unit
-            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
+            from backend.models.fir_law import CrimeSubHead
             from backend.models.fir_case import Inv_OccuranceTime
 
             query = self.db.query(
@@ -158,9 +160,9 @@ class GeoService:
             if crime_type:
                 query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
             if start_date:
-                query = query.filter(CaseMaster.registered_date >= start_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate >= start_date)
             if end_date:
-                query = query.filter(CaseMaster.registered_date <= end_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate <= end_date)
                 
             results = query.group_by(Unit.name).all()
             records = [{
@@ -224,8 +226,9 @@ class GeoService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import District, Unit
-            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
+            from backend.models.fir_law import CrimeSubHead
             from backend.models.fir_case import Inv_OccuranceTime
 
             query = self.db.query(
@@ -245,9 +248,9 @@ class GeoService:
             if crime_type:
                 query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
             if start_date:
-                query = query.filter(CaseMaster.registered_date >= start_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate >= start_date)
             if end_date:
-                query = query.filter(CaseMaster.registered_date <= end_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate <= end_date)
 
             results = query.group_by(Inv_OccuranceTime.latitude, Inv_OccuranceTime.longitude).all()
             records = [{
@@ -306,8 +309,9 @@ class GeoService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import District, Unit
-            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
+            from backend.models.fir_law import CrimeSubHead
             from backend.models.fir_case import Inv_OccuranceTime
 
             query = self.db.query(
@@ -327,9 +331,9 @@ class GeoService:
             if crime_type:
                 query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
             if start_date:
-                query = query.filter(CaseMaster.registered_date >= start_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate >= start_date)
             if end_date:
-                query = query.filter(CaseMaster.registered_date <= end_date)
+                query = query.filter(CaseMaster.CrimeRegisteredDate <= end_date)
 
             results = query.group_by(Inv_OccuranceTime.latitude, Inv_OccuranceTime.longitude).all()
             coords = [(float(r[0]), float(r[1]), r[2]) for r in results if r[0] is not None and r[1] is not None]

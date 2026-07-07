@@ -25,6 +25,8 @@ import {
   activateDataset,
   deleteDataset,
   fetchDatasetSummary,
+  detectSchemaType,
+  importFIRDataset,
   DatasetInfo,
   DatasetSummary
 } from "@/features/admin/services/database-service";
@@ -45,6 +47,9 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewSummary, setPreviewSummary] = useState<any>(null);
+  const [previewSchemaType, setPreviewSchemaType] = useState<string | null>(null);
+  const [isValidated, setIsValidated] = useState<boolean>(false);
 
   // Details / Summary Modal State
   const [selectedDataset, setSelectedDataset] = useState<DatasetInfo | null>(null);
@@ -125,6 +130,34 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
     }
   };
 
+  const handleValidatePreview = async () => {
+    if (!selectedFile || !displayName.trim()) {
+      setError("Please select a file and enter a display name.");
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { schema_type } = await detectSchemaType(selectedFile);
+      setPreviewSchemaType(schema_type);
+      
+      let summary;
+      if (schema_type === "fir_normalized") {
+        summary = await importFIRDataset(displayName, description || null, selectedFile, true);
+      } else {
+        summary = await uploadDataset(displayName, description || null, selectedFile, true);
+      }
+      setPreviewSummary(summary);
+      setIsValidated(true);
+      setSuccess(`File validated: ${summary.valid_count} valid rows, ${summary.invalid_count} row errors found.`);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Validation failed. Verify file format and column headers.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !displayName.trim()) {
@@ -136,13 +169,24 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
     setError(null);
     setSuccess(null);
     try {
-      await uploadDataset(displayName, description || null, selectedFile);
+      if (previewSchemaType === "fir_normalized") {
+        await importFIRDataset(displayName, description || null, selectedFile, false);
+      } else {
+        await uploadDataset(displayName, description || null, selectedFile, false);
+      }
       setSuccess(`Dataset "${displayName}" uploaded and registered successfully.`);
       setUploadOpen(false);
       setDisplayName("");
       setDescription("");
       setSelectedFile(null);
+      setPreviewSummary(null);
+      setPreviewSchemaType(null);
+      setIsValidated(false);
       await loadDatasets();
+      if (onDatasetSwitched) {
+        onDatasetSwitched();
+      }
+      window.dispatchEvent(new Event("activeDatasetChanged"));
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to upload dataset.");
     } finally {
@@ -285,7 +329,12 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setUploadOpen(true)}
+              onClick={() => {
+                setPreviewSummary(null);
+                setPreviewSchemaType(null);
+                setIsValidated(false);
+                setUploadOpen(true);
+              }}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-2xl cursor-pointer transition-all shadow-md shadow-indigo-600/10"
             >
               <Upload className="w-4 h-4" />
@@ -509,21 +558,76 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
                 </div>
               </div>
 
+              {isValidated && previewSummary && (
+                <div className="space-y-4 bg-slate-955/60 p-4 rounded-2xl border border-slate-800">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-850 pb-1.5">
+                    Validation Results ({previewSchemaType === "fir_normalized" ? "FIR Schema" : "Legacy Schema"})
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-slate-900/60 p-2 border border-slate-850 rounded-xl">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider font-mono">Total Rows</p>
+                      <p className="font-bold text-slate-200 mt-0.5 font-mono">{previewSummary.total_rows}</p>
+                    </div>
+                    <div className="bg-slate-900/60 p-2 border border-slate-850 rounded-xl">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider font-mono">Valid</p>
+                      <p className="font-bold text-emerald-400 mt-0.5 font-mono">{previewSummary.valid_count}</p>
+                    </div>
+                    <div className="bg-slate-900/60 p-2 border border-slate-850 rounded-xl">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider font-mono">Errors</p>
+                      <p className="font-bold text-red-400 mt-0.5 font-mono">{previewSummary.invalid_count}</p>
+                    </div>
+                  </div>
+                  {previewSummary.invalid_count > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-red-450 uppercase tracking-wider">Errors (First 5)</p>
+                      <div className="bg-slate-900/40 rounded-xl p-2.5 max-h-28 overflow-y-auto border border-slate-950 font-mono text-[10px] text-slate-400 divide-y divide-slate-850">
+                        {previewSummary.errors.slice(0, 5).map((err: any, idx: number) => (
+                          <div key={idx} className="py-1">
+                            <span className="text-red-450 font-bold">Row {err.row}</span>:{" "}
+                            {Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join(", ")}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="pt-4 border-t border-slate-850 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setUploadOpen(false)}
-                  className="px-5 py-2.5 bg-slate-950 hover:bg-slate-850 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-bold cursor-pointer"
+                  onClick={() => {
+                    setUploadOpen(false);
+                    setDisplayName("");
+                    setDescription("");
+                    setSelectedFile(null);
+                    setPreviewSummary(null);
+                    setPreviewSchemaType(null);
+                    setIsValidated(false);
+                  }}
+                  className="px-5 py-2.5 bg-slate-950 hover:bg-slate-850 text-slate-400 hover:text-slate-205 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !selectedFile}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
-                >
-                  {actionLoading ? "Processing Import..." : "Commit Import"}
-                </button>
+                {selectedFile && !isValidated && (
+                  <button
+                    type="button"
+                    onClick={handleValidatePreview}
+                    disabled={actionLoading}
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+                  >
+                    {actionLoading ? "Validating..." : "Validate & Preview"}
+                  </button>
+                )}
+                {isValidated && (
+                  <button
+                    type="submit"
+                    disabled={actionLoading || previewSummary?.valid_count === 0}
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+                  >
+                    {actionLoading ? "Processing Import..." : "Commit Import"}
+                  </button>
+                )}
               </div>
             </form>
           </div>

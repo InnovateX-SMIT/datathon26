@@ -6,6 +6,7 @@ import re
 import json
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from backend.models.dataset import Dataset
 from backend.core.exceptions import NoActiveDatasetException
 from backend.core.logging import logger
@@ -260,8 +261,9 @@ class DatasetService:
         description: Optional[str],
         file_name: str,
         file_bytes: bytes,
-        user_id: int
-    ) -> Dataset:
+        user_id: int,
+        preview: bool = False
+    ) -> Union[Dataset, dict]:
         """
         Registers an uploaded file in the registry under 'Uploading', dry-runs validations under 'Validating',
         and inserts CrimeEvent, Criminal, Victim, and CrimeParticipation records in transactional batches under 'Importing'.
@@ -274,6 +276,185 @@ class DatasetService:
         # Validate Empty File size
         if len(file_bytes) == 0:
             raise ValueError("File is empty. No data found.")
+
+        # If preview mode, validate and return BulkUploadSummary without writing to DB or files
+        if preview:
+            if file_name.lower().endswith((".xlsx", ".xls")):
+                try:
+                    df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+                except Exception as parse_err:
+                    raise ValueError(f"Failed to parse Excel file: {str(parse_err)}")
+            elif file_name.lower().endswith(".csv"):
+                try:
+                    df = pd.read_csv(io.BytesIO(file_bytes))
+                except Exception as parse_err:
+                    raise ValueError(f"Failed to parse CSV file: {str(parse_err)}")
+            else:
+                raise ValueError("Unsupported format.")
+
+            if df.empty or len(df) == 0:
+                raise ValueError("File is empty.")
+
+            df = df.replace({np.nan: None})
+
+            from backend.services.fir_import_service import FIRImportService
+            fir_importer = FIRImportService(self.db)
+            detected_schema = fir_importer.detect_schema_type(df.columns)
+
+            if detected_schema == "fir_normalized":
+                ALIAS_MAP = {
+                    "case_category": "case_category", "category": "case_category",
+                    "gravity_offence": "gravity_offence", "gravity": "gravity_offence",
+                    "case_status": "case_status", "status": "case_status",
+                    "state": "state", "district": "district", "court": "court",
+                    "unit_type": "unit_type", "unit": "unit", "police_station": "unit",
+                    "officer_kgid": "officer_kgid", "kgid": "officer_kgid",
+                    "officer_name": "officer_name", "officer_rank": "officer_rank",
+                    "rank": "officer_rank", "officer_designation": "officer_designation",
+                    "designation": "officer_designation", "officer_dob": "officer_dob",
+                    "officer_gender": "officer_gender", "officer_blood_group": "officer_blood_group",
+                    "officer_physically_challenged": "officer_physically_challenged",
+                    "officer_appointment_date": "officer_appointment_date",
+                    "crime_no": "crime_no", "crimeno": "crime_no", "case_no": "case_no", "caseno": "case_no",
+                    "registered_date": "registered_date", "crime_registered_date": "registered_date",
+                    "brief_facts": "brief_facts", "incident_from_date": "incident_from_date",
+                    "incident_to_date": "incident_to_date", "info_received_date": "info_received_date",
+                    "latitude": "latitude", "lat": "latitude", "longitude": "longitude", "lng": "longitude", "lon": "longitude",
+                    "occurrence_brief_facts": "occurrence_brief_facts", "crime_group_name": "crime_group_name",
+                    "crime_head_name": "crime_head_name", "act_code": "act_code", "act_description": "act_description",
+                    "short_name": "short_name", "section_code": "section_code", "section_description": "section_description",
+                    "act_order": "act_order", "section_order": "section_order", "complainant_name": "complainant_name",
+                    "complainant_age": "complainant_age", "complainant_occupation": "complainant_occupation",
+                    "complainant_religion": "complainant_religion", "complainant_caste": "complainant_caste",
+                    "complainant_gender": "complainant_gender", "victim_name": "victim_name", "victim_age": "victim_age",
+                    "victim_gender": "victim_gender", "victim_police": "victim_police", "accused_name": "accused_name",
+                    "accused_age": "accused_age", "accused_gender": "accused_gender", "accused_person_id": "accused_person_id",
+                    "arrest_type": "arrest_type", "arrest_date": "arrest_date", "arrest_state": "arrest_state",
+                    "arrest_district": "arrest_district", "arrest_station": "arrest_station", "arrest_io_kgid": "arrest_io_kgid",
+                    "arrest_court": "arrest_court", "arrest_primary_accused_name": "arrest_primary_accused_name",
+                    "arrest_joint_accused_names": "arrest_joint_accused_names", "chargesheet_date": "chargesheet_date",
+                    "chargesheet_type": "chargesheet_type", "chargesheet_officer_kgid": "chargesheet_officer_kgid"
+                }
+
+                def normalize_header(header: str) -> str:
+                    h = str(header).strip().lower().lstrip('\ufeff')
+                    h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
+                    h = re.sub(r'[^a-z0-9_]', '', h)
+                    return re.sub(r'_+', '_', h).strip('_')
+
+                df.columns = [normalize_header(c) for c in df.columns]
+                rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
+                df = df.rename(columns=rename_dict)
+                rows = df.to_dict(orient="records")
+
+                val_errors = fir_importer.validate_rows(rows)
+                formatted_errors = []
+                for idx, e in enumerate(val_errors):
+                    row_match = re.search(r"Row (\d+):", e)
+                    row_num = int(row_match.group(1)) if row_match else (idx + 2)
+                    formatted_errors.append({
+                        "row": row_num,
+                        "errors": {"validation": e},
+                        "raw_data": rows[row_num - 2] if (0 <= row_num - 2 < len(rows)) else {}
+                    })
+
+                return {
+                    "schema_type": "fir_normalized",
+                    "total_rows": len(rows),
+                    "valid_count": len(rows) - len(val_errors),
+                    "invalid_count": len(val_errors),
+                    "errors": formatted_errors,
+                    "preview": rows[:10]
+                }
+            else:
+                ALIAS_MAP = {
+                    "fir_id": "fir_id", "firid": "fir_id", "fir_no": "fir_id", "fir_number": "fir_id", "firno": "fir_id",
+                    "case_id": "fir_id", "case_number": "fir_id", "crime_type": "crime_type", "crimetype": "crime_type",
+                    "type_of_crime": "crime_type", "offence_type": "crime_type", "offencetype": "crime_type",
+                    "offense_type": "crime_type", "type": "crime_type", "crime": "crime_type", "crime_category": "crime_category",
+                    "crimecategory": "crime_category", "category": "crime_category", "district": "district", "dist": "district",
+                    "district_name": "district", "districtname": "district", "police_station": "police_station",
+                    "policestation": "police_station", "ps": "police_station", "ps_name": "police_station", "station": "police_station",
+                    "station_name": "police_station", "stationname": "police_station", "police_station_name": "police_station",
+                    "policestationname": "police_station", "crime_date": "crime_date", "crimedate": "crime_date", "date": "crime_date",
+                    "date_of_crime": "crime_date", "incident_date": "crime_date", "incidentdate": "crime_date", "offence_date": "crime_date",
+                    "crime_time": "crime_time", "crimetime": "crime_time", "time": "crime_time", "time_of_crime": "crime_time",
+                    "incident_time": "crime_time", "latitude": "latitude", "lat": "latitude", "longitude": "longitude",
+                    "lng": "longitude", "lon": "longitude", "long": "longitude", "victim_age": "victim_age", "victimage": "victim_age",
+                    "victim_s_age": "victim_age", "age_of_victim": "victim_age", "accused_age": "accused_age", "accusedage": "accused_age",
+                    "accused_s_age": "accused_age", "age_of_accused": "accused_age", "criminal_age": "accused_age", "gender": "gender",
+                    "sex": "gender", "victim_gender": "gender", "occupation": "occupation", "victim_occupation": "occupation",
+                    "severity": "severity", "crime_severity": "severity", "crimeseverity": "severity", "seriousness": "severity",
+                    "repeat_offender": "repeat_offender", "repeatoffender": "repeat_offender", "recidivist": "repeat_offender",
+                    "repeat": "repeat_offender", "status": "status", "case_status": "status", "casestatus": "status",
+                    "crime_status": "status"
+                }
+
+                def normalize_header(header: str) -> str:
+                    h = str(header).strip().lower().lstrip('\ufeff')
+                    h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
+                    h = re.sub(r'[^a-z0-9_]', '', h)
+                    return re.sub(r'_+', '_', h)
+
+                df.columns = [normalize_header(c) for c in df.columns]
+                rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
+                df = df.rename(columns=rename_dict)
+                rows = df.to_dict(orient="records")
+
+                from backend.models.location import Location
+                from backend.models.police_station import PoliceStation
+                locations = self.db.query(Location).all()
+                district_to_loc_id = {loc.district: loc.id for loc in locations}
+                stations = self.db.query(PoliceStation).all()
+                station_to_station_id = {s.station_name: s.id for s in stations}
+
+                errors = []
+                for idx, row in enumerate(rows):
+                    row_num = idx + 2
+                    err_dict = {}
+                    
+                    missing_fields = []
+                    for field in ["district", "police_station", "crime_date", "crime_type"]:
+                        val = row.get(field)
+                        if val is None or (isinstance(val, str) and val.strip() == ""):
+                            missing_fields.append(field)
+                    if missing_fields:
+                        err_dict["validation"] = f"Missing required fields: {', '.join(missing_fields)}"
+                    else:
+                        dist = str(row["district"]).strip()
+                        ps = str(row["police_station"]).strip()
+                        if dist not in district_to_loc_id:
+                            err_dict["district"] = f"District '{dist}' not found in location master data."
+                        if ps not in station_to_station_id:
+                            err_dict["police_station"] = f"Police station '{ps}' not found in master data."
+                        
+                        date_str = str(row["crime_date"]).strip()
+                        try:
+                            if "/" in date_str:
+                                datetime.strptime(date_str, "%d/%m/%Y").date()
+                            elif "-" in date_str and len(date_str.split("-")[0]) == 2:
+                                datetime.strptime(date_str, "%d-%m-%Y").date()
+                            else:
+                                datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+                        except ValueError:
+                            err_dict["crime_date"] = f"Invalid date format: {date_str}."
+
+                    if err_dict:
+                        errors.append({
+                            "row": row_num,
+                            "errors": err_dict,
+                            "raw_data": row
+                        })
+
+                return {
+                    "schema_type": "legacy_crime_intel",
+                    "total_rows": len(rows),
+                    "valid_count": len(rows) - len(errors),
+                    "invalid_count": len(errors),
+                    "errors": errors,
+                    "preview": rows[:10]
+                }
+
 
         # Validate Duplicate Filename (excluding failed ones)
         duplicate_check = self.db.query(Dataset).filter(

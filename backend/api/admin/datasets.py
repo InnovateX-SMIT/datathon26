@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Union, Any
 from backend.core.database import get_db
@@ -17,6 +17,39 @@ from backend.models.dataset import Dataset
 from backend.core.logging import logger
 
 router = APIRouter()
+
+@router.post("/detect", response_model=dict)
+async def detect_dataset_schema(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Lightweight endpoint to determine schema type by reading columns from file.
+    """
+    try:
+        file_bytes = await file.read()
+        filename = file.filename
+        
+        import pandas as pd
+        import io
+        if filename.lower().endswith((".xlsx", ".xls")):
+            df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl", nrows=1)
+        elif filename.lower().endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(file_bytes), nrows=1)
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported file format.")
+            
+        from backend.services.fir_import_service import FIRImportService
+        fir_importer = FIRImportService(db)
+        schema_type = fir_importer.detect_schema_type(df.columns)
+        return {"schema_type": schema_type}
+    except Exception as e:
+        logger.error(f"Error detecting dataset schema: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 @router.get("/", response_model=List[DatasetResponse])
 def get_datasets(
@@ -120,12 +153,13 @@ def update_dataset_config_endpoint(
             detail="Failed to update dataset configuration."
         )
 
-@router.post("/upload", response_model=Union[DatasetResponse, List[DatasetResponse]])
+@router.post("/upload", response_model=Union[DatasetResponse, List[DatasetResponse], dict, List[dict]])
 async def upload_dataset_file(
     display_name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     files: Optional[List[UploadFile]] = File(None),
+    preview: bool = Query(False),
     db: Session = Depends(get_db),
     current_user = Depends(require_admin)
 ):
@@ -198,7 +232,8 @@ async def upload_dataset_file(
                 description=description,
                 file_name=f.filename,
                 file_bytes=file_bytes,
-                user_id=admin_id
+                user_id=admin_id,
+                preview=preview
             )
             results.append(db_dataset)
 
@@ -207,6 +242,7 @@ async def upload_dataset_file(
             return results[0]
         else:
             return results
+
 
     except ValueError as ve:
         raise HTTPException(

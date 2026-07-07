@@ -195,9 +195,10 @@ class AlertService:
         # stale historical counts permanently triggering alerts
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             
-            max_date = self.db.query(func.max(CaseMaster.registered_date)).filter(CaseMaster.dataset_id == active_id).scalar()
+            max_date = self.db.query(func.max(CaseMaster.CrimeRegisteredDate)).filter(CaseMaster.dataset_id == active_id).scalar()
             anchor_date = max_date if max_date is not None else date.today()
             thirty_days_ago = anchor_date - timedelta(days=30)
 
@@ -205,7 +206,7 @@ class AlertService:
                 District.name, func.count(CaseMaster.id).label("crime_count")
             ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
                 CaseMaster.dataset_id == active_id,
-                CaseMaster.registered_date >= thirty_days_ago
+                CaseMaster.CrimeRegisteredDate >= thirty_days_ago
             ).group_by(District.name).all()
         else:
             max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()

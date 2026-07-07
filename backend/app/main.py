@@ -428,6 +428,7 @@ from backend.api.recommendations.router import router as recommendations_router
 from backend.api.alerts.router import router as alerts_router
 from backend.api.reports.router import router as reports_router
 from backend.api.admin.router import router as admin_router
+from backend.api.fir.router import router as fir_router
 
 # Register routers with API Prefix
 app.include_router(crimes_router, prefix=f"{settings.API_V1_STR}/crimes", tags=["Crimes"])
@@ -439,3 +440,5 @@ app.include_router(recommendations_router, prefix=f"{settings.API_V1_STR}/recomm
 app.include_router(alerts_router, prefix=f"{settings.API_V1_STR}/alerts", tags=["System & Patrol Alerts"])
 app.include_router(reports_router, prefix=f"{settings.API_V1_STR}/reports", tags=["Executive Reports"])
 app.include_router(admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["Admin Portal"])
+app.include_router(fir_router, prefix=f"{settings.API_V1_STR}/fir", tags=["FIR System"])
+

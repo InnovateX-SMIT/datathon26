@@ -18,7 +18,9 @@ import {
   Pin,
   PinOff,
   Sparkles,
-  Layers
+  Layers,
+  FileText,
+  FilePlus
 } from "lucide-react";
 
 interface SidebarProps {
@@ -29,6 +31,8 @@ const menuItems = [
   { name: "Get Started", href: "/", icon: Sparkles, group: "Start" },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, group: "Operations" },
   { name: "Alerts Panel", href: "/alerts", icon: Bell, group: "Operations" },
+  { name: "FIR Cases", href: "/fir/cases", icon: FileText, group: "Operations" },
+  { name: "Register FIR", href: "/fir/cases/new", icon: FilePlus, group: "Operations" },
   { name: "Crime Analytics", href: "/analytics", icon: BarChart3, group: "Intelligence" },
   { name: "Geo Intelligence", href: "/geo", icon: Map, group: "Intelligence" },
   { name: "Predictive Intel", href: "/prediction", icon: BrainCircuit, group: "Intelligence" },

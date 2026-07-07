@@ -144,6 +144,7 @@ export interface DatasetInfo {
   upload_time: string | null;
   created_at: string | null;
   updated_at: string | null;
+  schema_type?: string;
 }
 
 export interface DatasetSummary {
@@ -169,18 +170,55 @@ export async function fetchDatasets(): Promise<DatasetInfo[]> {
 export async function uploadDataset(
   displayName: string,
   description: string | null,
-  file: File
-): Promise<DatasetInfo> {
+  file: File,
+  preview: boolean = false
+): Promise<any> {
   const formData = new FormData();
   formData.append("display_name", displayName);
   if (description) formData.append("description", description);
   formData.append("file", file);
 
-  const res = await axios.post<DatasetInfo>(
+  const res = await axios.post<any>(
     `${API_BASE}/api/v1/admin/datasets/upload`,
     formData,
     {
       headers: getAuthHeaders(true),
+      params: { preview }
+    }
+  );
+  return res.data;
+}
+
+export async function detectSchemaType(file: File): Promise<{ schema_type: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await axios.post<{ schema_type: string }>(
+    `${API_BASE}/api/v1/admin/datasets/detect`,
+    formData,
+    {
+      headers: getAuthHeaders(true)
+    }
+  );
+  return res.data;
+}
+
+export async function importFIRDataset(
+  displayName: string | null,
+  description: string | null,
+  file: File,
+  preview: boolean = false
+): Promise<any> {
+  const formData = new FormData();
+  if (displayName) formData.append("display_name", displayName);
+  if (description) formData.append("description", description);
+  formData.append("file", file);
+
+  const res = await axios.post<any>(
+    `${API_BASE}/api/v1/fir/import`,
+    formData,
+    {
+      headers: getAuthHeaders(true),
+      params: { preview }
     }
   );
   return res.data;
@@ -253,8 +291,9 @@ export async function fetchDatasetStatistics(datasetId: number): Promise<Dataset
 export async function uploadDatasets(
   displayName: string | null,
   description: string | null,
-  files: File[]
-): Promise<DatasetInfo | DatasetInfo[]> {
+  files: File[],
+  preview: boolean = false
+): Promise<any> {
   const formData = new FormData();
   if (displayName) formData.append("display_name", displayName);
   if (description) formData.append("description", description);
@@ -267,11 +306,12 @@ export async function uploadDatasets(
     });
   }
 
-  const res = await axios.post<DatasetInfo | DatasetInfo[]>(
+  const res = await axios.post<any>(
     `${API_BASE}/api/v1/admin/datasets/upload`,
     formData,
     {
       headers: getAuthHeaders(true),
+      params: { preview }
     }
   );
   return res.data;

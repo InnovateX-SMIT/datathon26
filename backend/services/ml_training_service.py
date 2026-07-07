@@ -301,8 +301,9 @@ class MLTrainingService:
         if schema_type == "fir_normalized":
             from backend.models.fir_people import Accused
             from backend.models.fir_case import CaseMaster, Inv_OccuranceTime
-            from backend.models.fir_geography import District, Unit
-            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
+            from backend.models.fir_law import CrimeSubHead
             from backend.models.fir_lookup import GravityOffence
             from backend.core.severity import resolve_gravity_severity
 
@@ -330,7 +331,7 @@ class MLTrainingService:
                 query = db.query(
                     CrimeSubHead.CrimeHeadName,
                     District.name,
-                    CaseMaster.registered_date,
+                    CaseMaster.CrimeRegisteredDate,
                     GravityOffence.name
                 ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).join(
                     CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id
@@ -355,7 +356,7 @@ class MLTrainingService:
                 query = db.query(
                     CaseMaster.id,
                     District.name,
-                    CaseMaster.registered_date
+                    CaseMaster.CrimeRegisteredDate
                 ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
                     CaseMaster.dataset_id.in_(active_ids)
                 )

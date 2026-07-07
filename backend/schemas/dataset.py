@@ -25,6 +25,7 @@ class DatasetBase(BaseModel):
     storage_path: Optional[str] = None
     is_active: bool = False
     import_summary: Optional[str] = None
+    schema_type: Optional[str] = "legacy_crime_intel"
 
 class DatasetCreate(DatasetBase):
     pass

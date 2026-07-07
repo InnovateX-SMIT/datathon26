@@ -103,7 +103,8 @@ class NetworkService:
         if schema_type == "fir_normalized":
             from backend.models.fir_people import Accused
             from backend.models.fir_case import CaseMaster, Inv_OccuranceTime
-            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             
             acc = self.db.query(Accused).filter(Accused.id == criminal_id).first()
             if not acc:
@@ -148,7 +149,7 @@ class NetworkService:
                             "crime_subcategory": case.crime_minor_head.CrimeHeadName if case.crime_minor_head else "General",
                             "severity": 5.0 if case.gravity_offence.name == "Heinous" else 2.0,
                             "status": case.case_status.name if case.case_status else "Under Investigation",
-                            "crime_date": str(case.registered_date) if case.registered_date else None,
+                            "crime_date": str(case.CrimeRegisteredDate) if case.CrimeRegisteredDate else None,
                             "crime_time": None
                         }
                     })
@@ -275,7 +276,8 @@ class NetworkService:
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
             from backend.models.fir_people import Accused
-            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             
             case = self.db.query(CaseMaster).filter(CaseMaster.id == crime_id).first()
             if not case:
@@ -296,7 +298,7 @@ class NetworkService:
                     "crime_subcategory": case.crime_minor_head.CrimeHeadName if case.crime_minor_head else "General",
                     "severity": 5.0 if case.gravity_offence.name == "Heinous" else 2.0,
                     "status": case.case_status.name if case.case_status else "Under Investigation",
-                    "crime_date": str(case.registered_date) if case.registered_date else None,
+                    "crime_date": str(case.CrimeRegisteredDate) if case.CrimeRegisteredDate else None,
                     "crime_time": None
                 }
             })
@@ -432,7 +434,8 @@ class NetworkService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             from backend.models.fir_people import Accused
 
             district = self.db.query(District).filter(District.id == location_id).first()
@@ -476,7 +479,7 @@ class NetworkService:
                             "crime_subcategory": case.crime_minor_head.CrimeHeadName if case.crime_minor_head else "General",
                             "severity": 5.0 if case.gravity_offence.name == "Heinous" else 2.0,
                             "status": case.case_status.name if case.case_status else "Under Investigation",
-                            "crime_date": str(case.registered_date) if case.registered_date else None,
+                            "crime_date": str(case.CrimeRegisteredDate) if case.CrimeRegisteredDate else None,
                             "crime_time": None
                         }
                     })

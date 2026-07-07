@@ -17,12 +17,19 @@ from backend.models.criminal import Criminal
 from backend.models.victim import Victim
 from backend.models.location import Location
 from backend.models.police_station import PoliceStation
+from backend.models.fir_case import CaseMaster
+from backend.models.fir_people import ComplainantDetails, FIRVictim, Accused
+from backend.models.fir_proceedings import ArrestSurrender, ChargesheetDetails
 
 from backend.schemas.crime import CrimeEventCreate
 from backend.schemas.criminal import CriminalCreate
 from backend.schemas.victim import VictimCreate
 from backend.schemas.location import LocationCreate
 from backend.schemas.police_station import PoliceStationCreate
+from backend.schemas.fir import (
+    CaseMasterCreate, ComplainantDetailsCreate, FIRVictimCreate, AccusedCreate,
+    ArrestSurrenderCreate, ChargesheetDetailsCreate
+)
 
 TABLE_MODELS: Dict[str, Any] = {
     "crime_events": CrimeEvent,
@@ -30,6 +37,12 @@ TABLE_MODELS: Dict[str, Any] = {
     "victims": Victim,
     "locations": Location,
     "police_stations": PoliceStation,
+    "cases": CaseMaster,
+    "complainants": ComplainantDetails,
+    "fir_victims": FIRVictim,
+    "accused": Accused,
+    "arrests": ArrestSurrender,
+    "chargesheets": ChargesheetDetails,
 }
 
 TABLE_SCHEMAS: Dict[str, Any] = {
@@ -38,6 +51,12 @@ TABLE_SCHEMAS: Dict[str, Any] = {
     "victims": VictimCreate,
     "locations": LocationCreate,
     "police_stations": PoliceStationCreate,
+    "cases": CaseMasterCreate,
+    "complainants": ComplainantDetailsCreate,
+    "fir_victims": FIRVictimCreate,
+    "accused": AccusedCreate,
+    "arrests": ArrestSurrenderCreate,
+    "chargesheets": ChargesheetDetailsCreate,
 }
 
 # Fields to match during a generic keyword search
@@ -47,6 +66,12 @@ SEARCH_FIELDS: Dict[str, List[str]] = {
     "victims": ["gender", "occupation"],
     "locations": ["state", "district"],
     "police_stations": ["station_name", "district", "beat", "availability"],
+    "cases": ["CrimeNo", "CaseNo", "BriefFacts"],
+    "complainants": ["ComplainantName"],
+    "fir_victims": ["VictimName"],
+    "accused": ["AccusedName", "PersonID"],
+    "arrests": [],
+    "chargesheets": ["cstype"],
 }
 
 
@@ -198,11 +223,28 @@ class DatabaseManagementService:
         # Validation via Pydantic
         validated = schema_class(**cleaned_payload)
         
-        # Instantiate and save
-        db_record = model_class(**validated.model_dump())
-        self.db.add(db_record)
-        self.db.commit()
-        self.db.refresh(db_record)
+        # Intercept case creation and delegate to FIRService
+        if table == "cases":
+            from backend.services.fir_service import FIRService
+            from backend.core.dataset_resolver import DatasetResolver
+            
+            resolver = DatasetResolver(self.db)
+            active_dataset_id = resolver.get_active_dataset_id_optional()
+            
+            fir_service = FIRService(self.db)
+            created_case_dto = fir_service.create_case(
+                validated,
+                dataset_id=active_dataset_id,
+                user_id=performed_by_user_id
+            )
+            # Query the database to retrieve the ORM instance
+            db_record = self.db.query(model_class).filter(model_class.id == created_case_dto.id).first()
+        else:
+            # Instantiate and save
+            db_record = model_class(**validated.model_dump())
+            self.db.add(db_record)
+            self.db.commit()
+            self.db.refresh(db_record)
 
         # Audit Log
         self.admin_repo.create_audit_log(

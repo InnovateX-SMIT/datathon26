@@ -36,7 +36,8 @@ class RecommendationService:
         schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
 
         if schema_type == "fir_normalized":
-            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_geography import District
+            from backend.models.fir_organization import Unit
             from backend.models.fir_case import CaseMaster
             from backend.core.severity import resolve_gravity_severity
 

@@ -35,6 +35,8 @@ import {
   deactivateDataset,
   fetchDatasetConfig,
   updateDatasetConfig,
+  detectSchemaType,
+  importFIRDataset,
   DatasetInfo,
   DatasetPreview,
   DatasetStatistics,
@@ -58,6 +60,9 @@ export default function DatasetManagerPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
+  const [previewSummary, setPreviewSummary] = useState<any>(null);
+  const [previewSchemaType, setPreviewSchemaType] = useState<string | null>(null);
+  const [hasValidated, setHasValidated] = useState(false);
 
   // Preview Modal state
   const [previewDataset, setPreviewDataset] = useState<DatasetInfo | null>(null);
@@ -130,6 +135,9 @@ export default function DatasetManagerPage() {
       }
       if (files.length > 0) {
         setUploadFiles(prev => [...prev, ...files]);
+        setHasValidated(false);
+        setPreviewSummary(null);
+        setPreviewSchemaType(null);
         setError(null);
       } else {
         setError("Invalid file format. Only CSV and Excel (.xlsx, .xls) files are supported.");
@@ -144,16 +152,71 @@ export default function DatasetManagerPage() {
         files.push(e.target.files[i]);
       }
       setUploadFiles(prev => [...prev, ...files]);
+      setHasValidated(false);
+      setPreviewSummary(null);
+      setPreviewSchemaType(null);
       setError(null);
     }
   };
 
   const removeUploadFile = (index: number) => {
     setUploadFiles(prev => prev.filter((_, i) => i !== index));
+    setHasValidated(false);
+    setPreviewSummary(null);
+    setPreviewSchemaType(null);
+  };
+
+  const handleValidatePreview = async () => {
+    if (uploadFiles.length === 0) {
+      setError("Please select or drop at least one file.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(20);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { schema_type } = await detectSchemaType(uploadFiles[0]);
+      setPreviewSchemaType(schema_type);
+      setUploadProgress(50);
+      
+      let summary;
+      if (schema_type === "fir_normalized") {
+        summary = await importFIRDataset(
+          displayNameInput.trim() !== "" ? displayNameInput : null,
+          descriptionInput.trim() !== "" ? descriptionInput : null,
+          uploadFiles[0],
+          true
+        );
+      } else {
+        summary = await uploadDatasets(
+          displayNameInput.trim() !== "" ? displayNameInput : null,
+          descriptionInput.trim() !== "" ? descriptionInput : null,
+          uploadFiles,
+          true
+        );
+      }
+      
+      setUploadProgress(100);
+      setPreviewSummary(summary);
+      setHasValidated(true);
+      setSuccess(`File validated: ${summary.valid_count} valid rows, ${summary.invalid_count} row errors found.`);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Validation or detection failed.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasValidated) {
+      await handleValidatePreview();
+      return;
+    }
+
     if (uploadFiles.length === 0) {
       setError("Please select or drop at least one file.");
       return;
@@ -176,11 +239,21 @@ export default function DatasetManagerPage() {
     }, 400);
 
     try {
-      await uploadDatasets(
-        displayNameInput.trim() !== "" ? displayNameInput : null,
-        descriptionInput.trim() !== "" ? descriptionInput : null,
-        uploadFiles
-      );
+      if (previewSchemaType === "fir_normalized") {
+        await importFIRDataset(
+          displayNameInput.trim() !== "" ? displayNameInput : null,
+          descriptionInput.trim() !== "" ? descriptionInput : null,
+          uploadFiles[0],
+          false
+        );
+      } else {
+        await uploadDatasets(
+          displayNameInput.trim() !== "" ? displayNameInput : null,
+          descriptionInput.trim() !== "" ? descriptionInput : null,
+          uploadFiles,
+          false
+        );
+      }
       
       setUploadProgress(100);
       setTimeout(() => {
@@ -188,6 +261,9 @@ export default function DatasetManagerPage() {
         setUploadFiles([]);
         setDisplayNameInput("");
         setDescriptionInput("");
+        setPreviewSummary(null);
+        setPreviewSchemaType(null);
+        setHasValidated(false);
         setUploading(false);
         loadDatasets();
         if (typeof window !== "undefined") {
@@ -519,6 +595,40 @@ export default function DatasetManagerPage() {
                 </div>
               )}
             </div>
+            {hasValidated && previewSummary && (
+              <div className="space-y-4 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-850 pb-1.5">
+                  Validation Results ({previewSchemaType === "fir_normalized" ? "FIR Schema" : "Legacy Schema"})
+                </h4>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="bg-slate-900/60 p-2 border border-slate-850 rounded-xl font-mono">
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Total Rows</p>
+                    <p className="font-bold text-slate-200 mt-0.5">{previewSummary.total_rows}</p>
+                  </div>
+                  <div className="bg-slate-900/60 p-2 border border-slate-850 rounded-xl font-mono">
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Valid</p>
+                    <p className="font-bold text-emerald-400 mt-0.5">{previewSummary.valid_count}</p>
+                  </div>
+                  <div className="bg-slate-900/60 p-2 border border-slate-850 rounded-xl font-mono">
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Errors</p>
+                    <p className="font-bold text-red-400 mt-0.5">{previewSummary.invalid_count}</p>
+                  </div>
+                </div>
+                {previewSummary.invalid_count > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold text-red-450 uppercase tracking-wider font-sans">Errors (First 5)</p>
+                    <div className="bg-slate-900/40 rounded-xl p-2.5 max-h-28 overflow-y-auto border border-slate-950 font-mono text-[10px] text-slate-400 divide-y divide-slate-850">
+                      {previewSummary.errors.slice(0, 5).map((err: any, idx: number) => (
+                        <div key={idx} className="py-1">
+                          <span className="text-red-450 font-bold">Row {err.row}</span>:{" "}
+                          {Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join(", ")}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Form actions / progress */}
             <div className="pt-4 border-t border-slate-850 flex flex-col gap-3">
@@ -541,16 +651,21 @@ export default function DatasetManagerPage() {
                 {uploadFiles.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setUploadFiles([])}
+                    onClick={() => {
+                      setUploadFiles([]);
+                      setHasValidated(false);
+                      setPreviewSummary(null);
+                      setPreviewSchemaType(null);
+                    }}
                     disabled={uploading}
-                    className="px-4 py-2 bg-slate-950 hover:bg-slate-850 border border-slate-850 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2 bg-slate-955 hover:bg-slate-850 border border-slate-850 text-slate-400 hover:text-slate-202 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
                   >
                     Clear All
                   </button>
                 )}
                 <button
                   type="submit"
-                  disabled={uploading || uploadFiles.length === 0}
+                  disabled={uploading || uploadFiles.length === 0 || (hasValidated && previewSummary?.valid_count === 0)}
                   className="px-6 py-2.5 bg-violet-600 hover:bg-violet-750 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-md shadow-violet-600/10 flex items-center gap-1.5 uppercase tracking-wider"
                 >
                   {uploading ? (
@@ -561,7 +676,7 @@ export default function DatasetManagerPage() {
                   ) : (
                     <>
                       <Upload className="w-3.5 h-3.5" />
-                      <span>Commit Validation</span>
+                      <span>{hasValidated ? "Commit Ingestion" : "Validate & Preview"}</span>
                     </>
                   )}
                 </button>

@@ -34,13 +34,24 @@ import {
 } from "@/features/admin/services/database-service";
 import DatasetRegistryManager from "./dataset-registry-manager";
 
-const TABLES = [
+const LEGACY_TABLES = [
   { id: "crime_events", name: "📂 Crime Events", desc: "Incident history, categories, and severity" },
   { id: "criminals", name: "👤 Criminals", desc: "Offender directory, gender, and risk scores" },
   { id: "victims", name: "❤️ Victims", desc: "Victim registry linked to incidents" },
   { id: "locations", name: "📍 Locations", desc: "Geospatial coordinate mapping & districts" },
   { id: "police_stations", name: "🏢 Police Stations", desc: "Police stations, personnel, and beat sectors" },
 ];
+
+const FIR_TABLES = [
+  { id: "cases", name: "📂 Cases (CaseMaster)", desc: "Primary FIR cases with registration and location details" },
+  { id: "complainants", name: "👤 Complainants", desc: "Complainant personal and relationship information" },
+  { id: "fir_victims", name: "❤️ Victims (FIR)", desc: "Victim registry linked to FIR cases" },
+  { id: "accused", name: "👤 Accused Persons", desc: "Accused details and identifiers linked to cases" },
+  { id: "arrests", name: "🏢 Arrests & Surrenders", desc: "Arrests records, dates, and locations" },
+  { id: "chargesheets", name: "📂 Chargesheet Details", desc: "Chargesheets filed, dates, and units" },
+];
+
+const TABLES = [...LEGACY_TABLES, ...FIR_TABLES];
 
 const TABLE_COLUMNS: Record<string, { key: string; label: string; type: string }[]> = {
   crime_events: [
@@ -93,6 +104,59 @@ const TABLE_COLUMNS: Record<string, { key: string; label: string; type: string }
     { key: "equipment_count", label: "Equipment", type: "number" },
     { key: "capacity", label: "Capacity", type: "number" },
     { key: "availability", label: "Availability", type: "string" },
+  ],
+  cases: [
+    { key: "id", label: "ID", type: "number" },
+    { key: "CrimeNo", label: "Crime No", type: "string" },
+    { key: "CaseNo", label: "Case No", type: "string" },
+    { key: "CrimeRegisteredDate", label: "Registered Date", type: "date" },
+    { key: "PolicePersonID", label: "Officer ID", type: "number" },
+    { key: "PoliceStationID", label: "Station ID", type: "number" },
+    { key: "CaseCategoryID", label: "Category ID", type: "number" },
+    { key: "GravityOffenceID", label: "Gravity ID", type: "number" },
+    { key: "CaseStatusID", label: "Status ID", type: "number" },
+    { key: "BriefFacts", label: "Brief Facts", type: "string" }
+  ],
+  complainants: [
+    { key: "id", label: "ID", type: "number" },
+    { key: "CaseID", label: "Case ID", type: "number" },
+    { key: "ComplainantName", label: "Name", type: "string" },
+    { key: "ComplainantAge", label: "Age", type: "number" },
+    { key: "ComplainantOccupationID", label: "Occupation ID", type: "number" },
+    { key: "ComplainantReligionID", label: "Religion ID", type: "number" },
+    { key: "ComplainantCasteID", label: "Caste ID", type: "number" },
+    { key: "ComplainantGenderID", label: "Gender ID", type: "number" }
+  ],
+  fir_victims: [
+    { key: "id", label: "ID", type: "number" },
+    { key: "CaseID", label: "Case ID", type: "number" },
+    { key: "VictimName", label: "Name", type: "string" },
+    { key: "VictimAge", label: "Age", type: "number" },
+    { key: "VictimGenderID", label: "Gender ID", type: "number" },
+    { key: "IsPoliceVictim", label: "Is Police", type: "string" }
+  ],
+  accused: [
+    { key: "id", label: "ID", type: "number" },
+    { key: "CaseID", label: "Case ID", type: "number" },
+    { key: "AccusedName", label: "Name", type: "string" },
+    { key: "AccusedAge", label: "Age", type: "number" },
+    { key: "AccusedGenderID", label: "Gender ID", type: "number" },
+    { key: "PersonID", label: "Person ID", type: "string" }
+  ],
+  arrests: [
+    { key: "id", label: "ID", type: "number" },
+    { key: "CaseID", label: "Case ID", type: "number" },
+    { key: "ArrestTypeID", label: "Arrest Type ID", type: "number" },
+    { key: "ArrestDate", label: "Arrest Date", type: "date" },
+    { key: "PrimaryAccusedName", label: "Primary Accused", type: "string" },
+    { key: "CourtID", label: "Court ID", type: "number" }
+  ],
+  chargesheets: [
+    { key: "id", label: "ID", type: "number" },
+    { key: "CaseID", label: "Case ID", type: "number" },
+    { key: "CSDate", label: "CS Date", type: "date" },
+    { key: "CSTypeID", label: "CS Type ID", type: "number" },
+    { key: "ChargesheetNo", label: "CS No", type: "string" }
   ]
 };
 
@@ -143,15 +207,71 @@ const TABLE_FORM_FIELDS: Record<string, { name: string; label: string; type: "te
     { name: "equipment_count", label: "Equipment Count", type: "number", required: true },
     { name: "capacity", label: "Station Capacity", type: "number", required: true },
     { name: "availability", label: "Availability Status", type: "select", required: true, options: ["available", "busy", "offline"] },
+  ],
+  cases: [
+    { name: "CrimeNo", label: "Crime Number", type: "text", required: true },
+    { name: "CaseNo", label: "Case Number", type: "text", required: true },
+    { name: "CrimeRegisteredDate", label: "Registered Date", type: "date", required: true },
+    { name: "PolicePersonID", label: "Police Person ID (KGID)", type: "number", required: true },
+    { name: "PoliceStationID", label: "Police Station (Unit) ID", type: "number", required: true },
+    { name: "CaseCategoryID", label: "Case Category ID", type: "number", required: true },
+    { name: "GravityOffenceID", label: "Gravity Offence ID", type: "number", required: true },
+    { name: "CrimeMajorHeadID", label: "Crime Major Head ID", type: "number", required: true },
+    { name: "CrimeMinorHeadID", label: "Crime Minor Head ID", type: "number", required: true },
+    { name: "CaseStatusID", label: "Case Status ID", type: "number", required: true },
+    { name: "CourtID", label: "Court ID", type: "number", required: true },
+    { name: "BriefFacts", label: "Brief Facts / Incident Narrative", type: "text", required: false }
+  ],
+  complainants: [
+    { name: "CaseID", label: "Case ID", type: "number", required: true },
+    { name: "ComplainantName", label: "Name", type: "text", required: true },
+    { name: "ComplainantAge", label: "Age", type: "number", required: true },
+    { name: "ComplainantOccupationID", label: "Occupation ID", type: "number", required: true },
+    { name: "ComplainantReligionID", label: "Religion ID", type: "number", required: true },
+    { name: "ComplainantCasteID", label: "Caste ID", type: "number", required: true },
+    { name: "ComplainantGenderID", label: "Gender ID", type: "number", required: true }
+  ],
+  fir_victims: [
+    { name: "CaseID", label: "Case ID", type: "number", required: true },
+    { name: "VictimName", label: "Name", type: "text", required: true },
+    { name: "VictimAge", label: "Age", type: "number", required: true },
+    { name: "VictimGenderID", label: "Gender ID", type: "number", required: true },
+    { name: "IsPoliceVictim", label: "Is Police Victim (Y/N)", type: "text", required: true }
+  ],
+  accused: [
+    { name: "CaseID", label: "Case ID", type: "number", required: true },
+    { name: "AccusedName", label: "Name", type: "text", required: true },
+    { name: "AccusedAge", label: "Age", type: "number", required: true },
+    { name: "AccusedGenderID", label: "Gender ID", type: "number", required: true },
+    { name: "PersonID", label: "Person ID (KGID / Accused No)", type: "text", required: true }
+  ],
+  arrests: [
+    { name: "CaseID", label: "Case ID", type: "number", required: true },
+    { name: "ArrestTypeID", label: "Arrest Type ID", type: "number", required: true },
+    { name: "ArrestDate", label: "Arrest Date", type: "date", required: true },
+    { name: "PrimaryAccusedName", label: "Primary Accused Name", type: "text", required: true },
+    { name: "CourtID", label: "Court ID", type: "number", required: true }
+  ],
+  chargesheets: [
+    { name: "CaseID", label: "Case ID", type: "number", required: true },
+    { name: "CSDate", label: "Chargesheet Date", type: "date", required: true },
+    { name: "CSTypeID", label: "CS Type ID", type: "number", required: true },
+    { name: "ChargesheetNo", label: "Chargesheet Number", type: "text", required: true }
   ]
 };
 
 type ViewMode = "dashboard" | "datasets" | "records" | "form" | "bulk" | "export";
 
 export default function DatabaseManagementPanel() {
+  const [isNormalizedActive, setIsNormalizedActive] = useState<boolean>(false);
   const [activeTable, setActiveTable] = useState<string>("crime_events");
   const [viewMode, setViewMode] = useState<ViewMode>("dashboard");
-  const [isNormalizedActive, setIsNormalizedActive] = useState<boolean>(false);
+
+  const tablesToRender = isNormalizedActive ? FIR_TABLES : LEGACY_TABLES;
+
+  useEffect(() => {
+    setActiveTable(isNormalizedActive ? "cases" : "crime_events");
+  }, [isNormalizedActive]);
 
   // API states
   const [stats, setStats] = useState<DatabaseStats | null>(null);
@@ -187,12 +307,13 @@ export default function DatabaseManagementPanel() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const data = await fetchDatabaseStats();
-      setStats(data);
-      
       const datasets = await fetchDatasets();
       const activeDs = datasets.find((d: any) => d.is_active);
-      setIsNormalizedActive(activeDs?.schema_type === "fir_normalized");
+      const isFIR = activeDs?.schema_type === "fir_normalized";
+      setIsNormalizedActive(isFIR);
+      
+      const data = await fetchDatabaseStats();
+      setStats(data);
     } catch (e: any) {
       showNotification("error", e.response?.data?.detail || "Failed to load database statistics.");
     } finally {
@@ -448,7 +569,7 @@ export default function DatabaseManagementPanel() {
               onChange={(e) => setActiveTable(e.target.value)}
               className="bg-slate-900 border border-slate-800 text-slate-200 text-sm font-semibold rounded-2xl px-4 py-2.5 outline-none focus:border-indigo-500 transition-all cursor-pointer min-w-[200px]"
             >
-              {TABLES.map((t) => (
+              {tablesToRender.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name.split(" ")[1]}
                 </option>
@@ -456,7 +577,7 @@ export default function DatabaseManagementPanel() {
             </select>
           </div>
           <div className="text-slate-400 text-xs mt-1 sm:mt-5">
-            {TABLES.find((t) => t.id === activeTable)?.desc}
+            {tablesToRender.find((t) => t.id === activeTable)?.desc}
           </div>
         </div>
 
@@ -591,9 +712,9 @@ export default function DatabaseManagementPanel() {
                 </button>
               </div>
               <div className="space-y-4">
-                {TABLES.map((t) => {
+                {tablesToRender.map((t) => {
                   const count = stats?.counts[t.id] ?? 0;
-                  const maxCount = Math.max(...Object.values(stats?.counts ?? {}), 1);
+                  const maxCount = Math.max(...tablesToRender.map(tbl => stats?.counts[tbl.id] ?? 0), 1);
                   const percentage = Math.round((count / maxCount) * 100);
                   return (
                     <div key={t.id} className="space-y-1">
@@ -623,12 +744,12 @@ export default function DatabaseManagementPanel() {
         {viewMode === "records" && (
           <div className="space-y-4">
             {isNormalizedActive && (
-              <div className="bg-amber-950/20 border border-amber-900/50 p-4 rounded-2xl flex items-start gap-3 backdrop-blur-md">
-                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="bg-indigo-950/20 border border-indigo-900/50 p-4 rounded-2xl flex items-start gap-3 backdrop-blur-md">
+                <Database className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-amber-400">Database Record Browser Warning</h4>
-                  <p className="text-[11px] text-amber-500/85 mt-1 leading-relaxed">
-                    A normalized FIR dataset is currently active. The table browser below displays legacy tables (such as crime_events and criminals) which are maintained for backward compatibility. New normalized FIR records can be managed via the Registry and bulk ingestion pipelines.
+                  <h4 className="text-xs font-bold text-indigo-400">Active Context: FIR Dataset Ingestion</h4>
+                  <p className="text-[11px] text-indigo-500/85 mt-1 leading-relaxed font-sans">
+                    A normalized FIR dataset is currently active. The database explorer has switched to browse and edit FIR transactional tables (Cases, Complainants, Victims, Accused, etc.).
                   </p>
                 </div>
               </div>
