@@ -1,4 +1,43 @@
-Entire Project details: REAS THEM ALL:
+Entire Project details: READ THEM ALL:
+
+## Challenge Overview
+
+* Title: CHALLENGE 02
+* Project Name: AI-Driven Crime Analytics & Visualization Platform
+
+## Problem Statement
+
+* Current systems rely on siloed data.
+* Manual reporting is heavily used.
+* Advanced analytics are limited.
+* Proactive policing capabilities are restricted.
+
+## The Challenge Goal
+
+* Develop a modern AI-powered platform.
+* Transform fragmented records.
+* Create actionable intelligence.
+
+## Core Features
+
+* Interactive dashboards.
+* Geospatial maps.
+* Crime hotspot detection.
+* District-level drilldowns.
+* Trend alerts.
+* Anomaly detection.
+
+## Key Capabilities
+
+* Network and link analysis of criminals.
+* Repeat offender tracking.
+* Socio-economic crime correlation.
+* Predictive risk scoring.
+* AI/ML-based pattern detection.
+
+If you are building this project, let me know if you need help with the tech stack recommendations, database architecture design, or AI model suggestions.
+
+
 Begin your path to success! Follow each step carefully, complete all tasks for this initiative, and achieve the desired outcome.
 
 Registration

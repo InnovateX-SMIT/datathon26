@@ -1,2 +1,0 @@
-FirId,CrimeType,CrimeDate,CrimeTime,District,PoliceStation,VictimAge,AccusedAge,Gender,Occupation,RepeatOffender,Severity,Status
-FIR001,Theft,2025-05-10,14:30,Bengaluru,Koramangala PS,34,22,Male,Driver,1,3.0,reported
