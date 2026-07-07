@@ -209,6 +209,57 @@ async def add_process_time_header(request: Request, call_next):
     logger.info(f"Request: {request.method} {request.url.path} - Status: {response.status_code} - Duration: {process_time:.4f}s")
     return response
 
+# Security Headers Middleware
+@app.middleware("http")
+async def secure_headers_middleware(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+    return response
+
+# Memory-based Rate Limiting Middleware
+from collections import defaultdict
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX_REQUESTS = 100
+request_counts = defaultdict(list)
+
+@app.middleware("http")
+async def rate_limiting_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    current_time = time.time()
+    
+    # Filter timestamps within the window
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW]
+    
+    if len(request_counts[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"detail": "Too many requests. Please try again later."}
+        )
+    
+    request_counts[client_ip].append(current_time)
+    return await call_next(request)
+
+# XSS / Script Injection Sanitization Middleware
+@app.middleware("http")
+async def input_sanitization_middleware(request: Request, call_next):
+    if request.method in ["POST", "PUT", "PATCH"] and request.headers.get("content-type") == "application/json":
+        try:
+            body_bytes = await request.body()
+            if body_bytes:
+                body_str = body_bytes.decode("utf-8")
+                if "<script" in body_str.lower() or "javascript:" in body_str.lower():
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={"detail": "Potential script injection detected in request payload."}
+                    )
+        except Exception:
+            pass
+    return await call_next(request)
+
 # Custom Exception Handler
 from backend.core.exceptions import NoActiveDatasetException
 
@@ -235,6 +286,126 @@ def health_check():
         "timestamp": time.time(),
         "environment": settings.ENVIRONMENT,
         "service": settings.PROJECT_NAME
+    }
+
+# Readiness Check Route
+@app.get("/readiness", tags=["System"])
+def readiness_check():
+    from backend.core.database import SessionLocal
+    from sqlalchemy import text
+    
+    db_ok = False
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception as e:
+        logger.error(f"Readiness check database failure: {e}")
+    finally:
+        db.close()
+        
+    from backend.services.prediction_service import PredictionService
+    ml_ok = False
+    try:
+        db = SessionLocal()
+        prediction_svc = PredictionService(db)
+        health = prediction_svc.check_health()
+        if health.get("status") == "healthy":
+            ml_ok = True
+    except Exception as e:
+        logger.error(f"Readiness check ML failure: {e}")
+    finally:
+        db.close()
+        
+    if db_ok and ml_ok:
+        return {"status": "ready"}
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "not_ready",
+                "details": {
+                    "database": "online" if db_ok else "offline",
+                    "ml_pipeline": "ready" if ml_ok else "degraded"
+                }
+            }
+        )
+
+# Application Version Route
+@app.get("/version", tags=["System"])
+def version_check():
+    return {
+        "version": "1.0.0",
+        "api_version": "v1",
+        "release_channel": "production-ready"
+    }
+
+# System Status Monitoring Route
+@app.get("/system-status", tags=["System"])
+def system_status():
+    from backend.core.database import SessionLocal
+    from sqlalchemy import text
+    import shutil
+    
+    db_status = "offline"
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db_status = "online"
+    except Exception:
+        pass
+    finally:
+        db.close()
+        
+    ml_status = "unavailable"
+    models_loaded = {}
+    try:
+        db = SessionLocal()
+        from backend.services.prediction_service import PredictionService
+        prediction_svc = PredictionService(db)
+        health = prediction_svc.check_health()
+        ml_status = health.get("status", "degraded")
+        models_loaded = health.get("models_loaded", {})
+    except Exception:
+        pass
+    finally:
+        db.close()
+        
+    dataset_status = "inactive"
+    active_dataset_count = 0
+    try:
+        db = SessionLocal()
+        from backend.models.dataset import Dataset
+        active_datasets = db.query(Dataset).filter(Dataset.is_active == True).all()
+        dataset_status = "active" if active_datasets else "idle"
+        active_dataset_count = len(active_datasets)
+    except Exception:
+        pass
+    finally:
+        db.close()
+        
+    try:
+        total, used, free = shutil.disk_usage("/")
+        storage_usage = {
+            "total_gb": total / (1024**3),
+            "used_gb": used / (1024**3),
+            "free_gb": free / (1024**3),
+            "percent_used": (used / total) * 100
+        }
+    except Exception:
+        storage_usage = {}
+    
+    return {
+        "status": "operational",
+        "version": "1.0.0",
+        "database": db_status,
+        "ml_status": ml_status,
+        "models_loaded": models_loaded,
+        "dataset_manager": {
+            "status": dataset_status,
+            "active_count": active_dataset_count
+        },
+        "storage": storage_usage
     }
 
 # API routers

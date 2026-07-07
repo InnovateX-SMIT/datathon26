@@ -1,0 +1,20 @@
+{
+  "frontend": {
+    "targets": [
+      {
+        "name": "crime-analytics-client",
+        "type": "web",
+        "path": "frontend"
+      }
+    ]
+  },
+  "backend": {
+    "targets": [
+      {
+        "name": "crime-analytics-server",
+        "type": "appsail",
+        "path": "backend"
+      }
+    ]
+  }
+}

@@ -146,7 +146,9 @@ async def upload_dataset_file(
             detail="No files uploaded. Please upload at least one CSV or Excel file."
         )
 
-    # Verify file extensions for all uploaded files
+    # Verify file extensions, sizes, and sanitize filenames
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+    import os
     for f in upload_files:
         filename = f.filename
         if not (filename.lower().endswith(".csv") or filename.lower().endswith(".xlsx") or filename.lower().endswith(".xls")):
@@ -154,6 +156,24 @@ async def upload_dataset_file(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unsupported file format for '{filename}'. Only CSV and Excel (.xlsx, .xls) files are supported."
             )
+        
+        # Enforce 50MB file limit
+        try:
+            f.file.seek(0, 2)
+            size = f.file.tell()
+            f.file.seek(0)
+            if size > MAX_FILE_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File '{filename}' exceeds the maximum allowed size limit of 50MB."
+                )
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            logger.error(f"Error checking file size: {e}")
+            
+        # Path traversal sanitization
+        f.filename = os.path.basename(f.filename).replace("..", "").replace("/", "").replace("\\", "")
 
     try:
         service = DatasetService(db)
