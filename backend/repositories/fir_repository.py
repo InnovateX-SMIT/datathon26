@@ -111,7 +111,7 @@ class FIRRepository:
                 selectinload(CaseMaster.complainants),
                 selectinload(CaseMaster.victims),
                 selectinload(CaseMaster.accused),
-                selectinload(CaseMaster.arrest_surrenders),
+                selectinload(CaseMaster.arrest_surrenders).selectinload(ArrestSurrender.all_accused),
                 selectinload(CaseMaster.chargesheets),
                 selectinload(CaseMaster.act_sections)
             )
@@ -296,15 +296,17 @@ class FIRRepository:
         self.db.add(arrest)
         self.db.flush()
 
-        # Track mappings in the junction table
-        primary_junction = InvArrestSurrenderAccused(ArrestSurrenderID=arrest.id, AccusedMasterID=accused_master_id)
-        self.db.add(primary_junction)
+        # Track mappings in the junction table via all_accused ORM collection
+        primary_acc = self.db.query(Accused).filter(Accused.id == accused_master_id).first()
+        if primary_acc:
+            arrest.all_accused.append(primary_acc)
 
         if other_accused_ids:
             for aid in other_accused_ids:
                 if aid != accused_master_id:
-                    j = InvArrestSurrenderAccused(ArrestSurrenderID=arrest.id, AccusedMasterID=aid)
-                    self.db.add(j)
+                    other_acc = self.db.query(Accused).filter(Accused.id == aid).first()
+                    if other_acc:
+                        arrest.all_accused.append(other_acc)
 
         self.db.commit()
         self.db.refresh(arrest)

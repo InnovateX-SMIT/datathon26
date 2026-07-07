@@ -34,6 +34,10 @@ class ArrestSurrender(TimestampMixin, Base):
     # Joint/multiple accused involved in the same arrest event (mapped via many-to-many junction)
     all_accused = relationship("Accused", secondary="inv_arrestsurrenderaccused")
 
+    @property
+    def associated_accused_ids(self) -> list[int]:
+        return [acc.id for acc in self.all_accused] if self.all_accused else []
+
 class InvArrestSurrenderAccused(Base):
     __tablename__ = "inv_arrestsurrenderaccused"
 

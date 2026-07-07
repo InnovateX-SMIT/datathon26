@@ -9,6 +9,15 @@ from backend.schemas.prediction import PredictionBase, PredictionCreate, Predict
 from backend.schemas.alert import AlertBase, AlertCreate, AlertResponse
 from backend.schemas.recommendation import RecommendationBase, RecommendationCreate, RecommendationResponse
 from backend.schemas.report import ReportBase, ReportCreate, ReportResponse
+from backend.schemas.fir import (
+    StateDTO, DistrictDTO, CourtDTO, UnitTypeDTO, UnitDTO, RankDTO, DesignationDTO, EmployeeDTO,
+    CaseCategoryDTO, GravityOffenceDTO, CaseStatusDTO, CasteDTO, ReligionDTO, OccupationDTO,
+    GenderDTO, NationalityDTO, BloodGroupDTO, ActDTO, SectionDTO, CrimeHeadDTO, CrimeSubHeadDTO,
+    InvOccuranceTimeCreate, InvOccuranceTimeResponse, ComplainantDetailsCreate, ComplainantDetailsResponse,
+    FIRVictimCreate, FIRVictimResponse, AccusedCreate, AccusedResponse, ActSectionAssociationCreate,
+    ActSectionAssociationResponse, ArrestSurrenderCreate, ArrestSurrenderResponse, ChargesheetDetailsCreate,
+    ChargesheetDetailsResponse, CaseMasterCreate, CaseMasterResponse
+)
 
 __all__ = [
     "UserBase",
@@ -44,4 +53,11 @@ __all__ = [
     "ReportBase",
     "ReportCreate",
     "ReportResponse",
+    "StateDTO", "DistrictDTO", "CourtDTO", "UnitTypeDTO", "UnitDTO", "RankDTO", "DesignationDTO", "EmployeeDTO",
+    "CaseCategoryDTO", "GravityOffenceDTO", "CaseStatusDTO", "CasteDTO", "ReligionDTO", "OccupationDTO",
+    "GenderDTO", "NationalityDTO", "BloodGroupDTO", "ActDTO", "SectionDTO", "CrimeHeadDTO", "CrimeSubHeadDTO",
+    "InvOccuranceTimeCreate", "InvOccuranceTimeResponse", "ComplainantDetailsCreate", "ComplainantDetailsResponse",
+    "FIRVictimCreate", "FIRVictimResponse", "AccusedCreate", "AccusedResponse", "ActSectionAssociationCreate",
+    "ActSectionAssociationResponse", "ArrestSurrenderCreate", "ArrestSurrenderResponse", "ChargesheetDetailsCreate",
+    "ChargesheetDetailsResponse", "CaseMasterCreate", "CaseMasterResponse"
 ]
