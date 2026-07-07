@@ -351,6 +351,131 @@ class DatasetService:
 
             df = df.replace({np.nan: None})
 
+            # 1.5 Route to FIR Import Service if normalized FIR schema is detected
+            from backend.services.fir_import_service import FIRImportService
+            fir_importer = FIRImportService(self.db)
+            detected_schema = fir_importer.detect_schema_type(df.columns)
+
+            if detected_schema == "fir_normalized":
+                db_dataset.schema_type = "fir_normalized"
+                self.db.commit()
+
+                # Aliased Header Normalization mapping
+                ALIAS_MAP = {
+                    "case_category": "case_category",
+                    "category": "case_category",
+                    "gravity_offence": "gravity_offence",
+                    "gravity": "gravity_offence",
+                    "case_status": "case_status",
+                    "status": "case_status",
+                    "state": "state",
+                    "district": "district",
+                    "court": "court",
+                    "unit_type": "unit_type",
+                    "unit": "unit",
+                    "police_station": "unit",
+                    "officer_kgid": "officer_kgid",
+                    "kgid": "officer_kgid",
+                    "officer_name": "officer_name",
+                    "officer_rank": "officer_rank",
+                    "rank": "officer_rank",
+                    "officer_designation": "officer_designation",
+                    "designation": "officer_designation",
+                    "officer_dob": "officer_dob",
+                    "officer_gender": "officer_gender",
+                    "officer_blood_group": "officer_blood_group",
+                    "officer_physically_challenged": "officer_physically_challenged",
+                    "officer_appointment_date": "officer_appointment_date",
+                    "crime_no": "crime_no",
+                    "crimeno": "crime_no",
+                    "case_no": "case_no",
+                    "caseno": "case_no",
+                    "registered_date": "registered_date",
+                    "crime_registered_date": "registered_date",
+                    "brief_facts": "brief_facts",
+                    "incident_from_date": "incident_from_date",
+                    "incident_to_date": "incident_to_date",
+                    "info_received_date": "info_received_date",
+                    "latitude": "latitude",
+                    "lat": "latitude",
+                    "longitude": "longitude",
+                    "lng": "longitude",
+                    "lon": "longitude",
+                    "occurrence_brief_facts": "occurrence_brief_facts",
+                    "crime_group_name": "crime_group_name",
+                    "crime_head_name": "crime_head_name",
+                    "act_code": "act_code",
+                    "act_description": "act_description",
+                    "short_name": "short_name",
+                    "section_code": "section_code",
+                    "section_description": "section_description",
+                    "act_order": "act_order",
+                    "section_order": "section_order",
+                    "complainant_name": "complainant_name",
+                    "complainant_age": "complainant_age",
+                    "complainant_occupation": "complainant_occupation",
+                    "complainant_religion": "complainant_religion",
+                    "complainant_caste": "complainant_caste",
+                    "complainant_gender": "complainant_gender",
+                    "victim_name": "victim_name",
+                    "victim_age": "victim_age",
+                    "victim_gender": "victim_gender",
+                    "victim_police": "victim_police",
+                    "accused_name": "accused_name",
+                    "accused_age": "accused_age",
+                    "accused_gender": "accused_gender",
+                    "accused_person_id": "accused_person_id",
+                    "arrest_type": "arrest_type",
+                    "arrest_date": "arrest_date",
+                    "arrest_state": "arrest_state",
+                    "arrest_district": "arrest_district",
+                    "arrest_station": "arrest_station",
+                    "arrest_io_kgid": "arrest_io_kgid",
+                    "arrest_court": "arrest_court",
+                    "arrest_primary_accused_name": "arrest_primary_accused_name",
+                    "arrest_joint_accused_names": "arrest_joint_accused_names",
+                    "chargesheet_date": "chargesheet_date",
+                    "chargesheet_type": "chargesheet_type",
+                    "chargesheet_officer_kgid": "chargesheet_officer_kgid"
+                }
+
+                # Normalization alias mapping: normalized header name to the standard database column name
+                def normalize_header(header: str) -> str:
+                    h = str(header).strip().lower()
+                    h = h.lstrip('\ufeff')
+                    h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
+                    h = re.sub(r'[^a-z0-9_]', '', h)
+                    h = re.sub(r'_+', '_', h)
+                    return h.strip('_')
+
+                df.columns = [normalize_header(c) for c in df.columns]
+                rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
+                df = df.rename(columns=rename_dict)
+
+                rows = df.to_dict(orient="records")
+
+                # Dry-run Ingestion validations
+                val_errors = fir_importer.validate_rows(rows)
+                if val_errors:
+                    raise ValueError("Validation errors: " + " | ".join(val_errors))
+
+                # Transition to 'Importing'
+                db_dataset.status = "Importing"
+                self.db.commit()
+
+                # Import via single transaction
+                summary = fir_importer.import_normalized_dataset(rows, db_dataset.id, user_id)
+
+                # Set dataset status to Ready
+                db_dataset.status = "Ready"
+                db_dataset.row_count = summary["cases_inserted"]
+                db_dataset.import_summary = json.dumps(summary)
+                self.db.commit()
+
+                # Automatically activate dataset
+                self.activate_dataset(db_dataset.id)
+                return db_dataset
+
             # Normalization alias mapping: normalized header name to the standard database column name
             def normalize_header(header: str) -> str:
                 h = str(header).strip().lower()
