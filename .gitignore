@@ -52,7 +52,10 @@ backend/crime_intel.db
 *.db-wal
 *.db-shm
 *.db.tmp
+
 *.test.db
+# models
+*.pkl
 
 # Keep the active root development database available locally but do not add new SQLite caches.
 # If a production database snapshot is needed, document it explicitly before committing.
