@@ -59,3 +59,10 @@ backend/crime_intel.db
 
 # Keep the active root development database available locally but do not add new SQLite caches.
 # If a production database snapshot is needed, document it explicitly before committing.
+
+# Datasets
+datasets/uploaded/
+datasets/processed/
+datasets/models/
+backend/datasets/models/
+

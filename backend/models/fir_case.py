@@ -19,8 +19,10 @@ class CaseMaster(TimestampMixin, Base):
     CaseStatusID = Column(Integer, ForeignKey("case_status_master.CaseStatusID"), nullable=False)
     CourtID = Column(Integer, ForeignKey("court.CourtID"), nullable=False)
     BriefFacts = Column(Text, nullable=True)
+    dataset_id = Column(Integer, ForeignKey("datasets.id", ondelete="CASCADE"), index=True, nullable=True)
 
     # Relationships
+    dataset = relationship("Dataset", back_populates="cases")
     police_person = relationship("Employee")
     police_station = relationship("Unit")
     case_category = relationship("CaseCategory")
@@ -31,12 +33,12 @@ class CaseMaster(TimestampMixin, Base):
     court = relationship("Court")
 
     occurrence_time = relationship("Inv_OccuranceTime", back_populates="case_master", uselist=False, cascade="all, delete-orphan")
-    complainants = relationship("ComplainantDetails", back_populates="case_master", cascade="all, delete-orphan")
-    victims = relationship("FIRVictim", back_populates="case_master", cascade="all, delete-orphan")
-    accused = relationship("Accused", back_populates="case_master", cascade="all, delete-orphan")
-    arrest_surrenders = relationship("ArrestSurrender", back_populates="case_master", cascade="all, delete-orphan")
-    chargesheets = relationship("ChargesheetDetails", back_populates="case_master", cascade="all, delete-orphan")
-    act_sections = relationship("ActSectionAssociation", back_populates="case_master", cascade="all, delete-orphan")
+    complainants = relationship("ComplainantDetails", back_populates="case_master")
+    victims = relationship("FIRVictim", back_populates="case_master")
+    accused = relationship("Accused", back_populates="case_master")
+    arrest_surrenders = relationship("ArrestSurrender", back_populates="case_master")
+    chargesheets = relationship("ChargesheetDetails", back_populates="case_master")
+    act_sections = relationship("ActSectionAssociation", back_populates="case_master")
 
 class Inv_OccuranceTime(TimestampMixin, Base):
     __tablename__ = "inv_occurance_time"

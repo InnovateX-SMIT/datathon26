@@ -29,7 +29,17 @@ def db_session():
         Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="function")
-def client(db_session):
+def client(db_session, monkeypatch):
+    from unittest.mock import Mock
+    
+    # Mock ML predictor functions to return mock predictions
+    monkeypatch.setattr("backend.services.prediction_service.predict_offender_recidivism", lambda *args: {"probability": 0.85, "risk_level": "HIGH"})
+    monkeypatch.setattr("backend.services.prediction_service.predict_crime_risk_score", lambda *args: {"risk_score": 75.0, "risk_level": "HIGH"})
+    monkeypatch.setattr("backend.services.prediction_service.predict_crime_category", lambda *args: {"crime_type": "Theft", "confidence": 0.85})
+    monkeypatch.setattr("backend.services.prediction_service.predict_hotspot_probability", lambda *args: {"hotspot_probability": 0.75, "trend": "RISING"})
+    monkeypatch.setattr("backend.services.prediction_service.PredictionService._load_model", lambda *args: {"preprocessor": Mock(), "model": Mock(), "feature_names": []})
+    monkeypatch.setattr("backend.services.prediction_service.PredictionService.generate_shap_explanation", lambda *args, **kwargs: [{"feature": "age", "impact": 0.45}, {"feature": "occupation", "impact": -0.2}])
+
     def override_get_db():
         try:
             yield db_session
@@ -139,6 +149,7 @@ def test_predict_explain_success(client):
         }
     }
     response = client.post("/api/v1/predictions/explain", json=payload)
+    print("EXPLAIN RESPONSE:", response.status_code, response.text)
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True

@@ -20,6 +20,7 @@ class Dataset(Base):
     storage_path = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=False)
     import_summary = Column(Text, nullable=True) # JSON field as string
+    schema_type = Column(String(50), nullable=False, default="legacy_crime_intel")
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -29,6 +30,7 @@ class Dataset(Base):
     criminals = relationship("Criminal", back_populates="dataset", cascade="all, delete-orphan")
     victims = relationship("Victim", back_populates="dataset", cascade="all, delete-orphan")
     crime_participations = relationship("CrimeParticipation", back_populates="dataset", cascade="all, delete-orphan")
+    cases = relationship("CaseMaster", back_populates="dataset", cascade="all, delete-orphan")
 
 class DatasetConfig(Base):
     __tablename__ = "dataset_configs"

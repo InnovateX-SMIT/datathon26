@@ -36,3 +36,24 @@ class DatasetResolver:
         """
         from backend.services.dataset_service import DatasetService
         return DatasetService(self.db).get_active_dataset_ids()
+
+    def get_active_dataset_schema_type(self) -> str:
+        """
+        Resolves the schema type of the currently active dataset.
+        Returns "legacy_crime_intel" or "fir_normalized".
+        """
+        from backend.services.dataset_service import DatasetService
+        active_ds = DatasetService(self.db).get_active_dataset()
+        if not active_ds:
+            raise NoActiveDatasetException()
+        return active_ds.schema_type or "legacy_crime_intel"
+
+    def get_dataset_schema_type(self, dataset_id: int) -> str:
+        """
+        Resolves the schema type for a specific dataset ID.
+        """
+        from backend.models.dataset import Dataset
+        ds = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not ds:
+            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+        return ds.schema_type or "legacy_crime_intel"

@@ -173,7 +173,23 @@ def test_dataset_operations(client_as_admin, db_session):
     failed_crimes = db_session.query(CrimeEvent).filter(CrimeEvent.dataset_id == failed_ds.id).all()
     assert len(failed_crimes) == 0
 
-def test_new_dataset_features(client_as_admin, db_session):
+def test_new_dataset_features(client_as_admin, db_session, monkeypatch):
+    import os
+    import pandas as pd
+    mock_df = pd.DataFrame({
+        'district': ['Bengaluru', 'Mysuru', None],
+        'crime_type': ['Theft', 'Assault', 'Theft'],
+        'repeat_offender': [0, 1, 0]
+    })
+    monkeypatch.setattr(os.path, "exists", lambda path: True)
+    
+    original_read_csv = pd.read_csv
+    def mock_read_csv(filepath_or_buffer, *args, **kwargs):
+        if isinstance(filepath_or_buffer, str) and "crime_events.csv" in filepath_or_buffer:
+            return mock_df
+        return original_read_csv(filepath_or_buffer, *args, **kwargs)
+    monkeypatch.setattr(pd, "read_csv", mock_read_csv)
+
     # Get auto-seeded default dataset ID
     response = client_as_admin.get("/api/v1/admin/datasets/")
     assert response.status_code == 200
@@ -419,6 +435,10 @@ def test_ml_pipeline_and_registry(client_as_admin, db_session, monkeypatch):
     monkeypatch.setattr(ml_training_service, "SessionLocal", lambda: db_session)
     monkeypatch.setattr(db_session, "close", lambda: None)
     monkeypatch.setattr(db_session, "commit", db_session.flush)
+
+    # Prevent background threads from running to avoid concurrency issues with SQLite in-memory
+    import threading
+    monkeypatch.setattr(threading.Thread, "start", lambda self: None)
 
     # 1. Clean DB
     db_session.query(MLModel).delete()

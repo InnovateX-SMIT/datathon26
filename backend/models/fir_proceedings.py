@@ -15,6 +15,7 @@ class ArrestSurrender(TimestampMixin, Base):
     PoliceStationID = Column(Integer, ForeignKey("unit.UnitID"), nullable=False)
     IOID = Column(Integer, ForeignKey("employee.EmployeeID"), nullable=False)
     CourtID = Column(Integer, ForeignKey("court.CourtID"), nullable=False)
+    # AccusedMasterID represents the primary accused individual for this specific arrest event.
     AccusedMasterID = Column(Integer, ForeignKey("accused.AccusedMasterID"), nullable=False)
     IsAccused = Column(Boolean, default=True, nullable=False)
     IsComplainantAccused = Column(Boolean, default=False, nullable=False)
@@ -26,7 +27,11 @@ class ArrestSurrender(TimestampMixin, Base):
     police_station = relationship("Unit")
     io = relationship("Employee")
     court = relationship("Court")
+    
+    # Primary accused relation (direct 1:M relationship mapping)
     primary_accused = relationship("Accused", back_populates="arrest_surrenders")
+    
+    # Joint/multiple accused involved in the same arrest event (mapped via many-to-many junction)
     all_accused = relationship("Accused", secondary="inv_arrestsurrenderaccused")
 
 class InvArrestSurrenderAccused(Base):

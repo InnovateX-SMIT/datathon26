@@ -50,8 +50,18 @@ def migrate_database_schema(db_engine):
                 if "storage_path" not in ds_cols:
                     logger.info("Adding storage_path column to datasets table...")
                     conn.execute(text("ALTER TABLE datasets ADD COLUMN storage_path VARCHAR(500) NULL"))
+                if "schema_type" not in ds_cols:
+                    logger.info("Adding schema_type column to datasets table...")
+                    conn.execute(text("ALTER TABLE datasets ADD COLUMN schema_type VARCHAR(50) DEFAULT 'legacy_crime_intel'"))
 
-            # 1c. Scoping dataset_configs table migrations
+            # 1c. Scoping case_master table migrations
+            result = conn.execute(text("PRAGMA table_info(case_master)"))
+            case_cols = {row[1] for row in result.fetchall()}
+            if case_cols and "dataset_id" not in case_cols:
+                logger.info("Adding dataset_id column to case_master table...")
+                conn.execute(text("ALTER TABLE case_master ADD COLUMN dataset_id INTEGER REFERENCES datasets(id) ON DELETE CASCADE"))
+
+            # 1d. Scoping dataset_configs table migrations
             conn.execute(text(
                 "CREATE TABLE IF NOT EXISTS dataset_configs ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT,"

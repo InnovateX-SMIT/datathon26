@@ -35,7 +35,8 @@ class DatasetService:
                         status="Ready",
                         is_active=True,
                         row_count=50000,
-                        file_size=5872123
+                        file_size=5872123,
+                        schema_type="legacy_crime_intel"
                     )
                     self.db.add(default_ds)
                     self.db.commit()
