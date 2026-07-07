@@ -25,6 +25,10 @@ class GeoService:
                 raise ValueError("One or more active datasets are not ready or are incompatible.")
         return active_ids
 
+    def _get_schema_type(self) -> str:
+        from backend.core.dataset_resolver import DatasetResolver
+        return DatasetResolver(self.db).get_active_dataset_schema_type()
+
     def _get_cache_key(self, active_ids: list[int]) -> tuple:
         from backend.models.dataset import Dataset
         from sqlalchemy import func
@@ -57,35 +61,59 @@ class GeoService:
     ) -> list[dict]:
         active_ids = [dataset_id] if dataset_id else self._get_active_ids()
         
-        # Build arguments for cache lookup
         args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
         is_cached, val, full_key = self._check_cache("get_district_crime_distribution", active_ids, *args_tuple)
         if is_cached:
             return val
 
         from analytics.geo_analysis.district_map import aggregate_district_crime
-        
-        query = self.db.query(
-            Location.district,
-            func.count(CrimeEvent.id).label("crime_count")
-        ).join(
-            Location, CrimeEvent.location_id == Location.id
-        ).filter(
-            CrimeEvent.dataset_id.in_(active_ids)
-        )
-        
-        if district:
-            query = query.filter(Location.district == district)
-        if crime_type:
-            query = query.filter(CrimeEvent.crime_type == crime_type)
-        if start_date:
-            query = query.filter(CrimeEvent.crime_date >= start_date)
-        if end_date:
-            query = query.filter(CrimeEvent.crime_date <= end_date)
+        schema_type = self._get_schema_type()
+
+        if schema_type == "fir_normalized":
+            from backend.models.fir_case import CaseMaster
+            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_legal import CrimeSubHead
+
+            query = self.db.query(
+                District.name,
+                func.count(CaseMaster.id).label("crime_count")
+            ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
+                CaseMaster.dataset_id.in_(active_ids)
+            )
             
-        results = query.group_by(Location.district).all()
+            if district:
+                query = query.filter(District.name == district)
+            if crime_type:
+                query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
+            if start_date:
+                query = query.filter(CaseMaster.registered_date >= start_date)
+            if end_date:
+                query = query.filter(CaseMaster.registered_date <= end_date)
+                
+            results = query.group_by(District.name).all()
+            records = [{"district": r[0], "crime_count": r[1]} for r in results if r[0] is not None]
+        else:
+            query = self.db.query(
+                Location.district,
+                func.count(CrimeEvent.id).label("crime_count")
+            ).join(
+                Location, CrimeEvent.location_id == Location.id
+            ).filter(
+                CrimeEvent.dataset_id.in_(active_ids)
+            )
+            
+            if district:
+                query = query.filter(Location.district == district)
+            if crime_type:
+                query = query.filter(CrimeEvent.crime_type == crime_type)
+            if start_date:
+                query = query.filter(CrimeEvent.crime_date >= start_date)
+            if end_date:
+                query = query.filter(CrimeEvent.crime_date <= end_date)
+                
+            results = query.group_by(Location.district).all()
+            records = [{"district": r[0], "crime_count": r[1]} for r in results if r[0] is not None]
         
-        records = [{"district": r[0], "crime_count": r[1]} for r in results if r[0] is not None]
         result = aggregate_district_crime(records)
         self._set_cache("get_district_crime_distribution", full_key, result)
         return result
@@ -106,37 +134,71 @@ class GeoService:
             return val
 
         from analytics.geo_analysis.station_map import aggregate_station_crime
-        
-        query = self.db.query(
-            PoliceStation.station_name,
-            func.count(CrimeEvent.id).label("crime_count"),
-            Location.latitude,
-            Location.longitude
-        ).join(
-            PoliceStation, CrimeEvent.police_station_id == PoliceStation.id
-        ).join(
-            Location, PoliceStation.location_id == Location.id
-        ).filter(
-            CrimeEvent.dataset_id.in_(active_ids)
-        )
-        
-        if district:
-            query = query.filter(Location.district == district)
-        if crime_type:
-            query = query.filter(CrimeEvent.crime_type == crime_type)
-        if start_date:
-            query = query.filter(CrimeEvent.crime_date >= start_date)
-        if end_date:
-            query = query.filter(CrimeEvent.crime_date <= end_date)
+        schema_type = self._get_schema_type()
+
+        if schema_type == "fir_normalized":
+            from backend.models.fir_case import CaseMaster
+            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_case import Inv_OccuranceTime
+
+            query = self.db.query(
+                Unit.name,
+                func.count(CaseMaster.id).label("crime_count"),
+                func.avg(Inv_OccuranceTime.latitude),
+                func.avg(Inv_OccuranceTime.longitude)
+            ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).join(
+                Inv_OccuranceTime, Inv_OccuranceTime.CaseMasterID == CaseMaster.id
+            ).filter(
+                CaseMaster.dataset_id.in_(active_ids)
+            )
+
+            if district:
+                query = query.filter(District.name == district)
+            if crime_type:
+                query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
+            if start_date:
+                query = query.filter(CaseMaster.registered_date >= start_date)
+            if end_date:
+                query = query.filter(CaseMaster.registered_date <= end_date)
+                
+            results = query.group_by(Unit.name).all()
+            records = [{
+                "station": r[0],
+                "crime_count": r[1],
+                "latitude": float(r[2]) if r[2] is not None else 0.0,
+                "longitude": float(r[3]) if r[3] is not None else 0.0
+            } for r in results if r[0] is not None]
+        else:
+            query = self.db.query(
+                PoliceStation.station_name,
+                func.count(CrimeEvent.id).label("crime_count"),
+                Location.latitude,
+                Location.longitude
+            ).join(
+                PoliceStation, CrimeEvent.police_station_id == PoliceStation.id
+            ).join(
+                Location, PoliceStation.location_id == Location.id
+            ).filter(
+                CrimeEvent.dataset_id.in_(active_ids)
+            )
             
-        results = query.group_by(PoliceStation.station_name, Location.latitude, Location.longitude).all()
-        
-        records = [{
-            "station": r[0],
-            "crime_count": r[1],
-            "latitude": r[2] if r[2] is not None else 0.0,
-            "longitude": r[3] if r[3] is not None else 0.0
-        } for r in results if r[0] is not None]
+            if district:
+                query = query.filter(Location.district == district)
+            if crime_type:
+                query = query.filter(CrimeEvent.crime_type == crime_type)
+            if start_date:
+                query = query.filter(CrimeEvent.crime_date >= start_date)
+            if end_date:
+                query = query.filter(CrimeEvent.crime_date <= end_date)
+                
+            results = query.group_by(PoliceStation.station_name, Location.latitude, Location.longitude).all()
+            records = [{
+                "station": r[0],
+                "crime_count": r[1],
+                "latitude": r[2] if r[2] is not None else 0.0,
+                "longitude": r[3] if r[3] is not None else 0.0
+            } for r in results if r[0] is not None]
         
         result = aggregate_station_crime(records)
         self._set_cache("get_station_crime_distribution", full_key, result)
@@ -158,33 +220,67 @@ class GeoService:
             return val
 
         from analytics.geo_analysis.heatmap import generate_heatmap_json
-        
-        query = self.db.query(
-            Location.latitude,
-            Location.longitude,
-            func.count(CrimeEvent.id).label("crime_count")
-        ).join(
-            Location, CrimeEvent.location_id == Location.id
-        ).filter(
-            CrimeEvent.dataset_id.in_(active_ids)
-        )
-        
-        if district:
-            query = query.filter(Location.district == district)
-        if crime_type:
-            query = query.filter(CrimeEvent.crime_type == crime_type)
-        if start_date:
-            query = query.filter(CrimeEvent.crime_date >= start_date)
-        if end_date:
-            query = query.filter(CrimeEvent.crime_date <= end_date)
+        schema_type = self._get_schema_type()
+
+        if schema_type == "fir_normalized":
+            from backend.models.fir_case import CaseMaster
+            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_case import Inv_OccuranceTime
+
+            query = self.db.query(
+                Inv_OccuranceTime.latitude,
+                Inv_OccuranceTime.longitude,
+                func.count(CaseMaster.id).label("crime_count")
+            ).select_from(CaseMaster).join(Inv_OccuranceTime, Inv_OccuranceTime.CaseMasterID == CaseMaster.id).join(
+                Unit, CaseMaster.PoliceStationID == Unit.id
+            ).join(
+                District, Unit.DistrictID == District.id
+            ).filter(
+                CaseMaster.dataset_id.in_(active_ids)
+            )
+
+            if district:
+                query = query.filter(District.name == district)
+            if crime_type:
+                query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
+            if start_date:
+                query = query.filter(CaseMaster.registered_date >= start_date)
+            if end_date:
+                query = query.filter(CaseMaster.registered_date <= end_date)
+
+            results = query.group_by(Inv_OccuranceTime.latitude, Inv_OccuranceTime.longitude).all()
+            records = [{
+                "latitude": float(r[0]) if r[0] is not None else 0.0,
+                "longitude": float(r[1]) if r[1] is not None else 0.0,
+                "weight": r[2]
+            } for r in results]
+        else:
+            query = self.db.query(
+                Location.latitude,
+                Location.longitude,
+                func.count(CrimeEvent.id).label("crime_count")
+            ).join(
+                Location, CrimeEvent.location_id == Location.id
+            ).filter(
+                CrimeEvent.dataset_id.in_(active_ids)
+            )
             
-        results = query.group_by(Location.latitude, Location.longitude).all()
-        
-        records = [{
-            "latitude": r[0] if r[0] is not None else 0.0,
-            "longitude": r[1] if r[1] is not None else 0.0,
-            "weight": r[2]
-        } for r in results]
+            if district:
+                query = query.filter(Location.district == district)
+            if crime_type:
+                query = query.filter(CrimeEvent.crime_type == crime_type)
+            if start_date:
+                query = query.filter(CrimeEvent.crime_date >= start_date)
+            if end_date:
+                query = query.filter(CrimeEvent.crime_date <= end_date)
+                
+            results = query.group_by(Location.latitude, Location.longitude).all()
+            records = [{
+                "latitude": r[0] if r[0] is not None else 0.0,
+                "longitude": r[1] if r[1] is not None else 0.0,
+                "weight": r[2]
+            } for r in results]
         
         result = generate_heatmap_json(records)
         self._set_cache("get_heatmap_points", full_key, result)
@@ -206,29 +302,59 @@ class GeoService:
             return val
 
         from analytics.geo_analysis.hotspot import find_hotspots_dbscan
-        
-        query = self.db.query(
-            Location.latitude,
-            Location.longitude,
-            func.count(CrimeEvent.id).label("crime_count")
-        ).select_from(CrimeEvent).join(
-            Location, CrimeEvent.location_id == Location.id
-        ).filter(
-            CrimeEvent.dataset_id.in_(active_ids)
-        )
-        
-        if district:
-            query = query.filter(Location.district == district)
-        if crime_type:
-            query = query.filter(CrimeEvent.crime_type == crime_type)
-        if start_date:
-            query = query.filter(CrimeEvent.crime_date >= start_date)
-        if end_date:
-            query = query.filter(CrimeEvent.crime_date <= end_date)
+        schema_type = self._get_schema_type()
+
+        if schema_type == "fir_normalized":
+            from backend.models.fir_case import CaseMaster
+            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_case import Inv_OccuranceTime
+
+            query = self.db.query(
+                Inv_OccuranceTime.latitude,
+                Inv_OccuranceTime.longitude,
+                func.count(CaseMaster.id).label("crime_count")
+            ).select_from(CaseMaster).join(Inv_OccuranceTime, Inv_OccuranceTime.CaseMasterID == CaseMaster.id).join(
+                Unit, CaseMaster.PoliceStationID == Unit.id
+            ).join(
+                District, Unit.DistrictID == District.id
+            ).filter(
+                CaseMaster.dataset_id.in_(active_ids)
+            )
+
+            if district:
+                query = query.filter(District.name == district)
+            if crime_type:
+                query = query.join(CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id).filter(CrimeSubHead.CrimeHeadName == crime_type)
+            if start_date:
+                query = query.filter(CaseMaster.registered_date >= start_date)
+            if end_date:
+                query = query.filter(CaseMaster.registered_date <= end_date)
+
+            results = query.group_by(Inv_OccuranceTime.latitude, Inv_OccuranceTime.longitude).all()
+            coords = [(float(r[0]), float(r[1]), r[2]) for r in results if r[0] is not None and r[1] is not None]
+        else:
+            query = self.db.query(
+                Location.latitude,
+                Location.longitude,
+                func.count(CrimeEvent.id).label("crime_count")
+            ).select_from(CrimeEvent).join(
+                Location, CrimeEvent.location_id == Location.id
+            ).filter(
+                CrimeEvent.dataset_id.in_(active_ids)
+            )
             
-        results = query.group_by(Location.latitude, Location.longitude).all()
-        
-        coords = [(r[0], r[1], r[2]) for r in results if r[0] is not None and r[1] is not None]
+            if district:
+                query = query.filter(Location.district == district)
+            if crime_type:
+                query = query.filter(CrimeEvent.crime_type == crime_type)
+            if start_date:
+                query = query.filter(CrimeEvent.crime_date >= start_date)
+            if end_date:
+                query = query.filter(CrimeEvent.crime_date <= end_date)
+                
+            results = query.group_by(Location.latitude, Location.longitude).all()
+            coords = [(r[0], r[1], r[2]) for r in results if r[0] is not None and r[1] is not None]
         
         result = find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
         self._set_cache("get_hotspot_clusters", full_key, result)
@@ -243,7 +369,6 @@ class GeoService:
     ) -> dict:
         active_ids = self._get_active_ids()
         
-        # Since this combines the 4 distinct queries, caching at get_geo_intelligence level is extremely efficient!
         args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
         is_cached, val, full_key = self._check_cache("get_geo_intelligence", active_ids, *args_tuple)
         if is_cached:
@@ -265,7 +390,6 @@ class GeoService:
         self._set_cache("get_geo_intelligence", full_key, result)
         return result
 
-    # Maintain stubs for compatibility
     def compute_hotspots(self):
         return self.get_hotspot_clusters()
 

@@ -52,78 +52,164 @@ class NetworkAnalyticsService:
         Queries bulk records from the repository filtered by dataset_id and constructs an undirected NetworkX Graph.
         """
         G = nx.Graph()
-
-        # 1. Load entities
-        criminals = self.repo.get_all_criminals(dataset_id=dataset_id)
-        crimes = self.repo.get_all_crimes(dataset_id=dataset_id)
-        locations = self.repo.get_all_locations()
-        participations = self.repo.get_all_participations(dataset_id=dataset_id)
-
-        # 2. Add criminal nodes
-        for c in criminals:
-            G.add_node(
-                f"criminal_{c.id}",
-                type="criminal",
-                label=c.name,
-                risk_score=c.risk_score or 0.0,
-                gender=c.gender,
-                age=c.age,
-                occupation=c.occupation,
-                caste=c.caste,
-                status=c.status
-            )
-
-        # 3. Add crime event nodes
-        for cr in crimes:
-            G.add_node(
-                f"crime_{cr.id}",
-                type="crime",
-                label=cr.crime_type,
-                crime_category=cr.crime_category,
-                crime_subcategory=cr.crime_subcategory,
-                severity=cr.severity or 1.0,
-                status=cr.status,
-                crime_date=str(cr.crime_date) if cr.crime_date else None
-            )
-
-        # 4. Add location nodes
-        for loc in locations:
-            G.add_node(
-                f"location_{loc.id}",
-                type="location",
-                label=f"{loc.district}, {loc.state}",
-                district=loc.district,
-                state=loc.state,
-                latitude=loc.latitude,
-                longitude=loc.longitude
-            )
-
-        # 5. Add edges for Crime Participation: Criminal -> Crime Event
-        for part in participations:
-            crim_node_id = f"criminal_{part.criminal_id}"
-            crime_node_id = f"crime_{part.crime_event_id}"
+        
+        from backend.core.dataset_resolver import DatasetResolver
+        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
+        
+        if schema_type == "fir_normalized":
+            from backend.models.fir_people import Accused
+            from backend.models.fir_case import CaseMaster, Inv_OccuranceTime
+            from backend.models.fir_geography import District, Unit
+            from sqlalchemy import func
             
-            # Verify nodes exist before linking to prevent isolated/broken edges
-            if G.has_node(crim_node_id) and G.has_node(crime_node_id):
-                G.add_edge(
-                    crim_node_id,
-                    crime_node_id,
-                    relationship="INVOLVED_IN",
-                    role=part.role or "accused"
+            accused_list = self.db.query(Accused).join(CaseMaster).filter(CaseMaster.dataset_id == dataset_id).all()
+            cases = self.db.query(CaseMaster).filter(CaseMaster.dataset_id == dataset_id).all()
+            
+            # Load unique districts referenced by cases
+            districts = self.db.query(District).join(Unit).join(CaseMaster, CaseMaster.PoliceStationID == Unit.id).filter(
+                CaseMaster.dataset_id == dataset_id
+            ).distinct().all()
+            
+            # 2. Add criminal nodes
+            for a in accused_list:
+                G.add_node(
+                    f"criminal_{a.id}",
+                    type="criminal",
+                    label=a.AccusedName,
+                    risk_score=5.0,
+                    gender=a.gender.name if a.gender else "Male",
+                    age=a.AgeYear,
+                    occupation="Unknown",
+                    caste="Unknown",
+                    status="active"
+                )
+                
+            # 3. Add crime event nodes
+            for c in cases:
+                status_name = c.case_status.name if c.case_status else "Under Investigation"
+                gravity_name = c.gravity_offence.name if c.gravity_offence else "Non-Heinous"
+                severity = 5.0 if gravity_name == "Heinous" else 2.0
+                
+                G.add_node(
+                    f"crime_{c.id}",
+                    type="crime",
+                    label=c.crime_minor_head.CrimeHeadName if c.crime_minor_head else "Crime",
+                    crime_category=c.crime_major_head.CrimeGroupName if c.crime_major_head else "General",
+                    crime_subcategory=c.crime_minor_head.CrimeHeadName if c.crime_minor_head else "General",
+                    severity=severity,
+                    status=status_name,
+                    crime_date=str(c.registered_date) if c.registered_date else None
+                )
+                
+            # 4. Add location nodes
+            for d in districts:
+                coords = self.db.query(
+                    func.avg(Inv_OccuranceTime.latitude),
+                    func.avg(Inv_OccuranceTime.longitude)
+                ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(
+                    Inv_OccuranceTime, Inv_OccuranceTime.CaseMasterID == CaseMaster.id
+                ).filter(Unit.DistrictID == d.id).first()
+                
+                lat = float(coords[0]) if coords and coords[0] is not None else 12.9716
+                lon = float(coords[1]) if coords and coords[1] is not None else 77.5946
+                
+                G.add_node(
+                    f"location_{d.id}",
+                    type="location",
+                    label=f"{d.name}, Karnataka",
+                    district=d.name,
+                    state="Karnataka",
+                    latitude=lat,
+                    longitude=lon
+                )
+                
+            # 5. Add edges for Crime Participation: Accused -> Case
+            for a in accused_list:
+                crim_node_id = f"criminal_{a.id}"
+                crime_node_id = f"crime_{a.CaseMasterID}"
+                if G.has_node(crim_node_id) and G.has_node(crime_node_id):
+                    G.add_edge(crim_node_id, crime_node_id, relationship="INVOLVED_IN", role="accused")
+                    
+            # 6. Add edges for Crime Occurrence: Case -> Location
+            for c in cases:
+                unit = self.db.query(Unit).filter(Unit.id == c.PoliceStationID).first()
+                if unit and unit.DistrictID:
+                    crime_node_id = f"crime_{c.id}"
+                    loc_node_id = f"location_{unit.DistrictID}"
+                    if G.has_node(crime_node_id) and G.has_node(loc_node_id):
+                        G.add_edge(crime_node_id, loc_node_id, relationship="OCCURRED_AT")
+        else:
+            # 1. Load entities
+            criminals = self.repo.get_all_criminals(dataset_id=dataset_id)
+            crimes = self.repo.get_all_crimes(dataset_id=dataset_id)
+            locations = self.repo.get_all_locations()
+            participations = self.repo.get_all_participations(dataset_id=dataset_id)
+
+            # 2. Add criminal nodes
+            for c in criminals:
+                G.add_node(
+                    f"criminal_{c.id}",
+                    type="criminal",
+                    label=c.name,
+                    risk_score=c.risk_score or 0.0,
+                    gender=c.gender,
+                    age=c.age,
+                    occupation=c.occupation,
+                    caste=c.caste,
+                    status=c.status
                 )
 
-        # 6. Add edges for Crime Occurrence: Crime Event -> Location
-        for cr in crimes:
-            if cr.location_id:
-                crime_node_id = f"crime_{cr.id}"
-                loc_node_id = f"location_{cr.location_id}"
+            # 3. Add crime event nodes
+            for cr in crimes:
+                G.add_node(
+                    f"crime_{cr.id}",
+                    type="crime",
+                    label=cr.crime_type,
+                    crime_category=cr.crime_category,
+                    crime_subcategory=cr.crime_subcategory,
+                    severity=cr.severity or 1.0,
+                    status=cr.status,
+                    crime_date=str(cr.crime_date) if cr.crime_date else None
+                )
+
+            # 4. Add location nodes
+            for loc in locations:
+                G.add_node(
+                    f"location_{loc.id}",
+                    type="location",
+                    label=f"{loc.district}, {loc.state}",
+                    district=loc.district,
+                    state=loc.state,
+                    latitude=loc.latitude,
+                    longitude=loc.longitude
+                )
+
+            # 5. Add edges for Crime Participation: Criminal -> Crime Event
+            for part in participations:
+                crim_node_id = f"criminal_{part.criminal_id}"
+                crime_node_id = f"crime_{part.crime_event_id}"
                 
-                if G.has_node(crime_node_id) and G.has_node(loc_node_id):
+                # Verify nodes exist before linking to prevent isolated/broken edges
+                if G.has_node(crim_node_id) and G.has_node(crime_node_id):
                     G.add_edge(
+                        crim_node_id,
                         crime_node_id,
-                        loc_node_id,
-                        relationship="OCCURRED_AT"
+                        relationship="INVOLVED_IN",
+                        role=part.role or "accused"
                     )
+
+            # 6. Add edges for Crime Occurrence: Crime Event -> Location
+            for cr in crimes:
+                if cr.location_id:
+                    crime_node_id = f"crime_{cr.id}"
+                    loc_node_id = f"location_{cr.location_id}"
+                    
+                    if G.has_node(crime_node_id) and G.has_node(loc_node_id):
+                        G.add_edge(
+                            crime_node_id,
+                            loc_node_id,
+                            relationship="OCCURRED_AT"
+                        )
 
         return G
 

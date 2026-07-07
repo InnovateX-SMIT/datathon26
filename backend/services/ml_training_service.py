@@ -51,56 +51,92 @@ class MLTrainingService:
             if not ds or ds.status != "Ready":
                 raise ValueError(f"Active dataset with ID {aid} is not ready or is incompatible.")
 
-        if model_type == "repeat_offender":
-            # Check criminal participations
-            count = self.db.query(Criminal.id).join(
-                CrimeParticipation, Criminal.id == CrimeParticipation.criminal_id
-            ).join(
-                CrimeEvent, CrimeParticipation.crime_event_id == CrimeEvent.id
-            ).join(
-                Location, CrimeEvent.location_id == Location.id
-            ).filter(
-                Criminal.dataset_id.in_(active_ids)
-            ).count()
-            
-            if count < 10:
-                raise ValueError(f"Insufficient samples for offender training. Required: >= 10, Found: {count}.")
+        from backend.core.dataset_resolver import DatasetResolver
+        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
 
-            # Validate target column values
-            sample_scores = self.db.query(Criminal.risk_score).filter(
-                Criminal.dataset_id.in_(active_ids),
-                Criminal.risk_score.isnot(None)
-            ).limit(20).all()
-            
-            if not sample_scores:
+        if schema_type == "fir_normalized":
+            from backend.models.fir_case import CaseMaster
+            from backend.models.fir_people import Accused
+
+            if model_type == "repeat_offender":
+                # Accused has no risk_score target column, so we raise ValueError early rather than fabricating targets.
                 raise ValueError("Offender 'risk_score' (target column) is completely empty.")
 
-        elif model_type in ["crime_type", "crime_risk", "hotspot"]:
-            count = self.db.query(CrimeEvent.id).join(
-                Location, CrimeEvent.location_id == Location.id
-            ).filter(
-                CrimeEvent.dataset_id.in_(active_ids)
-            ).count()
+            elif model_type in ["crime_type", "crime_risk", "hotspot"]:
+                count = self.db.query(CaseMaster.id).filter(
+                    CaseMaster.dataset_id.in_(active_ids)
+                ).count()
 
-            if count < 10:
-                raise ValueError(f"Insufficient samples for {model_type} training. Required: >= 10, Found: {count}.")
+                if count < 10:
+                    raise ValueError(f"Insufficient samples for {model_type} training. Required: >= 10, Found: {count}.")
 
-            # Check for critical columns
-            sample_types = self.db.query(CrimeEvent.crime_type).filter(
-                CrimeEvent.dataset_id.in_(active_ids),
-                CrimeEvent.crime_type.isnot(None)
-            ).limit(10).all()
-            
-            if not sample_types:
-                raise ValueError("Crime type target field is completely empty.")
-
-            if model_type == "crime_risk":
-                sample_sevs = self.db.query(CrimeEvent.severity).filter(
-                    CrimeEvent.dataset_id.in_(active_ids),
-                    CrimeEvent.severity.isnot(None)
+                # Check for critical columns
+                sample_types = self.db.query(CaseMaster.id).filter(
+                    CaseMaster.dataset_id.in_(active_ids),
+                    CaseMaster.CrimeMinorHeadID.isnot(None)
                 ).limit(10).all()
-                if not sample_sevs:
-                    raise ValueError("Severity score target field is completely empty.")
+                
+                if not sample_types:
+                    raise ValueError("Crime type target field is completely empty.")
+
+                if model_type == "crime_risk":
+                    sample_sevs = self.db.query(CaseMaster.id).filter(
+                        CaseMaster.dataset_id.in_(active_ids),
+                        CaseMaster.GravityOffenceID.isnot(None)
+                    ).limit(10).all()
+                    if not sample_sevs:
+                        raise ValueError("Severity score target field is completely empty.")
+        else:
+            if model_type == "repeat_offender":
+                # Check criminal participations
+                count = self.db.query(Criminal.id).join(
+                    CrimeParticipation, Criminal.id == CrimeParticipation.criminal_id
+                ).join(
+                    CrimeEvent, CrimeParticipation.crime_event_id == CrimeEvent.id
+                ).join(
+                    Location, CrimeEvent.location_id == Location.id
+                ).filter(
+                    Criminal.dataset_id.in_(active_ids)
+                ).count()
+                
+                if count < 10:
+                    raise ValueError(f"Insufficient samples for offender training. Required: >= 10, Found: {count}.")
+
+                # Validate target column values
+                sample_scores = self.db.query(Criminal.risk_score).filter(
+                    Criminal.dataset_id.in_(active_ids),
+                    Criminal.risk_score.isnot(None)
+                ).limit(20).all()
+                
+                if not sample_scores:
+                    raise ValueError("Offender 'risk_score' (target column) is completely empty.")
+
+            elif model_type in ["crime_type", "crime_risk", "hotspot"]:
+                count = self.db.query(CrimeEvent.id).join(
+                    Location, CrimeEvent.location_id == Location.id
+                ).filter(
+                    CrimeEvent.dataset_id.in_(active_ids)
+                ).count()
+
+                if count < 10:
+                    raise ValueError(f"Insufficient samples for {model_type} training. Required: >= 10, Found: {count}.")
+
+                # Check for critical columns
+                sample_types = self.db.query(CrimeEvent.crime_type).filter(
+                    CrimeEvent.dataset_id.in_(active_ids),
+                    CrimeEvent.crime_type.isnot(None)
+                ).limit(10).all()
+                
+                if not sample_types:
+                    raise ValueError("Crime type target field is completely empty.")
+
+                if model_type == "crime_risk":
+                    sample_sevs = self.db.query(CrimeEvent.severity).filter(
+                        CrimeEvent.dataset_id.in_(active_ids),
+                        CrimeEvent.severity.isnot(None)
+                    ).limit(10).all()
+                    if not sample_sevs:
+                        raise ValueError("Severity score target field is completely empty.")
 
     def trigger_retraining(self, model_type: str) -> MLModel:
         """
@@ -259,80 +295,152 @@ class MLTrainingService:
             db.close()
 
     def _load_dataframe(self, db: Session, model_type: str, active_ids: List[int], log_fn) -> pd.DataFrame:
-        if model_type == "repeat_offender":
-            log_fn("Querying offender records...")
-            query = db.query(
-                Criminal.age,
-                Criminal.occupation,
-                Criminal.caste,
-                Location.district,
-                Criminal.risk_score
-            ).join(
-                CrimeParticipation, Criminal.id == CrimeParticipation.criminal_id
-            ).join(
-                CrimeEvent, CrimeParticipation.crime_event_id == CrimeEvent.id
-            ).join(
-                Location, CrimeEvent.location_id == Location.id
-            ).filter(
-                Criminal.dataset_id.in_(active_ids)
-            )
-            results = query.all()
-            return pd.DataFrame([
-                {
-                    "age": r[0],
-                    "occupation": r[1],
-                    "caste": r[2],
-                    "district": r[3],
-                    "risk_score": r[4]
-                } for r in results
-            ])
+        from backend.core.dataset_resolver import DatasetResolver
+        schema_type = DatasetResolver(db).get_active_dataset_schema_type()
 
-        elif model_type in ["crime_type", "crime_risk"]:
-            log_fn(f"Querying crime events for {model_type}...")
-            query = db.query(
-                CrimeEvent.crime_type.label("crime_category"),
-                Location.district,
-                CrimeEvent.crime_date,
-                CrimeEvent.crime_time,
-                CrimeEvent.severity
-            ).join(
-                Location, CrimeEvent.location_id == Location.id
-            ).filter(
-                CrimeEvent.dataset_id.in_(active_ids)
-            )
-            results = query.all()
-            return pd.DataFrame([
-                {
-                    "crime_category": r[0],
-                    "district": r[1],
-                    "crime_date": r[2].isoformat() if hasattr(r[2], "isoformat") else str(r[2]),
-                    "crime_time": r[3],
-                    "severity": r[4]
-                } for r in results
-            ])
+        if schema_type == "fir_normalized":
+            from backend.models.fir_people import Accused
+            from backend.models.fir_case import CaseMaster, Inv_OccuranceTime
+            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_legal import CrimeSubHead
+            from backend.models.fir_lookup import GravityOffence
+            from backend.core.severity import resolve_gravity_severity
 
-        elif model_type == "hotspot":
-            log_fn("Querying monthly incident aggregations for hotspot...")
-            query = db.query(
-                CrimeEvent.id,
-                Location.district,
-                CrimeEvent.crime_date
-            ).join(
-                Location, CrimeEvent.location_id == Location.id
-            ).filter(
-                CrimeEvent.dataset_id.in_(active_ids)
-            )
-            results = query.all()
-            return pd.DataFrame([
-                {
-                    "id": r[0],
-                    "district": r[1],
-                    "crime_date": r[2].isoformat() if hasattr(r[2], "isoformat") else str(r[2])
-                } for r in results
-            ])
+            if model_type == "repeat_offender":
+                log_fn("Querying offender records...")
+                query = db.query(
+                    Accused.AgeYear,
+                    District.name
+                ).select_from(Accused).join(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
+                    CaseMaster.dataset_id.in_(active_ids)
+                )
+                results = query.all()
+                return pd.DataFrame([
+                    {
+                        "age": float(r[0]) if r[0] is not None else 30.0,
+                        "occupation": "Unknown",
+                        "caste": "Unknown",
+                        "district": r[1],
+                        "risk_score": None  # No fabricated target labels!
+                    } for r in results
+                ])
 
+            elif model_type in ["crime_type", "crime_risk"]:
+                log_fn(f"Querying crime events for {model_type}...")
+                query = db.query(
+                    CrimeSubHead.CrimeHeadName,
+                    District.name,
+                    CaseMaster.registered_date,
+                    GravityOffence.name
+                ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).join(
+                    CrimeSubHead, CaseMaster.CrimeMinorHeadID == CrimeSubHead.id
+                ).join(
+                    GravityOffence, CaseMaster.GravityOffenceID == GravityOffence.id
+                ).filter(
+                    CaseMaster.dataset_id.in_(active_ids)
+                )
+                results = query.all()
+                return pd.DataFrame([
+                    {
+                        "crime_category": r[0],
+                        "district": r[1],
+                        "crime_date": r[2].isoformat() if hasattr(r[2], "isoformat") else str(r[2]),
+                        "crime_time": "12:00:00",
+                        "severity": resolve_gravity_severity(r[3])
+                    } for r in results
+                ])
+
+            elif model_type == "hotspot":
+                log_fn("Querying monthly incident aggregations for hotspot...")
+                query = db.query(
+                    CaseMaster.id,
+                    District.name,
+                    CaseMaster.registered_date
+                ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
+                    CaseMaster.dataset_id.in_(active_ids)
+                )
+                results = query.all()
+                return pd.DataFrame([
+                    {
+                        "id": r[0],
+                        "district": r[1],
+                        "crime_date": r[2].isoformat() if hasattr(r[2], "isoformat") else str(r[2])
+                    } for r in results
+                ])
         else:
-            raise ValueError(f"Unknown model type: {model_type}")
+            if model_type == "repeat_offender":
+                log_fn("Querying offender records...")
+                query = db.query(
+                    Criminal.age,
+                    Criminal.occupation,
+                    Criminal.caste,
+                    Location.district,
+                    Criminal.risk_score
+                ).join(
+                    CrimeParticipation, Criminal.id == CrimeParticipation.criminal_id
+                ).join(
+                    CrimeEvent, CrimeParticipation.crime_event_id == CrimeEvent.id
+                ).join(
+                    Location, CrimeEvent.location_id == Location.id
+                ).filter(
+                    Criminal.dataset_id.in_(active_ids)
+                )
+                results = query.all()
+                return pd.DataFrame([
+                    {
+                        "age": r[0],
+                        "occupation": r[1],
+                        "caste": r[2],
+                        "district": r[3],
+                        "risk_score": r[4]
+                    } for r in results
+                ])
+
+            elif model_type in ["crime_type", "crime_risk"]:
+                log_fn(f"Querying crime events for {model_type}...")
+                query = db.query(
+                    CrimeEvent.crime_type.label("crime_category"),
+                    Location.district,
+                    CrimeEvent.crime_date,
+                    CrimeEvent.crime_time,
+                    CrimeEvent.severity
+                ).join(
+                    Location, CrimeEvent.location_id == Location.id
+                ).filter(
+                    CrimeEvent.dataset_id.in_(active_ids)
+                )
+                results = query.all()
+                return pd.DataFrame([
+                    {
+                        "crime_category": r[0],
+                        "district": r[1],
+                        "crime_date": r[2].isoformat() if hasattr(r[2], "isoformat") else str(r[2]),
+                        "crime_time": r[3],
+                        "severity": r[4]
+                    } for r in results
+                ])
+
+            elif model_type == "hotspot":
+                log_fn("Querying monthly incident aggregations for hotspot...")
+                query = db.query(
+                    CrimeEvent.id,
+                    Location.district,
+                    CrimeEvent.crime_date
+                ).join(
+                    Location, CrimeEvent.location_id == Location.id
+                ).filter(
+                    CrimeEvent.dataset_id.in_(active_ids)
+                )
+                results = query.all()
+                return pd.DataFrame([
+                    {
+                        "id": r[0],
+                        "district": r[1],
+                        "crime_date": r[2].isoformat() if hasattr(r[2], "isoformat") else str(r[2])
+                    } for r in results
+                ])
+
+        raise ValueError(f"Unknown model type: {model_type}")
 
     def _extract_feature_names(self, preprocessor: ColumnTransformer, num_features: List[str], cat_features: List[str]) -> List[str]:
         try:

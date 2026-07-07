@@ -121,6 +121,19 @@ class AdminRepository:
             "resource_allocations",
             "reports",
             "audit_logs",
+            # Normalized tables
+            "case_master",
+            "accused",
+            "victim",
+            "complainant_details",
+            "arrest_surrender",
+            "chargesheet_details",
+            "act",
+            "section",
+            "crime_head",
+            "crime_sub_head",
+            "district",
+            "unit"
         ]
         counts: Dict[str, int] = {}
         for table in tables:

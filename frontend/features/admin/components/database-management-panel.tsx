@@ -30,6 +30,7 @@ import {
   exportTable,
   DatabaseStats,
   BulkUploadSummary,
+  fetchDatasets,
 } from "@/features/admin/services/database-service";
 import DatasetRegistryManager from "./dataset-registry-manager";
 
@@ -150,6 +151,7 @@ type ViewMode = "dashboard" | "datasets" | "records" | "form" | "bulk" | "export
 export default function DatabaseManagementPanel() {
   const [activeTable, setActiveTable] = useState<string>("crime_events");
   const [viewMode, setViewMode] = useState<ViewMode>("dashboard");
+  const [isNormalizedActive, setIsNormalizedActive] = useState<boolean>(false);
 
   // API states
   const [stats, setStats] = useState<DatabaseStats | null>(null);
@@ -187,6 +189,10 @@ export default function DatabaseManagementPanel() {
     try {
       const data = await fetchDatabaseStats();
       setStats(data);
+      
+      const datasets = await fetchDatasets();
+      const activeDs = datasets.find((d: any) => d.is_active);
+      setIsNormalizedActive(activeDs?.schema_type === "fir_normalized");
     } catch (e: any) {
       showNotification("error", e.response?.data?.detail || "Failed to load database statistics.");
     } finally {
@@ -616,6 +622,17 @@ export default function DatabaseManagementPanel() {
         {/* === VIEW: RECORDS === */}
         {viewMode === "records" && (
           <div className="space-y-4">
+            {isNormalizedActive && (
+              <div className="bg-amber-950/20 border border-amber-900/50 p-4 rounded-2xl flex items-start gap-3 backdrop-blur-md">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-amber-400">Database Record Browser Warning</h4>
+                  <p className="text-[11px] text-amber-500/85 mt-1 leading-relaxed">
+                    A normalized FIR dataset is currently active. The table browser below displays legacy tables (such as crime_events and criminals) which are maintained for backward compatibility. New normalized FIR records can be managed via the Registry and bulk ingestion pipelines.
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Search, Filter inputs */}
             <form
               onSubmit={handleSearchSubmit}

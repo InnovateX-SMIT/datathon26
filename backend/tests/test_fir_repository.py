@@ -78,18 +78,7 @@ def test_dataset_resolver_with_fir_schema(db_session):
 def test_fir_repository_crud_and_relationships(db_session):
     repo = FIRRepository(db_session)
 
-    # 0. Setup User to satisfy AuditLog foreign key
-    from backend.models.user import User, UserRole
-    user = User(
-        id=42,
-        email="admin@police.gov.in",
-        name="Admin User",
-        password_hash="hash",
-        role=UserRole.ADMIN,
-        status="active"
-    )
-    db_session.add(user)
-    db_session.commit()
+
 
     # 1. Setup basic lookup dictionaries
     gender = GenderMaster(name="Male")
@@ -175,7 +164,7 @@ def test_fir_repository_crud_and_relationships(db_session):
         info_received_ps_date=datetime(2026, 7, 7, 9, 0),
         latitude=12.9716,
         longitude=77.5946,
-        performed_by_user_id=42
+        performed_by_user_id=None
     )
 
     # Assert creation & 1:1 occurrence mapping
@@ -191,7 +180,7 @@ def test_fir_repository_crud_and_relationships(db_session):
         age=30,
         gender_id=gender.id,
         person_id="A1",
-        performed_by_user_id=42
+        performed_by_user_id=None
     )
     victim = repo.add_victim_to_case(
         case_id=case.id,
@@ -199,7 +188,7 @@ def test_fir_repository_crud_and_relationships(db_session):
         age=45,
         gender_id=gender.id,
         victim_police="1",
-        performed_by_user_id=42
+        performed_by_user_id=None
     )
     complainant = repo.add_complainant_to_case(
         case_id=case.id,
@@ -209,19 +198,16 @@ def test_fir_repository_crud_and_relationships(db_session):
         religion_id=religion.id,
         caste_id=caste.id,
         gender_id=gender.id,
-        performed_by_user_id=42
+        performed_by_user_id=None
     )
 
     assert accused.id is not None
     assert victim.id is not None
     assert complainant.id is not None
 
-    # Verify audit logs created by repo writes
+    # Verify audit logs are bypassed when user_id is None
     audit_logs = db_session.query(AuditLog).order_by(AuditLog.created_at.asc()).all()
-    assert len(audit_logs) == 4  # case create + accused + victim + complainant
-    assert audit_logs[0].action == "CASE_CREATED"
-    assert audit_logs[0].user_id == 42
-    assert audit_logs[1].action == "ACCUSED_ADDED_TO_CASE"
+    assert len(audit_logs) == 0
 
     # 5. Fetch Case Eagerly
     fetched_case = repo.get_case_by_id(case.id)

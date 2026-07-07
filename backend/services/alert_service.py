@@ -54,11 +54,15 @@ class AlertService:
         # ==========================================
         # 1. PREDICTIVE ALERTS
         # ==========================================
-        preds = self.db.query(Prediction).join(CrimeEvent).options(
-            joinedload(Prediction.crime_event).joinedload(CrimeEvent.location)
-        ).filter(
-            CrimeEvent.dataset_id == active_id
-        ).order_by(Prediction.generated_at.desc()).limit(50).all()
+        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
+        if schema_type == "fir_normalized":
+            preds = self.db.query(Prediction).order_by(Prediction.generated_at.desc()).limit(50).all()
+        else:
+            preds = self.db.query(Prediction).join(CrimeEvent).options(
+                joinedload(Prediction.crime_event).joinedload(CrimeEvent.location)
+            ).filter(
+                CrimeEvent.dataset_id == active_id
+            ).order_by(Prediction.generated_at.desc()).limit(50).all()
 
         for p in preds:
             # Hotspot prediction alerts
@@ -67,6 +71,8 @@ class AlertService:
                 district = "Unknown"
                 if p.crime_event and p.crime_event.location:
                     district = p.crime_event.location.district
+                elif schema_type == "fir_normalized":
+                    district = "Mysuru"
 
                 if prob >= 0.70:
                     severity = "CRITICAL" if prob >= 0.85 else "HIGH"
@@ -140,11 +146,17 @@ class AlertService:
         # ==========================================
         # 3. DECISION SUPPORT ALERTS
         # ==========================================
-        unresolved_recs = self.db.query(Recommendation).outerjoin(CrimeEvent).filter(
-            (CrimeEvent.dataset_id == active_id) | (Recommendation.crime_event_id.is_(None)),
-            Recommendation.status == "pending",
-            Recommendation.priority == "high"
-        ).limit(10).all()
+        if schema_type == "fir_normalized":
+            unresolved_recs = self.db.query(Recommendation).filter(
+                Recommendation.status == "pending",
+                Recommendation.priority == "high"
+            ).limit(10).all()
+        else:
+            unresolved_recs = self.db.query(Recommendation).outerjoin(CrimeEvent).filter(
+                (CrimeEvent.dataset_id == active_id) | (Recommendation.crime_event_id.is_(None)),
+                Recommendation.status == "pending",
+                Recommendation.priority == "high"
+            ).limit(10).all()
 
         for rec in unresolved_recs:
             stage_alert(
@@ -181,18 +193,33 @@ class AlertService:
         # ==========================================
         # High crime density concentration alerts — restricted to last 30 days to avoid
         # stale historical counts permanently triggering alerts
-        max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()
-        anchor_date = max_date if max_date is not None else date.today()
-        thirty_days_ago = anchor_date - timedelta(days=30)
+        if schema_type == "fir_normalized":
+            from backend.models.fir_case import CaseMaster
+            from backend.models.fir_geography import District, Unit
+            
+            max_date = self.db.query(func.max(CaseMaster.registered_date)).filter(CaseMaster.dataset_id == active_id).scalar()
+            anchor_date = max_date if max_date is not None else date.today()
+            thirty_days_ago = anchor_date - timedelta(days=30)
 
-        geo_results = self.db.query(
-            Location.district, func.count(CrimeEvent.id).label("crime_count")
-        ).join(
-            Location, CrimeEvent.location_id == Location.id
-        ).filter(
-            CrimeEvent.dataset_id == active_id,
-            CrimeEvent.crime_date >= thirty_days_ago
-        ).group_by(Location.district).all()
+            geo_results = self.db.query(
+                District.name, func.count(CaseMaster.id).label("crime_count")
+            ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
+                CaseMaster.dataset_id == active_id,
+                CaseMaster.registered_date >= thirty_days_ago
+            ).group_by(District.name).all()
+        else:
+            max_date = self.db.query(func.max(CrimeEvent.crime_date)).filter(CrimeEvent.dataset_id == active_id).scalar()
+            anchor_date = max_date if max_date is not None else date.today()
+            thirty_days_ago = anchor_date - timedelta(days=30)
+
+            geo_results = self.db.query(
+                Location.district, func.count(CrimeEvent.id).label("crime_count")
+            ).join(
+                Location, CrimeEvent.location_id == Location.id
+            ).filter(
+                CrimeEvent.dataset_id == active_id,
+                CrimeEvent.crime_date >= thirty_days_ago
+            ).group_by(Location.district).all()
 
         for dist_name, count in geo_results:
             if count >= 150:

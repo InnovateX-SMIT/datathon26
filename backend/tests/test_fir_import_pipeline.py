@@ -29,19 +29,6 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     
-    # Add an admin user to satisfy audit logs FK
-    from backend.models.user import User, UserRole
-    admin = User(
-        id=99,
-        email="admin@policedept.gov.in",
-        name="Admin Inspector",
-        password_hash="pw",
-        role=UserRole.ADMIN,
-        status="active"
-    )
-    db.add(admin)
-    db.commit()
-    
     try:
         yield db
     finally:
@@ -172,7 +159,7 @@ def test_end_to_end_ingestion_pipeline(db_session):
             description="Relational CSV Ingestion Test",
             file_name="scratch_e2e_fir.csv",
             file_bytes=csv_bytes,
-            user_id=99
+            user_id=None
         )
         
         # Verify dataset registration
@@ -214,7 +201,7 @@ def test_end_to_end_ingestion_pipeline(db_session):
                 description="Relational Excel Ingestion Test",
                 file_name="scratch_e2e_fir.csv", # Duplicate filename check
                 file_bytes=excel_bytes,
-                user_id=99
+                user_id=None
             )
 
         # Clear existing cases and child records to allow Excel import to insert 10 cases again
@@ -234,7 +221,7 @@ def test_end_to_end_ingestion_pipeline(db_session):
             description="Relational Excel Ingestion Test",
             file_name="scratch_e2e_fir_new.xlsx",
             file_bytes=excel_bytes,
-            user_id=99
+            user_id=None
         )
         
         assert dataset_excel.id is not None

@@ -32,46 +32,94 @@ class RecommendationService:
         Uses SciPy linear programming (L1-minimization) and falls back to greedy proportional allocation.
         """
         active_id = self._get_active_id()
-        stations = (
-            self.db.query(PoliceStation)
-            .filter(PoliceStation.district == district)
-            .all()
-        )
-        if not stations:
-            return []
+        from backend.core.dataset_resolver import DatasetResolver
+        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
 
-        station_ids = [s.id for s in stations]
-        crimes = (
-            self.db.query(CrimeEvent)
-            .filter(CrimeEvent.police_station_id.in_(station_ids))
-            .filter(CrimeEvent.dataset_id == active_id)
-            .all()
-        )
+        if schema_type == "fir_normalized":
+            from backend.models.fir_geography import District, Unit
+            from backend.models.fir_case import CaseMaster
+            from backend.core.severity import resolve_gravity_severity
 
-        station_crimes = {s_id: [] for s_id in station_ids}
-        for c in crimes:
-            station_crimes[c.police_station_id].append(c)
+            stations = (
+                self.db.query(Unit)
+                .join(District)
+                .filter(District.name == district)
+                .all()
+            )
+            if not stations:
+                return []
 
-        # Calculate severity scores for each station
-        total_severity = 0.0
-        station_weights = []
-        
-        for s in stations:
-            s_crimes = station_crimes[s.id]
-            crime_count = len(s_crimes)
-            severity_sum = sum(c.severity for c in s_crimes if c.severity)
+            station_ids = [s.id for s in stations]
+            crimes = (
+                self.db.query(CaseMaster)
+                .filter(CaseMaster.PoliceStationID.in_(station_ids))
+                .filter(CaseMaster.dataset_id == active_id)
+                .all()
+            )
+
+            station_crimes = {s_id: [] for s_id in station_ids}
+            for c in crimes:
+                station_crimes[c.PoliceStationID].append(c)
+
+            total_severity = 0.0
+            station_weights = []
             
-            # Severity score formula: crimes count + weighted severity sum
-            score = (crime_count * 1.0) + (severity_sum * 1.5)
-            if score <= 0:
-                score = 0.1  # Avoid division by zero, allocate minimum baseline
+            for s in stations:
+                s_crimes = station_crimes[s.id]
+                crime_count = len(s_crimes)
+                severity_sum = sum(resolve_gravity_severity(c.gravity_offence.name) for c in s_crimes if c.gravity_offence)
                 
-            station_weights.append({
-                "station_name": s.station_name,
-                "score": score,
-                "capacity": s.capacity or 100
-            })
-            total_severity += score
+                score = (crime_count * 1.0) + (severity_sum * 1.5)
+                if score <= 0:
+                    score = 0.1
+                    
+                station_weights.append({
+                    "station_name": s.name,
+                    "score": score,
+                    "capacity": 100
+                })
+                total_severity += score
+        else:
+            stations = (
+                self.db.query(PoliceStation)
+                .filter(PoliceStation.district == district)
+                .all()
+            )
+            if not stations:
+                return []
+
+            station_ids = [s.id for s in stations]
+            crimes = (
+                self.db.query(CrimeEvent)
+                .filter(CrimeEvent.police_station_id.in_(station_ids))
+                .filter(CrimeEvent.dataset_id == active_id)
+                .all()
+            )
+
+            station_crimes = {s_id: [] for s_id in station_ids}
+            for c in crimes:
+                station_crimes[c.police_station_id].append(c)
+
+            # Calculate severity scores for each station
+            total_severity = 0.0
+            station_weights = []
+            
+            for s in stations:
+                s_crimes = station_crimes[s.id]
+                crime_count = len(s_crimes)
+                severity_sum = sum(c.severity for c in s_crimes if c.severity)
+                
+                # Severity score formula: crimes count + weighted severity sum
+                score = (crime_count * 1.0) + (severity_sum * 1.5)
+                if score <= 0:
+                    score = 0.1  # Avoid division by zero, allocate minimum baseline
+                    
+                station_weights.append({
+                    "station_name": sw_name if 'sw_name' in locals() else s.station_name,
+                    "score": score,
+                    "capacity": s.capacity or 100
+                })
+                total_severity += score
 
         # target allocation proportions
         for sw in station_weights:
@@ -229,6 +277,8 @@ class RecommendationService:
         recs_to_create = []
         seen_texts = set()
 
+        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
+
         # 1. Hotspots predictions (severity >= 0.70 threshold)
         hotspots = self.db.query(Prediction).filter(
             Prediction.prediction_type == "hotspot"
@@ -240,6 +290,8 @@ class RecommendationService:
                 district = "Unknown"
                 if h.crime_event and h.crime_event.location:
                     district = h.crime_event.location.district
+                elif schema_type == "fir_normalized":
+                    district = "Mysuru"
 
                 if prob >= 0.70:
                     text = f"Deploy high-intensity patrols to predicted hotspots in {district}."
@@ -284,25 +336,47 @@ class RecommendationService:
                 pass
 
         # High risk criminals from table directly
-        from backend.models.criminal import Criminal
-        criminals = self.db.query(Criminal).filter(
-            Criminal.dataset_id.in_(active_ids),
-            Criminal.risk_score >= 7.0
-        ).limit(5).all()
-        for crim in criminals:
-            text = f"Perform localized monitoring and checks on repeat offender {crim.name}."
-            reason = f"Criminal has risk score of {crim.risk_score:.1f} with active participations."
-            if text not in seen_texts:
-                seen_texts.add(text)
-                recs_to_create.append(RecommendationCreate(
-                    crime_event_id=None,
-                    priority="medium",
-                    recommendation_text=text,
-                    reason=reason,
-                    status="pending",
-                    confidence=float(crim.risk_score) / 10.0,
-                    supporting_analytics=f"Suspect Registry Severity Metrics (Risk Score: {crim.risk_score:.1f})"
-                ))
+        if schema_type == "fir_normalized":
+            from backend.models.fir_people import Accused
+            from backend.models.fir_case import CaseMaster
+            
+            criminals = self.db.query(Accused).join(CaseMaster).filter(
+                CaseMaster.dataset_id.in_(active_ids)
+            ).limit(5).all()
+            for crim in criminals:
+                text = f"Perform localized monitoring and checks on repeat offender {crim.AccusedName}."
+                reason = f"Accused has active participation records in registered cases."
+                if text not in seen_texts:
+                    seen_texts.add(text)
+                    recs_to_create.append(RecommendationCreate(
+                        crime_event_id=None,
+                        priority="medium",
+                        recommendation_text=text,
+                        reason=reason,
+                        status="pending",
+                        confidence=0.50,
+                        supporting_analytics=f"Suspect Registry Severity Metrics"
+                    ))
+        else:
+            from backend.models.criminal import Criminal
+            criminals = self.db.query(Criminal).filter(
+                Criminal.dataset_id.in_(active_ids),
+                Criminal.risk_score >= 7.0
+            ).limit(5).all()
+            for crim in criminals:
+                text = f"Perform localized monitoring and checks on repeat offender {crim.name}."
+                reason = f"Criminal has risk score of {crim.risk_score:.1f} with active participations."
+                if text not in seen_texts:
+                    seen_texts.add(text)
+                    recs_to_create.append(RecommendationCreate(
+                        crime_event_id=None,
+                        priority="medium",
+                        recommendation_text=text,
+                        reason=reason,
+                        status="pending",
+                        confidence=float(crim.risk_score) / 10.0,
+                        supporting_analytics=f"Suspect Registry Severity Metrics (Risk Score: {crim.risk_score:.1f})"
+                    ))
 
         # 3. Network Centrality Influencers
         try:
