@@ -68,3 +68,21 @@ export async function triggerReimport(): Promise<{ status: string; message: stri
   );
   return res.data;
 }
+
+export async function optimizeIndexes(): Promise<{ status: string; message: string }> {
+  const res = await axios.post<{ status: string; message: string }>(
+    `${API_BASE}/api/v1/admin/dataset/optimize`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+  return res.data;
+}
+
+export async function backupDatabase(): Promise<{ status: string; message: string }> {
+  const res = await axios.post<{ status: string; message: string }>(
+    `${API_BASE}/api/v1/admin/dataset/backup`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+  return res.data;
+}

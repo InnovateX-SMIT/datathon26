@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   FileSpreadsheet,
   Upload,
@@ -29,6 +30,7 @@ import {
   fetchDatasets,
   uploadDatasets,
   deleteDataset,
+  deleteDatasetPermanent,
   fetchDatasetPreview,
   fetchDatasetStatistics,
   activateDataset,
@@ -42,16 +44,57 @@ import {
   DatasetStatistics,
   DatasetConfig
 } from "@/features/admin/services/database-service";
+import { fetchDatasetStatus } from "@/features/admin/services/admin-service";
+import DatasetManagementPanel from "@/features/admin/components/dataset-management-panel";
 
 type PreviewTabId = "data" | "schema" | "statistics";
 
 export default function DatasetManagerPage() {
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
+  const [activeTab, setActiveTab] = useState<"datasets" | "operations">("datasets");
+  const [datasetStatus, setDatasetStatus] = useState<any>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [config, setConfig] = useState<DatasetConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const loadDatasetStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const data = await fetchDatasetStatus();
+      setDatasetStatus(data);
+    } catch (err: any) {
+      console.error("Failed to load database status", err);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "operations") {
+      loadDatasetStatus();
+    }
+  }, [activeTab]);
+
+  const handlePermanentDelete = async (ds: DatasetInfo) => {
+    const confirmMsg = `Are you sure you want to PERMANENTLY delete "${ds.display_name}"? \nThis action is irreversible and will delete the file from disk along with all of its associated case, complainant, victim, accused, and event records.`;
+    if (!confirm(confirmMsg)) return;
+
+    setActionLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteDatasetPermanent(ds.id);
+      setSuccess("Dataset permanently deleted.");
+      await loadDatasets();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to permanently delete dataset.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Drag and drop state
   const [dragActive, setDragActive] = useState(false);
@@ -78,10 +121,12 @@ export default function DatasetManagerPage() {
   // Delete Confirm Modal state
   const [deleteConfirmDataset, setDeleteConfirmDataset] = useState<DatasetInfo | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    setMounted(true);
     loadDatasets();
     loadConfig();
   }, []);
@@ -447,14 +492,8 @@ export default function DatasetManagerPage() {
               <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">
                 Dataset Manager
               </h1>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Phase 2 — Active Dataset Management & Switching
-              </p>
             </div>
           </div>
-          <p className="text-slate-400 text-sm mt-3 max-w-2xl leading-relaxed">
-            Configure dataset active limits, switch active data source context on the fly, and view preview diagnostics schemas.
-          </p>
         </div>
 
         {/* Global Active indicator */}
@@ -465,6 +504,35 @@ export default function DatasetManagerPage() {
           </span>
         </div>
       </div>
+
+      {/* Tab Selector */}
+      <div className="flex gap-1 bg-slate-900/60 p-1 border border-slate-800/80 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab("datasets")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "datasets"
+              ? "bg-violet-600 text-white shadow-md shadow-violet-600/10"
+              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Datasets</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("operations")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "operations"
+              ? "bg-violet-600 text-white shadow-md shadow-violet-600/10"
+              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          <span>Operations</span>
+        </button>
+      </div>
+
+      {activeTab === "datasets" ? (
+        <>
 
       {/* Alerts */}
       {error && (
@@ -496,9 +564,6 @@ export default function DatasetManagerPage() {
               <Upload className="w-4 h-4 text-violet-400" />
               <span>Multi-File Upload Portal</span>
             </h3>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Select or drop multiple CSV/Excel datasets simultaneously.
-            </p>
           </div>
 
           <form onSubmit={handleUploadSubmit} className="space-y-4 flex-1 flex flex-col justify-between">
@@ -898,13 +963,24 @@ export default function DatasetManagerPage() {
                         )}
                         
                         {/* Delete/Archive button */}
-                        {ds.name !== "System Seed" && ds.display_name !== "Synthetic 50K" && ds.status !== "Archived" && !ds.is_active && (
+                        {ds.status !== "Archived" && !ds.is_active && (
                           <button
                             onClick={() => setDeleteConfirmDataset(ds)}
                             className="p-1.5 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-400 rounded-lg cursor-pointer transition-all"
                             title="Soft delete / archive"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        
+                        {/* Permanent Delete button */}
+                        {ds.status === "Archived" && (
+                          <button
+                            onClick={() => handlePermanentDelete(ds)}
+                            className="p-1.5 bg-red-600/20 hover:bg-red-600/35 border border-red-500/30 text-red-400 rounded-lg cursor-pointer transition-all"
+                            title="Permanently delete from database & disk"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-500 font-bold" />
                           </button>
                         )}
                       </div>
@@ -916,6 +992,17 @@ export default function DatasetManagerPage() {
           </table>
         </div>
       </div>
+
+      </>
+      ) : (
+        <div className="relative z-10">
+          <DatasetManagementPanel
+            datasetStatus={datasetStatus}
+            loading={statusLoading}
+            onRefresh={loadDatasetStatus}
+          />
+        </div>
+      )}
 
       {/* ── SETTINGS CONFIGURATION MODAL ── */}
       {settingsOpen && (
@@ -1220,7 +1307,7 @@ export default function DatasetManagerPage() {
       )}
 
       {/* ── DELETE CONFIRMATION DIALOG ── */}
-      {deleteConfirmDataset && (
+      {deleteConfirmDataset && mounted && createPortal(
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-6 shadow-2xl relative animate-zoom-in text-slate-200">
             <div>
@@ -1253,7 +1340,8 @@ export default function DatasetManagerPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

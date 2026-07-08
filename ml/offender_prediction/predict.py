@@ -5,15 +5,25 @@ import numpy as np
 def predict_offender_recidivism(model, suspect_features):
     """
     Score suspect profiles.
-    
-    Parameters:
-    - model: Loaded dictionary containing 'preprocessor', 'model', and 'feature_names', 
-             or path to model pickle file.
-    - suspect_features: Dictionary with keys 'age', 'occupation', 'caste', 'district'.
-    
-    Returns:
-    - Dict with 'probability' (float) and 'risk_level' (str)
     """
+    if isinstance(model, dict) and model.get("fallback"):
+        # Heuristic/Deterministic Fallback
+        age = suspect_features.get("age", 30)
+        caste = suspect_features.get("caste", "General")
+        prob = 0.2
+        if age < 25:
+            prob += 0.35
+        elif age > 50:
+            prob -= 0.1
+        if caste in ["SC", "ST"]:
+            prob += 0.08
+        prob = min(0.95, max(0.05, prob))
+        risk_level = "LOW" if prob <= 0.39 else ("MEDIUM" if prob <= 0.69 else "HIGH")
+        return {
+            "probability": prob,
+            "risk_level": risk_level
+        }
+
     if isinstance(model, str):
         model = joblib.load(model)
         
@@ -43,3 +53,4 @@ def predict_offender_recidivism(model, suspect_features):
         "probability": prob,
         "risk_level": risk_level
     }
+

@@ -1,6 +1,7 @@
 import io
 import re
 import time
+from typing import Optional
 from datetime import date, datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -583,7 +584,8 @@ class FIRImportService:
                     latitude=first_row.get("latitude"),
                     longitude=first_row.get("longitude"),
                     occurrence_brief_facts=first_row.get("occurrence_brief_facts"),
-                    performed_by_user_id=user_id
+                    performed_by_user_id=user_id,
+                    commit=False
                 )
                 cases_inserted += 1
 
@@ -612,7 +614,8 @@ class FIRImportService:
                             religion_id=comp_rel,
                             caste_id=comp_caste,
                             gender_id=comp_gender,
-                            performed_by_user_id=user_id
+                            performed_by_user_id=user_id,
+                            commit=False
                         )
                         complainant_count += 1
 
@@ -628,7 +631,8 @@ class FIRImportService:
                             age=int(float(r["victim_age"])) if r.get("victim_age") is not None else None,
                             gender_id=vic_gender,
                             victim_police=str(r.get("victim_police", "0")),
-                            performed_by_user_id=user_id
+                            performed_by_user_id=user_id,
+                            commit=False
                         )
                         victim_count += 1
 
@@ -644,7 +648,8 @@ class FIRImportService:
                             age=int(float(r["accused_age"])) if r.get("accused_age") is not None else None,
                             gender_id=acc_gender,
                             person_id=r.get("accused_person_id"),
-                            performed_by_user_id=user_id
+                            performed_by_user_id=user_id,
+                            commit=False
                         )
                         accused_count += 1
                         accused_id_map[acc_name] = acc.id
@@ -663,7 +668,8 @@ class FIRImportService:
                                 section_code=sec_code,
                                 act_order_id=r.get("act_order", 1),
                                 section_order_id=r.get("section_order", 1),
-                                performed_by_user_id=user_id
+                                performed_by_user_id=user_id,
+                                commit=False
                             )
 
                     # Arrest & Surrenders (only recorded on first row to prevent duplicate event inserts)
@@ -722,7 +728,8 @@ class FIRImportService:
                                 is_accused=True,
                                 is_complainant_accused=False,
                                 other_accused_ids=joint_ids,
-                                performed_by_user_id=user_id
+                                performed_by_user_id=user_id,
+                                commit=False
                             )
                             arrest_count += 1
 
@@ -744,7 +751,8 @@ class FIRImportService:
                             date_val=cs_dt,
                             cs_type=r["chargesheet_type"],
                             police_person_id=cs_officer_id,
-                            performed_by_user_id=user_id
+                            performed_by_user_id=user_id,
+                            commit=False
                         )
                         chargesheet_count += 1
                         

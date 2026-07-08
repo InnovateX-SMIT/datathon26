@@ -97,10 +97,6 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
       setError("Active dataset must be deactivated before archiving.");
       return;
     }
-    if (ds.name === "System Seed" || ds.display_name === "Synthetic 50K") {
-      setError("The System Seed dataset is protected and cannot be deleted.");
-      return;
-    }
 
     const confirmMsg = `Are you sure you want to archive "${ds.display_name}"? \nAll records will remain stored for auditability, but the dataset status will be marked as Archived.`;
     if (!confirm(confirmMsg)) return;
@@ -459,7 +455,7 @@ export default function DatasetRegistryManager({ onDatasetSwitched }: DatasetReg
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         {/* Delete / Archive */}
-                        {ds.name !== "System Seed" && ds.display_name !== "Synthetic 50K" && ds.status !== "Archived" && !ds.is_active && (
+                        {ds.status !== "Archived" && !ds.is_active && (
                           <button
                             onClick={() => handleDelete(ds)}
                             disabled={actionLoading}

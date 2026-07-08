@@ -353,4 +353,24 @@ export async function deactivateDataset(datasetId: number): Promise<DatasetInfo>
   return res.data;
 }
 
+export async function deleteDatasetPermanent(datasetId: number): Promise<any> {
+  const res = await axios.delete(
+    `${API_BASE}/api/v1/admin/datasets/${datasetId}/permanent`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
+export async function fetchActiveDatasets(): Promise<DatasetInfo[]> {
+  const res = await axios.get<DatasetInfo[]>(
+    `${API_BASE}/api/v1/admin/datasets/active`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+  return res.data;
+}
+
 

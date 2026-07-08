@@ -105,6 +105,35 @@ export default function FirCaseForm() {
   // Collapsible sections
   const [showArrest, setShowArrest] = useState(false);
 
+  // Schema type gating
+  const [schemaType, setSchemaType] = useState<string | null>(null);
+  const [schemaLoading, setSchemaLoading] = useState(true);
+
+  useEffect(() => {
+    import("@/features/admin/services/database-service").then((s) => {
+      s.fetchActiveDatasets()
+        .then((activeList) => {
+          if (activeList && activeList.length > 0) {
+            const active = activeList.find((ds) => ds.is_active);
+            if (active) {
+              setSchemaType(active.schema_type || "legacy_crime_intel");
+            } else {
+              setSchemaType("legacy_crime_intel");
+            }
+          } else {
+            setSchemaType("legacy_crime_intel");
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch active dataset schema type:", err);
+          setSchemaType("legacy_crime_intel");
+        })
+        .finally(() => {
+          setSchemaLoading(false);
+        });
+    });
+  }, []);
+
   // ── Cascading effects ─────────────────────────────────────────────────────
   useEffect(() => {
     if (selectedStateId !== "") {
@@ -686,10 +715,24 @@ export default function FirCaseForm() {
         </div>
       )}
 
+      {/* ── Schema Gating Warning Banner ── */}
+      {schemaType === "legacy_crime_intel" && !schemaLoading && (
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+          <div>
+            <h4 className="text-sm font-bold text-amber-400">FIR Case Registration Restricted</h4>
+            <p className="text-xs text-amber-500/90 mt-1 leading-relaxed">
+              New FIR case registration is only supported under standard schemas (e.g. Standard FIR v1). 
+              The currently active dataset uses a Legacy/Unvalidated schema, which restricts data modification to protect database consistency.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || schemaType === "legacy_crime_intel" || schemaLoading}
           className="flex items-center gap-2.5 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-bold text-sm uppercase tracking-wider rounded-xl transition-all duration-200 shadow-lg shadow-indigo-600/20 cursor-pointer"
         >
           {submitting ? (

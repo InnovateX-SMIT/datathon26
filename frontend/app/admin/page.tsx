@@ -75,14 +75,8 @@ export default function AdminPage() {
               <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">
                 Admin Portal
               </h1>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Platform Administration & Operational Control
-              </p>
             </div>
           </div>
-          <p className="text-slate-400 text-sm mt-3 max-w-2xl leading-relaxed">
-            Centralized control layer for monitoring system health, inspecting ML model availability, reviewing audit activity, and validating dataset readiness.
-          </p>
         </div>
 
         {/* Live Status Badge */}

@@ -93,14 +93,8 @@ export default function DecisionSupportPage() {
               <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">
                 Decision Support Center
               </h1>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Intelligence-to-Action Layer
-              </p>
             </div>
           </div>
-          <p className="text-slate-400 text-sm max-w-2xl leading-relaxed">
-            Convert predictions, risk indices, and co-offending network clusters into tactical patrols, offender checks, and patrol rosters.
-          </p>
           
           {/* Metadata Badges */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1">

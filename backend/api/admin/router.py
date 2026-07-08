@@ -160,6 +160,37 @@ def reimport_data(
         logger.error(f"Error in reimport_data: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to reimport data.")
 
+@router.post("/dataset/optimize")
+def optimize_database_endpoint(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Rebuilds database indexes and shrinks database file size (VACUUM)."""
+    try:
+        service = AdminService(db)
+        admin_id = get_current_user_id(current_user)
+        return service.optimize_indexes(performed_by_user_id=admin_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in optimize_database_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to optimize database.")
+
+@router.post("/dataset/backup")
+def backup_database_endpoint(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin)
+) -> Any:
+    """Creates a backup file copy of the current SQLite database."""
+    try:
+        service = AdminService(db)
+        admin_id = get_current_user_id(current_user)
+        return service.backup_database(performed_by_user_id=admin_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error in backup_database_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to backup database.")
 
 # ── User Management Endpoints ─────────────────────────────────────────────────
 

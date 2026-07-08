@@ -5,15 +5,21 @@ import numpy as np
 def predict_crime_category(model, features):
     """
     Predict likely future crime category.
-    
-    Parameters:
-    - model: Loaded dictionary containing preprocessor, label_encoder, model, etc.
-             or path to model pickle file.
-    - features: Dict with keys 'district', 'month', 'hour', 'day_of_week', 'historical_crime_count'.
-    
-    Returns:
-    - Dict with 'crime_type' (str) and 'confidence' (float)
     """
+    if isinstance(model, dict) and model.get("fallback"):
+        # Heuristic/Deterministic Fallback
+        hour = features.get("hour", 12)
+        if hour >= 22 or hour < 4:
+            crime_type = "Theft"
+            confidence = 0.72
+        else:
+            crime_type = "Public Nuisance"
+            confidence = 0.58
+        return {
+            "crime_type": crime_type,
+            "confidence": confidence
+        }
+
     if isinstance(model, str):
         model = joblib.load(model)
         
@@ -39,15 +45,18 @@ def predict_crime_category(model, features):
 def predict_crime_risk_score(model, features):
     """
     Predict risk level of crime occurrence.
-    
-    Parameters:
-    - model: Loaded dictionary containing preprocessor, model, etc.
-             or path to model pickle file.
-    - features: Dict with keys 'district', 'crime_category', 'historical_crime_count'.
-    
-    Returns:
-    - Dict with 'risk_score' (float) and 'risk_level' (str)
     """
+    if isinstance(model, dict) and model.get("fallback"):
+        # Heuristic/Deterministic Fallback
+        count = features.get("historical_crime_count", 10)
+        score = float(count * 1.6)
+        score = max(5.0, min(95.0, score))
+        risk_level = "LOW" if score <= 39 else ("MEDIUM" if score <= 69 else "HIGH")
+        return {
+            "risk_score": score,
+            "risk_level": risk_level
+        }
+
     if isinstance(model, str):
         model = joblib.load(model)
         
@@ -75,3 +84,4 @@ def predict_crime_risk_score(model, features):
         "risk_score": score,
         "risk_level": risk_level
     }
+

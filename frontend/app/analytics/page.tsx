@@ -109,9 +109,6 @@ export default function AnalyticsPage() {
               Statistical Analysis Engine
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1.5 max-w-2xl">
-            Detailed statistical analysis of crime distributions, temporal trends, categories, and historical comparison.
-          </p>
         </div>
 
         {/* Right Info Panel */}

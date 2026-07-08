@@ -89,23 +89,30 @@ def client_superintendent(db_session):
 # ── BUG 1 REGRESSION: Dataset Registry Always Loads ──────────────────────────
 
 class TestDatasetRegistryLoads:
-    """BUG 1: Dataset Registry page must always load with at least System Seed."""
+    """BUG 1: Dataset Registry page must load cleanly with no synthetic seed rows."""
 
     def test_registry_returns_datasets_on_first_call(self, client_as_admin):
-        """Registry must auto-seed System Seed and return at least one dataset."""
+        """Registry should start empty until the user uploads data."""
         response = client_as_admin.get("/api/v1/admin/datasets/")
         assert response.status_code == 200
         datasets = response.json()
-        assert len(datasets) >= 1, "Registry should auto-seed System Seed"
-        system_seed = next((d for d in datasets if d["name"] == "System Seed"), None)
-        assert system_seed is not None, "System Seed must exist"
-        assert system_seed["is_active"] is True, "System Seed should be active by default"
+        assert datasets == []
 
     def test_registry_response_contains_all_fields(self, client_as_admin):
         """All DatasetResponse fields must be present without serialization errors."""
+        csv_content = (
+            "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
+            "FIR001,Theft,2025-05-10,14:30,Bengaluru,Koramangala PS,34,22,Male,Driver,1,3.0,reported\n"
+        )
+        file_payload = {"file": ("registry_fields.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+        form_data = {"display_name": "Registry Fields"}
+        upload_response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        assert upload_response.status_code == 200
+
         response = client_as_admin.get("/api/v1/admin/datasets/")
         assert response.status_code == 200
         datasets = response.json()
+        assert len(datasets) == 1
         ds = datasets[0]
         # All required fields present (even if null for optional ones)
         assert "id" in ds
@@ -120,6 +127,15 @@ class TestDatasetRegistryLoads:
 
     def test_active_dataset_always_visible(self, client_as_admin):
         """At least one dataset must be active."""
+        csv_content = (
+            "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
+            "FIR002,Assault,2025-05-11,09:15,Bengaluru,Koramangala PS,45,28,Female,Business,0,2.0,reported\n"
+        )
+        file_payload = {"file": ("active_visible.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+        form_data = {"display_name": "Active Visible"}
+        upload_response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        assert upload_response.status_code == 200
+
         response = client_as_admin.get("/api/v1/admin/datasets/")
         assert response.status_code == 200
         datasets = response.json()
@@ -220,26 +236,32 @@ class TestDatasetActivation:
 
     def test_activate_switches_active_dataset(self, client_as_admin, db_session):
         """Activating a dataset should deactivate the previous one."""
-        # Get initial datasets (auto-seeded)
-        resp = client_as_admin.get("/api/v1/admin/datasets/")
-        assert resp.status_code == 200
-        datasets = resp.json()
-        seed_id = datasets[0]["id"]
-        assert datasets[0]["is_active"] is True
-
-        # Upload new dataset
+        # Upload the initial active dataset
         csv_content = (
             "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
             "FIR001,Theft,2025-05-10,14:30,Bengaluru,Koramangala PS,34,22,Male,Driver,1,3.0,reported\n"
         )
-        file_payload = {"file": ("switch.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
-        form_data = {"display_name": "Switch Target"}
+        file_payload = {"file": ("switch_base.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+        form_data = {"display_name": "Switch Base"}
         upload_resp = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
         assert upload_resp.status_code == 200
-        new_id = upload_resp.json()["id"]
+
+        seed_id = upload_resp.json()["id"]
+
+        # Create a second ready dataset to switch to
+        target = Dataset(
+            name="switch_target",
+            display_name="Switch Target",
+            original_filename="switch_target.csv",
+            source_type="CSV",
+            status="Ready",
+            is_active=False,
+        )
+        db_session.add(target)
+        db_session.commit()
 
         # Activate new dataset
-        activate_resp = client_as_admin.post("/api/v1/admin/datasets/activate", json={"dataset_id": new_id})
+        activate_resp = client_as_admin.post("/api/v1/admin/datasets/activate", json={"dataset_id": target.id})
         assert activate_resp.status_code == 200
         activated = activate_resp.json()
         assert activated["is_active"] is True
@@ -264,6 +286,31 @@ class TestReportDetailsNoServerError:
 
     def test_report_detail_for_legacy_report_without_payload(self, client_superintendent, db_session):
         """Legacy reports without data_payload should still load via slow-path reassembly."""
+        active_dataset = Dataset(
+            name="report_base",
+            display_name="Report Base",
+            original_filename="report_base.csv",
+            source_type="CSV",
+            status="Ready",
+            is_active=True,
+            row_count=1,
+            file_size=128,
+            schema_type="legacy_crime_intel",
+        )
+        db_session.add(active_dataset)
+        db_session.commit()
+        db_session.add(CrimeEvent(
+            dataset_id=active_dataset.id,
+            crime_type="Theft",
+            crime_category="Property",
+            severity=3.0,
+            crime_date=datetime.utcnow().date(),
+            status="reported",
+            location_id=1,
+            police_station_id=1,
+        ))
+        db_session.commit()
+
         # Manually insert a legacy report without data_payload
         legacy = Report(
             title="Legacy Report",
@@ -287,8 +334,34 @@ class TestReportDetailsNoServerError:
         assert "recommendations" in data
         assert "alerts" in data
 
-    def test_report_detail_for_generated_report(self, client_superintendent):
+    def test_report_detail_for_generated_report(self, client_superintendent, db_session):
         """Newly generated reports should load from cached data_payload."""
+        # Create a minimal active dataset so report generation has live data to summarize.
+        active_dataset = Dataset(
+            name="report_generated_base",
+            display_name="Report Generated Base",
+            original_filename="report_generated_base.csv",
+            source_type="CSV",
+            status="Ready",
+            is_active=True,
+            row_count=1,
+            file_size=128,
+            schema_type="legacy_crime_intel",
+        )
+        db_session.add(active_dataset)
+        db_session.commit()
+        db_session.add(CrimeEvent(
+            dataset_id=active_dataset.id,
+            crime_type="Theft",
+            crime_category="Property",
+            severity=3.0,
+            crime_date=datetime.utcnow().date(),
+            status="reported",
+            location_id=1,
+            police_station_id=1,
+        ))
+        db_session.commit()
+
         payload = {"title": "Test Report", "report_type": "executive_summary"}
         gen_resp = client_superintendent.post("/api/v1/reports/generate", json=payload)
         assert gen_resp.status_code == 201

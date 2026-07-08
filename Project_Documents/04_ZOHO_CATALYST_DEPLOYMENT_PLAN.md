@@ -1,4 +1,4 @@
-# Zoho Catalyst: Cloud Migration & Deployment Blueprint
+ Zoho Catalyst: Cloud Migration & Deployment Blueprint
 
 This document details the migration and deployment plan for hosting the **AI-Driven Crime Analytics & Visualization Platform** on the **Zoho Catalyst** platform. It outlines how to map the FastAPI and Next.js stack to native Catalyst serverless components, handle database migrations to ZCQL, manage resource quotas, and configure continuous integration.
 

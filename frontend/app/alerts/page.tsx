@@ -44,14 +44,8 @@ export default function AlertsPage() {
               <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">
                 Operational Alerts Panel
               </h1>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Real-Time Triage & Dispatch Control
-              </p>
             </div>
           </div>
-          <p className="text-slate-400 text-sm mt-3 max-w-2xl leading-relaxed">
-            Evaluate and triage real-time alerts generated from hotspot predictions, recidivism probabilities, high-density geo concentrations, and criminal network gang structures.
-          </p>
         </div>
 
         {/* Global Manual Run Trigger */}
