@@ -58,15 +58,11 @@ def client_as_admin(db_session):
     app.dependency_overrides.clear()
 
 def test_dataset_operations(client_as_admin, db_session):
-    # 1. Get initial dataset list (should auto-seed default dataset)
+    # 1. Get initial dataset list (clean registry, no seed dataset)
     response = client_as_admin.get("/api/v1/admin/datasets/")
     assert response.status_code == 200
     datasets = response.json()
-    assert len(datasets) == 1
-    assert datasets[0]["name"] == "System Seed"
-    assert datasets[0]["is_active"] is True
-    
-    default_dataset_id = datasets[0]["id"]
+    assert datasets == []
 
     # 2. Upload a new dataset CSV
     csv_content = (
@@ -88,7 +84,7 @@ def test_dataset_operations(client_as_admin, db_session):
     assert new_ds["display_name"] == "Test Upload"
     assert new_ds["row_count"] == 2
     assert new_ds["status"] == "Ready"
-    assert new_ds["is_active"] is False
+    assert new_ds["is_active"] is True
     
     new_dataset_id = new_ds["id"]
     
@@ -97,38 +93,9 @@ def test_dataset_operations(client_as_admin, db_session):
     assert len(crimes) == 2
     assert crimes[0].crime_type == "Theft"
 
-    # 3. Switch active dataset to the new one
-    response = client_as_admin.post(
-        "/api/v1/admin/datasets/activate",
-        json={"dataset_id": new_dataset_id}
-    )
-    assert response.status_code == 200
-    activated_ds = response.json()
-    assert activated_ds["is_active"] is True
-    
-    # Check that previous dataset is deactivated
-    old_ds = db_session.query(Dataset).filter(Dataset.id == default_dataset_id).first()
-    assert old_ds.is_active is False
-
-    # 4. Attempt to delete active dataset (should fail because it's active)
-    response = client_as_admin.delete(f"/api/v1/admin/datasets/{new_dataset_id}")
-    assert response.status_code != 200
-
-    # 5. Attempt to delete protected "System Seed" dataset (should fail)
-    response = client_as_admin.delete(f"/api/v1/admin/datasets/{default_dataset_id}")
-    assert response.status_code != 200
-
-    # 6. Switch active dataset back to default, then soft delete new dataset
-    response = client_as_admin.post(
-        "/api/v1/admin/datasets/activate",
-        json={"dataset_id": default_dataset_id}
-    )
-    assert response.status_code == 200
-
-    # Now delete the deactivated new dataset
+    # 3. Delete the active dataset and verify the archive flow still works without a seed fallback
     response = client_as_admin.delete(f"/api/v1/admin/datasets/{new_dataset_id}")
     assert response.status_code == 200
-    assert response.json()["detail"] == "Dataset deleted successfully."
 
     # Verify soft delete: status becomes Archived
     deleted_ds = db_session.query(Dataset).filter(Dataset.id == new_dataset_id).first()
@@ -139,8 +106,8 @@ def test_dataset_operations(client_as_admin, db_session):
     crimes_after_delete = db_session.query(CrimeEvent).filter(CrimeEvent.dataset_id == new_dataset_id).all()
     assert len(crimes_after_delete) == 2
 
-    # 7. Test dataset summary API
-    response = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}/summary")
+    # 4. Test dataset summary API
+    response = client_as_admin.get(f"/api/v1/admin/datasets/{new_dataset_id}/summary")
     assert response.status_code == 200
     summary = response.json()
     assert "total_crimes" in summary
@@ -176,38 +143,27 @@ def test_dataset_operations(client_as_admin, db_session):
 def test_new_dataset_features(client_as_admin, db_session, monkeypatch):
     import os
     import pandas as pd
-    mock_df = pd.DataFrame({
-        'district': ['Bengaluru', 'Mysuru', None],
-        'crime_type': ['Theft', 'Assault', 'Theft'],
-        'repeat_offender': [0, 1, 0]
-    })
-    monkeypatch.setattr(os.path, "exists", lambda path: True)
-    
-    original_read_csv = pd.read_csv
-    def mock_read_csv(filepath_or_buffer, *args, **kwargs):
-        if isinstance(filepath_or_buffer, str) and "crime_events.csv" in filepath_or_buffer:
-            return mock_df
-        return original_read_csv(filepath_or_buffer, *args, **kwargs)
-    monkeypatch.setattr(pd, "read_csv", mock_read_csv)
-
-    # Get auto-seeded default dataset ID
-    response = client_as_admin.get("/api/v1/admin/datasets/")
+    csv_content = (
+        "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
+        "FIR001,Theft,2025-05-10,14:30,Bengaluru,Koramangala PS,34,22,Male,Driver,1,3.0,reported\n"
+    )
+    file_payload = {"file": ("preview_source.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+    form_data = {"display_name": "Preview Source"}
+    response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
     assert response.status_code == 200
-    datasets = response.json()
-    default_dataset_id = datasets[0]["id"]
+    dataset_id = response.json()["id"]
 
     # 1. Test Dataset Details API
-    resp_details = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}")
+    resp_details = client_as_admin.get(f"/api/v1/admin/datasets/{dataset_id}")
     assert resp_details.status_code == 200
     details = resp_details.json()
-    assert details["name"] == "System Seed"
-    assert details["original_filename"] == "crime_events.csv"
+    assert details["display_name"] == "Preview Source"
     assert "column_count" in details
     assert "upload_status" in details
     assert "storage_path" in details
 
     # 2. Test Dataset Preview API
-    resp_preview = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}/preview")
+    resp_preview = client_as_admin.get(f"/api/v1/admin/datasets/{dataset_id}/preview")
     assert resp_preview.status_code == 200
     preview = resp_preview.json()
     assert "first_20_rows" in preview
@@ -219,7 +175,7 @@ def test_new_dataset_features(client_as_admin, db_session, monkeypatch):
     assert "district" in preview["columns"]
 
     # 3. Test Dataset Statistics API
-    resp_stats = client_as_admin.get(f"/api/v1/admin/datasets/{default_dataset_id}/statistics")
+    resp_stats = client_as_admin.get(f"/api/v1/admin/datasets/{dataset_id}/statistics")
     assert resp_stats.status_code == 200
     stats = resp_stats.json()
     assert "total_rows" in stats
@@ -522,6 +478,75 @@ def test_ml_pipeline_and_registry(client_as_admin, db_session, monkeypatch):
     service.delete_model(model2.id)
     assert not os.path.exists(path1)
     assert not os.path.exists(path2)
+
+
+def test_dataset_permanent_delete(client_as_admin, db_session):
+    # 0. Seed default dataset by listing datasets
+    client_as_admin.get("/api/v1/admin/datasets/")
+
+    # 1. Upload new dataset
+    csv_content = (
+        "fir_id,crime_type,crime_date,crime_time,district,police_station,victim_age,accused_age,gender,occupation,repeat_offender,severity,status\n"
+        "FIR999,Theft,2025-05-10,14:30,Bengaluru,Koramangala PS,34,22,Male,Driver,1,3.0,reported\n"
+    )
+    file_payload = {"file": ("test_perm_del.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+    form_data = {"display_name": "Test Perm Delete", "description": "Temp dataset"}
+    
+    response = client_as_admin.post(
+        "/api/v1/admin/datasets/upload",
+        data=form_data,
+        files=file_payload
+    )
+    assert response.status_code == 200
+    ds = response.json()
+    ds_id = ds["id"]
+
+    # Verify records created
+    crimes = db_session.query(CrimeEvent).filter(CrimeEvent.dataset_id == ds_id).all()
+    assert len(crimes) == 1
+
+    # 2. Try to permanent delete
+    response = client_as_admin.delete(f"/api/v1/admin/datasets/{ds_id}/permanent")
+    assert response.status_code == 200
+    assert response.json()["detail"] == "Dataset and all associated records permanently deleted."
+
+    # Verify database clean
+    assert db_session.query(Dataset).filter(Dataset.id == ds_id).first() is None
+    crimes_after = db_session.query(CrimeEvent).filter(CrimeEvent.dataset_id == ds_id).all()
+    assert len(crimes_after) == 0
+
+    # 3. Test archiving, then uploading again with same name works
+    # Upload first time
+    file_payload = {"file": ("test_perm_del.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+    response = client_as_admin.post(
+        "/api/v1/admin/datasets/upload",
+        data=form_data,
+        files=file_payload
+    )
+    assert response.status_code == 200
+    ds1 = response.json()
+    ds1_id = ds1["id"]
+
+    # Soft delete (Archive) it
+    response = client_as_admin.delete(f"/api/v1/admin/datasets/{ds1_id}")
+    assert response.status_code == 200
+
+    # Upload same file again (should succeed because it's archived)
+    file_payload_2 = {"file": ("test_perm_del.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
+    response = client_as_admin.post(
+        "/api/v1/admin/datasets/upload",
+        data={"display_name": "Test Perm Delete 2", "description": "Temp dataset 2"},
+        files=file_payload_2
+    )
+    assert response.status_code == 200
+    ds2 = response.json()
+    ds2_id = ds2["id"]
+    assert ds1_id != ds2_id
+
+    # Clean up both permanently
+    client_as_admin.delete(f"/api/v1/admin/datasets/{ds1_id}/permanent")
+    client_as_admin.delete(f"/api/v1/admin/datasets/{ds2_id}/permanent")
+
 
 
 

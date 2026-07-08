@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.core.database import SessionLocal, engine
 from backend.models import Base
-from database.seed import seed_locations, seed_police_stations, seed_crimes
+from database.seed import seed_locations, seed_police_stations
 
 def main():
     print("Recreating database tables...")
@@ -17,7 +17,6 @@ def main():
     try:
         seed_locations(db)
         seed_police_stations(db)
-        seed_crimes(db)
         print("Completed Successfully")
     except Exception as e:
         print(f"Error during seeding: {e}")

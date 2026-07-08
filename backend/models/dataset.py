@@ -10,7 +10,7 @@ class Dataset(Base):
     original_filename = Column(String(200), nullable=False)
     display_name = Column(String(150), nullable=False)
     description = Column(String(500), nullable=True)
-    source_type = Column(String(50), nullable=False, default="CSV") # "CSV", "Excel", "System Seed"
+    source_type = Column(String(50), nullable=False, default="CSV") # "CSV" or "Excel"
     upload_time = Column(DateTime(timezone=True), server_default=func.now())
     row_count = Column(Integer, default=0)
     column_count = Column(Integer, default=0)

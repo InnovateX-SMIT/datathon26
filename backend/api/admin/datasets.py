@@ -418,6 +418,31 @@ def get_dataset_statistics(
             detail=f"Failed to compute dataset statistics: {str(e)}"
         )
 
+@router.delete("/{dataset_id}/permanent", status_code=status.HTTP_200_OK)
+def delete_dataset_permanent_endpoint(
+    dataset_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin)
+):
+    """
+    Hard-deletes the dataset and all associated records (cascade delete on table records & file deletion on disk).
+    """
+    try:
+        service = DatasetService(db)
+        service.delete_dataset_permanent(dataset_id)
+        return {"detail": "Dataset and all associated records permanently deleted."}
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error permanently deleting dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to permanently delete dataset."
+        )
+
 
 
 

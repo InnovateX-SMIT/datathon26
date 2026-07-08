@@ -41,8 +41,6 @@ const menuItems = [
   { name: "Executive Reports", href: "/reports", icon: FileSpreadsheet, group: "Administration" },
   { name: "Admin Portal", href: "/admin", icon: ShieldCheck, group: "Administration" },
   { name: "Dataset Manager", href: "/dataset-manager", icon: Layers, group: "Administration" },
-  { name: "ML Model Manager", href: "/admin/models", icon: BrainCircuit, group: "Administration" },
-  { name: "Database Management", href: "/database-management", icon: Database, group: "Administration" },
 ];
 
 const groups = ["Start", "Operations", "Intelligence", "Administration"];

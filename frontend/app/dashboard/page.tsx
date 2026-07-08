@@ -233,9 +233,6 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-black text-slate-100 uppercase tracking-tight">
             Command Center
           </h1>
-          <p className="text-xs font-semibold text-slate-400 tracking-wide mt-0.5">
-            Real-Time Crime Intelligence Overview
-          </p>
         </div>
 
         {/* Right Info Panel */}

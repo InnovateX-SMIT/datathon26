@@ -55,14 +55,8 @@ export default function PredictionPage() {
               <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">
                 Predictive Intelligence
               </h1>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Risk & Recidivism Forecaster
-              </p>
             </div>
           </div>
-          <p className="text-slate-400 text-sm mt-3 max-w-2xl leading-relaxed">
-            Employ advanced machine learning classifiers and attribution engines to predict criminal repeat offenses, occurrence risk ratings, spatial hotspots, and future incident types.
-          </p>
         </div>
 
         {/* Engine status indicator */}

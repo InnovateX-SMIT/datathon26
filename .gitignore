@@ -33,6 +33,7 @@ temp/
 temp_analysis/
 uploads/
 backend/uploads/
+backend/datasets/uploaded/
 frontend/.cache/
 file.txt
 
@@ -53,6 +54,7 @@ backend/crime_intel.db
 *.db-wal
 *.db-shm
 *.db.tmp
+*.bak
 
 *.test.db
 # models
@@ -65,8 +67,8 @@ backend/crime_intel.db
 datasets/uploaded/
 datasets/processed/
 datasets/models/
+backend/datasets/uploaded/
 backend/datasets/models/
 
 # Test Scratch files
 backend/tests/scratch*
-

@@ -179,14 +179,8 @@ export default function ReportsPage() {
               <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">
                 Executive Dossier Briefings
               </h1>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-1">
-                Strategic Intelligence & Planning Layer
-              </p>
             </div>
           </div>
-          <p className="text-slate-400 text-sm mt-3 max-w-3xl leading-relaxed">
-            Consolidate and compile critical records from our analytics, predictions, co-offending network clusters, and resource optimization solvers into unified, executive-ready intelligence dossiers.
-          </p>
         </div>
 
         {/* Action Button */}

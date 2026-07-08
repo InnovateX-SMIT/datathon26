@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Union
 import os
 import io
 import re
@@ -17,55 +17,10 @@ class DatasetService:
 
     def get_active_dataset_id(self) -> Optional[int]:
         """
-        Resolves the currently active dataset ID. Auto-seeds a default active dataset if
-        no datasets exist in the database (ensuring seamless operation and backward-compatibility).
+        Resolves the currently active dataset ID.
         """
         active_row = self.db.query(Dataset.id).filter(Dataset.is_active == True).first()
-        active_id = active_row[0] if active_row else None
-        if active_id is None:
-            try:
-                first_any = self.db.query(Dataset.id).first()
-                if not first_any:
-                    # Seeding the default dataset row
-                    default_ds = Dataset(
-                        name="System Seed",
-                        original_filename="crime_events.csv",
-                        display_name="Synthetic 50K",
-                        description="Auto-created default dataset",
-                        source_type="System Seed",
-                        status="Ready",
-                        is_active=True,
-                        row_count=50000,
-                        file_size=5872123,
-                        schema_type="legacy_crime_intel"
-                    )
-                    self.db.add(default_ds)
-                    self.db.commit()
-                    self.db.refresh(default_ds)
-
-                    # Update any existing orphaned rows in the test/dev DB
-                    from backend.models.crime import CrimeEvent
-                    from backend.models.criminal import Criminal
-                    from backend.models.victim import Victim
-                    from backend.models.crime_participation import CrimeParticipation
-
-                    self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == None).update({CrimeEvent.dataset_id: default_ds.id})
-                    self.db.query(Criminal).filter(Criminal.dataset_id == None).update({Criminal.dataset_id: default_ds.id})
-                    self.db.query(Victim).filter(Victim.dataset_id == None).update({Victim.dataset_id: default_ds.id})
-                    self.db.query(CrimeParticipation).filter(CrimeParticipation.dataset_id == None).update({CrimeParticipation.dataset_id: default_ds.id})
-                    self.db.commit()
-                    active_id = default_ds.id
-                else:
-                    # If datasets exist but none are active, activate the first one
-                    first_ds = self.db.query(Dataset).order_by(Dataset.id.asc()).first()
-                    if first_ds:
-                        first_ds.is_active = True
-                        self.db.commit()
-                        active_id = first_ds.id
-            except Exception as e:
-                self.db.rollback()
-                logger.error(f"Error auto-seeding default active dataset: {e}")
-        return active_id
+        return active_row[0] if active_row else None
 
     def get_active_dataset_id_or_raise(self) -> int:
         """
@@ -80,14 +35,12 @@ class DatasetService:
         """
         Gets the currently active Dataset object.
         """
-        self.get_active_dataset_id()
         return self.db.query(Dataset).filter(Dataset.is_active == True).first()
 
     def list_datasets(self) -> List[Dataset]:
         """
         Lists all datasets in the registry sorted by creation time.
         """
-        self.get_active_dataset_id()
         return self.db.query(Dataset).order_by(Dataset.created_at.desc()).all()
 
     def activate_dataset(self, dataset_id: int) -> Dataset:
@@ -109,7 +62,6 @@ class DatasetService:
             raise ValueError("Cannot activate a dataset that is not in Ready state.")
 
         if dataset.is_active:
-            # Already active, no action needed
             return dataset
 
         # Load config
@@ -157,14 +109,12 @@ class DatasetService:
         """
         Gets all currently active Dataset objects.
         """
-        self.get_active_dataset_id()
         return self.db.query(Dataset).filter(Dataset.is_active == True).all()
 
     def get_active_dataset_ids(self) -> List[int]:
         """
         Gets the IDs of all currently active datasets.
         """
-        self.get_active_dataset_id()
         active_ids = self.db.query(Dataset.id).filter(Dataset.is_active == True).all()
         return [row[0] for row in active_ids]
 
@@ -232,27 +182,109 @@ class DatasetService:
     def delete_dataset(self, dataset_id: int) -> bool:
         """
         Soft-deletes (archives) the dataset from the registry. Sets status to 'Archived'
-        and is_active to False. Protected datasets like 'System Seed' are blocked from deletion.
-        Active datasets must be deactivated first.
+        and is_active to False.
         """
         dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if not dataset:
             raise ValueError(f"Dataset with ID {dataset_id} not found.")
 
-        # Prevent deletion of the System Seed dataset
-        if dataset.name == "System Seed" or dataset.display_name == "Synthetic 50K":
-            raise ValueError("The System Seed dataset is protected and cannot be deleted.")
-
-        # Require active dataset to be deactivated before deletion
+        # If active, automatically fallback to another ready dataset
         if dataset.is_active:
-            raise ValueError("Active dataset must be deactivated before deletion.")
+            fallback_ds = self.db.query(Dataset).filter(
+                Dataset.id != dataset_id,
+                Dataset.status == "Ready"
+            ).first()
+            if fallback_ds:
+                fallback_ds.is_active = True
+                logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being archived.")
+            dataset.is_active = False
 
         # Soft delete: set status to Archived
         dataset.status = "Archived"
-        dataset.is_active = False
         self.db.commit()
 
         logger.info(f"Dataset ID {dataset_id} soft-deleted/archived successfully.")
+        return True
+
+    def delete_dataset_permanent(self, dataset_id: int) -> bool:
+        """
+        Hard-deletes the dataset and all its associated child rows from the database.
+        Also deletes the underlying uploaded file from disk.
+        """
+        import os
+        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+
+        # If active, automatically fallback to another ready dataset
+        if dataset.is_active:
+            fallback_ds = self.db.query(Dataset).filter(
+                Dataset.id != dataset_id,
+                Dataset.status == "Ready"
+            ).first()
+            if fallback_ds:
+                fallback_ds.is_active = True
+                logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being permanently deleted.")
+            dataset.is_active = False
+
+
+        # Import models locally to avoid circular dependencies
+        from backend.models.fir_case import CaseMaster, Inv_OccuranceTime
+        from backend.models.fir_people import ComplainantDetails, FIRVictim, Accused
+        from backend.models.fir_proceedings import ArrestSurrender, InvArrestSurrenderAccused, ChargesheetDetails
+        from backend.models.fir_law import ActSectionAssociation
+        from backend.models.crime import CrimeEvent
+        from backend.models.criminal import Criminal
+        from backend.models.victim import Victim
+        from backend.models.crime_participation import CrimeParticipation
+
+        case_ids = [c.id for c in dataset.cases]
+        if case_ids:
+            # 1. inv_arrestsurrenderaccused
+            as_ids = [row[0] for row in self.db.query(ArrestSurrender.id).filter(ArrestSurrender.CaseMasterID.in_(case_ids)).all()]
+            if as_ids:
+                self.db.query(InvArrestSurrenderAccused).filter(InvArrestSurrenderAccused.ArrestSurrenderID.in_(as_ids)).delete(synchronize_session=False)
+            
+            # 2. arrest_surrender
+            self.db.query(ArrestSurrender).filter(ArrestSurrender.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+            
+            # 3. chargesheet_details
+            self.db.query(ChargesheetDetails).filter(ChargesheetDetails.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+            
+            # 4. complainant_details
+            self.db.query(ComplainantDetails).filter(ComplainantDetails.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+            
+            # 5. victim (FIRVictim)
+            self.db.query(FIRVictim).filter(FIRVictim.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+            
+            # 6. accused
+            self.db.query(Accused).filter(Accused.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+            
+            # 7. act_section_association
+            self.db.query(ActSectionAssociation).filter(ActSectionAssociation.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+            
+            # 8. inv_occurance_time
+            self.db.query(Inv_OccuranceTime).filter(Inv_OccuranceTime.CaseMasterID.in_(case_ids)).delete(synchronize_session=False)
+
+            # 9. Delete cases
+            self.db.query(CaseMaster).filter(CaseMaster.id.in_(case_ids)).delete(synchronize_session=False)
+
+        # Legacy data tables
+        self.db.query(CrimeParticipation).filter(CrimeParticipation.dataset_id == dataset_id).delete(synchronize_session=False)
+        self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == dataset_id).delete(synchronize_session=False)
+        self.db.query(Criminal).filter(Criminal.dataset_id == dataset_id).delete(synchronize_session=False)
+        self.db.query(Victim).filter(Victim.dataset_id == dataset_id).delete(synchronize_session=False)
+
+        # Delete from disk if storage_path exists
+        if dataset.storage_path and os.path.exists(dataset.storage_path):
+            try:
+                os.remove(dataset.storage_path)
+            except Exception as io_err:
+                logger.error(f"Error removing dataset file {dataset.storage_path}: {io_err}")
+
+        # Delete dataset registry record
+        self.db.delete(dataset)
+        self.db.commit()
         return True
 
     def import_dataset(
@@ -456,15 +488,15 @@ class DatasetService:
                 }
 
 
-        # Validate Duplicate Filename (excluding failed ones)
+        # Validate Duplicate Filename (excluding failed and archived ones)
         duplicate_check = self.db.query(Dataset).filter(
             Dataset.original_filename == file_name,
-            Dataset.status != "Failed"
+            Dataset.status != "Failed",
+            Dataset.status != "Archived"
         ).first()
         if duplicate_check:
             raise ValueError(f"A dataset with filename '{file_name}' has already been uploaded.")
 
-        from datetime import datetime
         from backend.models.crime import CrimeEvent
         from backend.models.criminal import Criminal
         from backend.models.victim import Victim
@@ -792,7 +824,7 @@ class DatasetService:
 
             rows = df.to_dict(orient="records")
             total_records = len(rows)
-            batch_size = 1000
+            batch_size = 5000
             
             # Perform strict dry-run validation of all rows first
             for idx, row in enumerate(rows):
@@ -968,7 +1000,7 @@ class DatasetService:
                         participations_to_add.append(participation)
 
                     self.db.add_all(victims_to_add + participations_to_add)
-                    self.db.commit()
+                    self.db.flush()
 
             # Set dataset status to Ready
             db_dataset.status = "Ready"
@@ -984,11 +1016,9 @@ class DatasetService:
             db_dataset.import_summary = json.dumps(summary)
             self.db.commit()
             
-            # Automatically activate first dataset if none active
-            active_dataset = self.db.query(Dataset).filter(Dataset.is_active == True).first()
-            if not active_dataset:
-                db_dataset.is_active = True
-                self.db.commit()
+            # Make the newly imported dataset active so uploads immediately drive the UI.
+            self.activate_dataset(db_dataset.id)
+            self.db.refresh(db_dataset)
 
         except Exception as file_err:
             self.db.rollback()
@@ -1070,10 +1100,6 @@ class DatasetService:
 
         # Resolve path
         path = dataset.storage_path
-        if not path and dataset.name == "System Seed":
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            path = os.path.join(base_dir, "datasets", "processed", "crime_events.csv")
-        
         if not path or not os.path.exists(path):
             raise ValueError(f"Dataset storage file not found for dataset ID {dataset_id}.")
 
@@ -1118,10 +1144,6 @@ class DatasetService:
 
         # Resolve path
         path = dataset.storage_path
-        if not path and dataset.name == "System Seed":
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            path = os.path.join(base_dir, "datasets", "processed", "crime_events.csv")
-        
         if not path or not os.path.exists(path):
             raise ValueError(f"Dataset storage file not found for dataset ID {dataset_id}.")
 

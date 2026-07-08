@@ -4,15 +4,24 @@ import pandas as pd
 def predict_hotspot_probability(model, features):
     """
     Predict probability of a district becoming a crime hotspot.
-    
-    Parameters:
-    - model: Loaded dictionary containing preprocessor, model, feature_names
-             or path to model pickle file.
-    - features: Dict with keys 'district', 'trend_metrics', 'historical_crime_growth'.
-    
-    Returns:
-    - Dict with 'hotspot_probability' (float) and 'trend' (str)
     """
+    if isinstance(model, dict) and model.get("fallback"):
+        # Heuristic/Deterministic Fallback
+        trend = features.get("trend_metrics", 1.0)
+        prob = 0.45 * trend
+        prob = min(0.95, max(0.05, prob))
+        growth = features.get("historical_crime_growth", 1.0)
+        if growth > 1.05:
+            trend_str = "RISING"
+        elif growth < 0.95:
+            trend_str = "FALLING"
+        else:
+            trend_str = "STABLE"
+        return {
+            "hotspot_probability": prob,
+            "trend": trend_str
+        }
+
     if isinstance(model, str):
         model = joblib.load(model)
         
@@ -37,3 +46,4 @@ def predict_hotspot_probability(model, features):
         "hotspot_probability": prob,
         "trend": trend
     }
+

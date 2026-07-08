@@ -74,32 +74,18 @@ def migrate_database_schema(db_engine):
                 logger.info("Initializing dataset_configs with default row...")
                 conn.execute(text("INSERT INTO dataset_configs (max_active_datasets) VALUES ('1')"))
 
-            # 2. Ensure default dataset exists and map existing rows to it
-            res = conn.execute(text("SELECT id FROM datasets WHERE name = 'System Seed' LIMIT 1")).fetchone()
-            if not res:
-                logger.info("Default System Seed dataset not found. Seeding it in registry...")
-                conn.execute(text(
-                    "INSERT INTO datasets (name, original_filename, display_name, description, source_type, status, is_active, row_count, file_size, created_at, updated_at) "
-                    "VALUES ('System Seed', 'crime_events.csv', 'Synthetic 50K', 'System default seeded dataset', 'System Seed', 'Ready', 1, 50000, 5872123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-                ))
-                default_id = conn.execute(text("SELECT last_insert_rowid()")).scalar()
-                logger.info(f"Default dataset registered with ID: {default_id}. Associating existing orphaned rows...")
-                for table_name in ["crime_events", "criminals", "victims", "crime_participation"]:
-                    conn.execute(text(f"UPDATE {table_name} SET dataset_id = {default_id} WHERE dataset_id IS NULL"))
-            else:
-                # Heal existing record if row_count/file_size are NULL
-                conn.execute(text(
-                    "UPDATE datasets SET row_count = 50000, file_size = 5872123 "
-                    "WHERE name = 'System Seed' AND (row_count IS NULL OR file_size IS NULL)"
-                ))
-
-            # Ensure at least one dataset is active
-            active_dataset = conn.execute(text("SELECT id FROM datasets WHERE is_active = 1 LIMIT 1")).fetchone()
-            if not active_dataset:
-                first_dataset = conn.execute(text("SELECT id FROM datasets LIMIT 1")).fetchone()
-                if first_dataset:
-                    logger.info(f"No active dataset found. Setting dataset ID {first_dataset[0]} as active.")
-                    conn.execute(text(f"UPDATE datasets SET is_active = 1 WHERE id = {first_dataset[0]}"))
+            # 2. Remove legacy synthetic seed data so fresh deployments start clean.
+            seed_row = conn.execute(text(
+                "SELECT id FROM datasets "
+                "WHERE name = 'System Seed' OR (display_name = 'Synthetic 50K' AND original_filename = 'crime_events.csv') "
+                "LIMIT 1"
+            )).fetchone()
+            if seed_row:
+                seed_id = seed_row[0]
+                logger.info(f"Removing legacy synthetic seed dataset ID {seed_id} from registry...")
+                for table_name in ["crime_participation", "victims", "criminals", "crime_events", "case_master"]:
+                    conn.execute(text(f"DELETE FROM {table_name} WHERE dataset_id = {seed_id}"))
+                conn.execute(text("DELETE FROM datasets WHERE id = :seed_id"), {"seed_id": seed_id})
 
             # Check table info for alerts
             result = conn.execute(text("PRAGMA table_info(alerts)"))

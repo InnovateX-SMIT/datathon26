@@ -40,9 +40,6 @@ export default function DatasetManagementPanel({
             <h2 className="text-lg font-black text-slate-100 uppercase tracking-tight">
               Dataset Overview
             </h2>
-            <p className="text-xs text-slate-500">
-              Record counts across all platform tables
-            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -59,10 +56,10 @@ export default function DatasetManagementPanel({
           </button>
           <button
             onClick={() => {
-              if (confirm("Are you sure you want to securely re-import datasets? This will truncate crime and location data.")) {
+              if (confirm("Are you sure you want to securely re-seed the database? This will truncate crime and location data.")) {
                 import("@/features/admin/services/admin-service").then(s => {
                   s.triggerReimport().then(() => {
-                    alert("Data re-imported successfully");
+                    alert("Database re-seeded successfully");
                     onRefresh();
                   }).catch(e => alert(e.response?.data?.detail || e.message));
                 });
@@ -71,7 +68,29 @@ export default function DatasetManagementPanel({
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 rounded-xl transition-all cursor-pointer disabled:opacity-50"
           >
-            Re-import Data
+            Re-Seed Database
+          </button>
+          <button
+            onClick={() => {
+              import("@/features/admin/services/admin-service").then(s => {
+                s.optimizeIndexes().then(() => alert("Database indexes optimized successfully")).catch(e => alert(e.response?.data?.detail || e.message));
+              });
+            }}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+          >
+            Optimize Indexes
+          </button>
+          <button
+            onClick={() => {
+              import("@/features/admin/services/admin-service").then(s => {
+                s.backupDatabase().then(() => alert("Database backup created successfully")).catch(e => alert(e.response?.data?.detail || e.message));
+              });
+            }}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+          >
+            Backup Database
           </button>
           <button
             onClick={onRefresh}
@@ -96,9 +115,6 @@ export default function DatasetManagementPanel({
             {(datasetStatus?.total_records ?? 0).toLocaleString()}
           </p>
         )}
-        <p className="text-[10px] text-slate-600 mt-2">
-          Across {tables.length} database tables
-        </p>
       </div>
 
       {/* Table Breakdown */}

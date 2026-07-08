@@ -52,7 +52,8 @@ class FIRRepository:
         latitude: Optional[float] = None,
         longitude: Optional[float] = None,
         occurrence_brief_facts: Optional[str] = None,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> CaseMaster:
         """
         Creates a new CaseMaster record and its 1:1 companion Inv_OccuranceTime record.
@@ -87,9 +88,11 @@ class FIRRepository:
                 BriefFacts=occurrence_brief_facts if occurrence_brief_facts else brief_facts
             )
             self.db.add(occurrence)
+            self.db.flush()
 
-        self.db.commit()
-        self.db.refresh(case)
+        if commit:
+            self.db.commit()
+            self.db.refresh(case)
 
         self._log_audit(
             user_id=performed_by_user_id,
@@ -177,7 +180,8 @@ class FIRRepository:
         age: Optional[int] = None,
         gender_id: Optional[int] = None,
         person_id: Optional[str] = None,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> Accused:
         accused = Accused(
             CaseMasterID=case_id,
@@ -187,8 +191,11 @@ class FIRRepository:
             PersonID=person_id
         )
         self.db.add(accused)
-        self.db.commit()
-        self.db.refresh(accused)
+        if commit:
+            self.db.commit()
+            self.db.refresh(accused)
+        else:
+            self.db.flush()
 
         self._log_audit(
             user_id=performed_by_user_id,
@@ -206,7 +213,8 @@ class FIRRepository:
         age: Optional[int] = None,
         gender_id: Optional[int] = None,
         victim_police: Optional[str] = None,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> FIRVictim:
         victim = FIRVictim(
             CaseMasterID=case_id,
@@ -216,8 +224,11 @@ class FIRRepository:
             VictimPolice=victim_police
         )
         self.db.add(victim)
-        self.db.commit()
-        self.db.refresh(victim)
+        if commit:
+            self.db.commit()
+            self.db.refresh(victim)
+        else:
+            self.db.flush()
 
         self._log_audit(
             user_id=performed_by_user_id,
@@ -237,7 +248,8 @@ class FIRRepository:
         religion_id: Optional[int] = None,
         caste_id: Optional[int] = None,
         gender_id: Optional[int] = None,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> ComplainantDetails:
         complainant = ComplainantDetails(
             CaseMasterID=case_id,
@@ -249,8 +261,11 @@ class FIRRepository:
             GenderID=gender_id
         )
         self.db.add(complainant)
-        self.db.commit()
-        self.db.refresh(complainant)
+        if commit:
+            self.db.commit()
+            self.db.refresh(complainant)
+        else:
+            self.db.flush()
 
         self._log_audit(
             user_id=performed_by_user_id,
@@ -275,7 +290,8 @@ class FIRRepository:
         is_accused: bool = True,
         is_complainant_accused: bool = False,
         other_accused_ids: Optional[List[int]] = None,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> ArrestSurrender:
         """
         Persists an ArrestSurrender event, mapping the primary accused and any joint accused.
@@ -308,8 +324,11 @@ class FIRRepository:
                     if other_acc:
                         arrest.all_accused.append(other_acc)
 
-        self.db.commit()
-        self.db.refresh(arrest)
+        if commit:
+            self.db.commit()
+            self.db.refresh(arrest)
+        else:
+            self.db.flush()
 
         self._log_audit(
             user_id=performed_by_user_id,
@@ -326,7 +345,8 @@ class FIRRepository:
         date_val: datetime,
         cs_type: str,
         police_person_id: int,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> ChargesheetDetails:
         cs = ChargesheetDetails(
             CaseMasterID=case_id,
@@ -335,8 +355,11 @@ class FIRRepository:
             PolicePersonID=police_person_id
         )
         self.db.add(cs)
-        self.db.commit()
-        self.db.refresh(cs)
+        if commit:
+            self.db.commit()
+            self.db.refresh(cs)
+        else:
+            self.db.flush()
 
         self._log_audit(
             user_id=performed_by_user_id,
@@ -354,7 +377,8 @@ class FIRRepository:
         section_code: str,
         act_order_id: Optional[int] = None,
         section_order_id: Optional[int] = None,
-        performed_by_user_id: Optional[int] = None
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
     ) -> ActSectionAssociation:
         association = ActSectionAssociation(
             CaseMasterID=case_id,
@@ -364,8 +388,11 @@ class FIRRepository:
             SectionOrderID=section_order_id
         )
         self.db.add(association)
-        self.db.commit()
-        self.db.refresh(association)
+        if commit:
+            self.db.commit()
+            self.db.refresh(association)
+        else:
+            self.db.flush()
 
         self._log_audit(
             user_id=performed_by_user_id,
