@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Predictive Guardians - Crime Intelligence & Decision Support Platform",
-  description: "AI-Powered Law Enforcement Operations & Decision Support Platform, Datathon 2026",
+  title: "CrimeNexus AI - Crime Intelligence & Decision Support Platform",
+  description: "Connecting Crime Data into Actionable Intelligence | AI-Powered Law Enforcement Operations & Decision Support Platform, Datathon 2026",
 };
 
 export default function RootLayout({

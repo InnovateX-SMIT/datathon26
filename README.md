@@ -1,6 +1,6 @@
-# Predictive Guardians
+# CrimeNexus AI
 
-## AI-Powered Crime Intelligence & Decision Support Platform
+## Connecting Crime Data into Actionable Intelligence
 
 An advanced intelligence and decision support platform engineered for law enforcement agencies, police SPs, SHOs, and platform administrators. Built on clean architecture principles to aggregate incident history, map geospatial hotspots (DBSCAN), predict recidivism risks (H2O Stacked Ensembles), outline criminal networks (NetworkX & React Flow), and optimize police patrol strength allocations (Linear Programming Solver).
 
@@ -14,13 +14,13 @@ The project is structured into modular layers implementing:
 - **Computation / Analytics Layer**: Python modules powered by Pandas, NumPy, and SciPy.
 - **ML & Network Modeling Layer**: Scikit-Learn classifiers, H2O MOJO scoring runtimes, SHAP explanations, and NetworkX relational graphs.
 
-For a detailed mapping of files and folders, see [PROJECT_STRUCTURE.md](file:///d:/Workplace/Hackathons/Datathon/datathon26/docs/PROJECT_STRUCTURE.md).
+For a detailed mapping of files and folders, see [PROJECT_STRUCTURE.md](file:///Users/krishanand/datathon26/docs/PROJECT_STRUCTURE.md).
 
 ---
 
 ## 🚀 Getting Started
 
-Follow the steps in [DEVELOPMENT_SETUP.md](file:///d:/Workplace/Hackathons/Datathon/datathon26/docs/DEVELOPMENT_SETUP.md) to initialize:
+Follow the steps in [DEVELOPMENT_SETUP.md](file:///Users/krishanand/datathon26/docs/DEVELOPMENT_SETUP.md) to initialize:
 1. Local database container via Docker Compose
 2. Python virtual environments and FastAPI server
 3. Next.js local development package installation and visual interface dev server

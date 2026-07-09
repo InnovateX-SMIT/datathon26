@@ -74,10 +74,10 @@ export default function AboutPage() {
               Enterprise Crime Intelligence Platform
             </div>
             <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-tight text-white sm:text-5xl">
-              Predictive Guardians
+              CrimeNexus AI
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-              Predictive Guardians transforms structured crime records into operational intelligence: dashboards, geospatial analysis, criminal network graphs, prediction workflows, decision support, alerts, and executive reports. It is designed as a deployment-ready command platform for data-driven law enforcement planning and hackathon demonstration.
+              CrimeNexus AI transforms structured crime records into operational intelligence: dashboards, geospatial analysis, criminal network graphs, prediction workflows, decision support, alerts, and executive reports. It is designed as a deployment-ready command platform for data-driven law enforcement planning and hackathon demonstration.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-indigo-500">

@@ -74,8 +74,8 @@ export default function Sidebar({ onPinnedChange }: SidebarProps) {
           </div>
           {isOpen && (
             <div className="min-w-0">
-              <h1 className="font-bold text-sm text-slate-100 tracking-wider truncate">PREDICTIVE</h1>
-              <p className="text-[10px] text-indigo-400 font-semibold tracking-widest">GUARDIANS</p>
+              <h1 className="font-bold text-sm text-slate-100 tracking-wider truncate">CRIMENEXUS</h1>
+              <p className="text-[10px] text-indigo-400 font-semibold tracking-widest">AI</p>
             </div>
           )}
         </div>

@@ -63,7 +63,7 @@ export default function DashboardPage() {
 
   // Set page title and flag mounted
   useEffect(() => {
-    document.title = "Command Center | Predictive Guardians";
+    document.title = "Command Center | CrimeNexus AI";
     setMounted(true);
   }, []);
 
@@ -212,7 +212,7 @@ export default function DashboardPage() {
           <ShieldAlert className="w-16 h-16 text-indigo-400 mx-auto animate-pulse" />
           <h2 className="text-xl font-bold uppercase tracking-tight">No active dataset selected</h2>
           <p className="text-sm text-slate-400 leading-relaxed">
-            Predictive Guardians operations require at least one active database registry entry to query operational analytics, trend lines, and mapping clusters.
+            CrimeNexus AI operations require at least one active database registry entry to query operational analytics, trend lines, and mapping clusters.
           </p>
           <a
             href="/dataset-manager"

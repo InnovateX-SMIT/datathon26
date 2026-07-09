@@ -67,7 +67,7 @@ export default function MLModelRegistryPage() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    document.title = "ML Model Registry | Predictive Guardians";
+    document.title = "ML Model Registry | CrimeNexus AI";
     setMounted(true);
     loadAll();
 

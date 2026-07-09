@@ -9,7 +9,7 @@ router = APIRouter()
 class PublicUser:
     id: int = 0
     name: str = "Public Analyst"
-    email: str = "public@predictive-guardians.local"
+    email: str = "public@crimenexus-ai.local"
     role: UserRole = UserRole.ADMIN
     status: str = "active"
     created_at: datetime = datetime(2026, 1, 1)
