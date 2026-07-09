@@ -586,7 +586,7 @@ class FIRRepository:
         return q.all()
 
     def list_crime_heads(self) -> List[CrimeHead]:
-        return self.db.query(CrimeHead).filter(CrimeHead.active == True).order_by(CrimeHead.sort_order.asc()).all()
+        return self.db.query(CrimeHead).filter(CrimeHead.active == True).order_by(CrimeHead.CrimeGroupName.asc()).all()
 
     def list_crime_sub_heads(self, crime_head_id: Optional[int] = None) -> List[CrimeSubHead]:
         q = self.db.query(CrimeSubHead)
