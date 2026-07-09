@@ -21,6 +21,8 @@ class AnalyticsService:
         # Data compatibility validation
         from backend.models.dataset import Dataset
         for aid in active_ids:
+            if aid is None:
+                continue
             ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
             if not ds or ds.status != "Ready":
                 raise ValueError("One or more active datasets are not ready or are incompatible.")

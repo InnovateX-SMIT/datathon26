@@ -28,6 +28,12 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
+        # Seed active dataset
+        from backend.models.dataset import Dataset
+        ds = Dataset(id=1, name="test_geo", original_filename="test_geo.csv", display_name="Test Geo", is_active=True, status="Ready", upload_status="Completed")
+        db.add(ds)
+        db.flush()
+
         # Seed locations
         loc1 = Location(id=1, state="Karnataka", district="Ballari", latitude=14.94, longitude=76.24)
         loc2 = Location(id=2, state="Karnataka", district="Shivamogga", latitude=16.98, longitude=78.27)
@@ -44,6 +50,7 @@ def db_session():
         crimes = [
             CrimeEvent(
                 id=1,
+                dataset_id=1,
                 crime_type="Theft",
                 crime_category="Theft",
                 crime_date=date(2026, 6, 1),
@@ -53,6 +60,7 @@ def db_session():
             ),
             CrimeEvent(
                 id=2,
+                dataset_id=1,
                 crime_type="Theft",
                 crime_category="Theft",
                 crime_date=date(2026, 6, 2),
@@ -62,6 +70,7 @@ def db_session():
             ),
             CrimeEvent(
                 id=3,
+                dataset_id=1,
                 crime_type="Assault",
                 crime_category="Violent Crime",
                 crime_date=date(2026, 6, 3),
@@ -69,9 +78,9 @@ def db_session():
                 police_station_id=2,
                 status="reported"
             ),
-            CrimeEvent(id=4, crime_type="Theft", crime_category="Theft", crime_date=date(2026, 6, 1), location_id=1, police_station_id=1, status="reported"),
-            CrimeEvent(id=5, crime_type="Theft", crime_category="Theft", crime_date=date(2026, 6, 1), location_id=1, police_station_id=1, status="reported"),
-            CrimeEvent(id=6, crime_type="Theft", crime_category="Theft", crime_date=date(2026, 6, 1), location_id=1, police_station_id=1, status="reported"),
+            CrimeEvent(id=4, dataset_id=1, crime_type="Theft", crime_category="Theft", crime_date=date(2026, 6, 1), location_id=1, police_station_id=1, status="reported"),
+            CrimeEvent(id=5, dataset_id=1, crime_type="Theft", crime_category="Theft", crime_date=date(2026, 6, 1), location_id=1, police_station_id=1, status="reported"),
+            CrimeEvent(id=6, dataset_id=1, crime_type="Theft", crime_category="Theft", crime_date=date(2026, 6, 1), location_id=1, police_station_id=1, status="reported"),
         ]
         db.add_all(crimes)
         db.commit()

@@ -47,6 +47,8 @@ class MLTrainingService:
 
         # Check dataset statuses
         for aid in active_ids:
+            if aid is None:
+                continue
             ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
             if not ds or ds.status != "Ready":
                 raise ValueError(f"Active dataset with ID {aid} is not ready or is incompatible.")

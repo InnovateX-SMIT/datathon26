@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import SectionHeader from "@/components/layout/section-header";
 import { useFirLookups } from "../hooks/useFirLookups";
-import { createCase } from "../services/firApi";
+import { createCase, getCase, updateCase, fetchDistricts, fetchUnits } from "../services/firApi";
 import type {
   CaseMasterCreate,
   CaseMasterResponse,
@@ -54,7 +54,7 @@ function emptyActSection(): ActSectionAssociationCreate {
 // ══════════════════════════════════════════════════════════════════════════════
 // Component
 // ══════════════════════════════════════════════════════════════════════════════
-export default function FirCaseForm() {
+export default function FirCaseForm({ caseId }: { caseId?: number }) {
   const { lookups, loading: lookupsLoading, error: lookupsError, loadDistricts, loadUnits, loadCourts, loadEmployees, loadSections, loadCrimeSubHeads } = useFirLookups();
 
   // ── Cascading state ─────────────────────────────────────────────────────
@@ -108,6 +108,135 @@ export default function FirCaseForm() {
   // Schema type gating
   const [schemaType, setSchemaType] = useState<string | null>(null);
   const [schemaLoading, setSchemaLoading] = useState(true);
+  const [fetchingCase, setFetchingCase] = useState(!!caseId);
+
+  useEffect(() => {
+    if (!caseId) return;
+
+    const fetchAndPopulateCase = async () => {
+      setFetchingCase(true);
+      try {
+        const c = await getCase(caseId);
+        
+        // Load parent cascade IDs
+        const allDistricts = await fetchDistricts(null);
+        const allUnits = await fetchUnits(null);
+        const matchedUnit = allUnits.find((u) => u.id === c.PoliceStationID);
+        
+        if (matchedUnit) {
+          setSelectedStateId(matchedUnit.StateID);
+          setSelectedDistrictId(matchedUnit.DistrictID);
+          setSelectedUnitId(c.PoliceStationID);
+          
+          // Populate cascade lists
+          setDistricts(allDistricts.filter((d) => d.StateID === matchedUnit.StateID));
+          setUnits(allUnits.filter((u) => u.DistrictID === matchedUnit.DistrictID));
+          
+          const courtsForDistrict = await loadCourts(matchedUnit.DistrictID);
+          setCourts(courtsForDistrict);
+          
+          const employeesForUnit = await loadEmployees(c.PoliceStationID);
+          setEmployees(employeesForUnit);
+        }
+
+        // Set other simple fields
+        if (c.CrimeRegisteredDate) {
+          setCrimeRegisteredDate(c.CrimeRegisteredDate.slice(0, 10));
+        }
+        setPolicePersonID(c.PolicePersonID || "");
+        setCaseCategoryID(c.CaseCategoryID || "");
+        setGravityOffenceID(c.GravityOffenceID || "");
+        setCrimeMajorHeadID(c.CrimeMajorHeadID || "");
+        setCaseStatusID(c.CaseStatusID || "");
+        setCourtID(c.CourtID || "");
+        setBriefFacts(c.BriefFacts || "");
+
+        // Crime Minor Head and subheads list
+        if (c.CrimeMajorHeadID) {
+          const subHeads = await loadCrimeSubHeads(c.CrimeMajorHeadID);
+          setCrimeSubHeads(subHeads);
+          setCrimeMinorHeadID(c.CrimeMinorHeadID || "");
+        }
+
+        // Occurrence
+        if (c.occurrence_time) {
+          const occ = c.occurrence_time;
+          setIncidentFromDate(occ.IncidentFromDate?.slice(0, 10) || "");
+          setIncidentToDate(occ.IncidentToDate?.slice(0, 10) || "");
+          setInfoReceivedPSDate(occ.InfoReceivedPSDate?.slice(0, 10) || "");
+          setLatitude(occ.latitude != null ? String(occ.latitude) : "");
+          setLongitude(occ.longitude != null ? String(occ.longitude) : "");
+          setOccBriefFacts(occ.BriefFacts || "");
+        }
+
+        // Children collections
+        if (c.complainants && c.complainants.length > 0) {
+          setComplainants(c.complainants.map(x => ({
+            ComplainantName: x.ComplainantName || "",
+            AgeYear: x.AgeYear || null,
+            OccupationID: x.OccupationID || null,
+            ReligionID: x.ReligionID || null,
+            CasteID: x.CasteID || null,
+            GenderID: x.GenderID || null
+          })));
+        } else {
+          setComplainants([emptyComplainant()]);
+        }
+
+        if (c.victims && c.victims.length > 0) {
+          setVictims(c.victims.map(x => ({
+            VictimName: x.VictimName || "",
+            AgeYear: x.AgeYear || null,
+            GenderID: x.GenderID || null,
+            VictimPolice: x.VictimPolice || "0"
+          })));
+        } else {
+          setVictims([emptyVictim()]);
+        }
+
+        if (c.accused && c.accused.length > 0) {
+          setAccused(c.accused.map(x => ({
+            AccusedName: x.AccusedName || "",
+            AgeYear: x.AgeYear || null,
+            GenderID: x.GenderID || null,
+            PersonID: x.PersonID || ""
+          })));
+        } else {
+          setAccused([emptyAccused(0)]);
+        }
+
+        if (c.act_sections && c.act_sections.length > 0) {
+          setActSections(c.act_sections.map(x => ({
+            ActCode: x.ActCode || "",
+            SectionCode: x.SectionCode || "",
+            ActOrderID: x.ActOrderID || null,
+            SectionOrderID: x.SectionOrderID || null
+          })));
+
+          // Populate sections dropdowns for each row
+          const sectionsMap: Record<number, SectionDTO[]> = {};
+          for (let i = 0; i < c.act_sections.length; i++) {
+            const row = c.act_sections[i];
+            if (row.ActCode) {
+              const secList = await loadSections(row.ActCode);
+              sectionsMap[i] = secList;
+            }
+          }
+          setSectionsByRow(sectionsMap);
+        } else {
+          setActSections([emptyActSection()]);
+        }
+
+      } catch (err: unknown) {
+        console.error("Failed to fetch case for editing:", err);
+        setSubmitError(err instanceof Error ? err.message : "Failed to load case data");
+      } finally {
+        setFetchingCase(false);
+      }
+    };
+
+    fetchAndPopulateCase();
+  }, [caseId, loadCourts, loadEmployees, loadSections, loadCrimeSubHeads]);
 
   useEffect(() => {
     import("@/features/admin/services/database-service").then((s) => {
@@ -249,17 +378,27 @@ export default function FirCaseForm() {
     };
 
     try {
-      const result = await createCase(payload);
+      let result;
+      if (caseId) {
+        // Pre-fetch original CrimeNo and CaseNo so we preserve them correctly on backend update
+        const orig = await getCase(caseId);
+        payload.CrimeNo = orig.CrimeNo;
+        payload.CaseNo = orig.CaseNo;
+        
+        result = await updateCase(caseId, payload);
+      } else {
+        result = await createCase(payload);
+      }
       setCreatedCase(result);
     } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to create case");
+      setSubmitError(err instanceof Error ? err.message : "Failed to save case");
     } finally {
       setSubmitting(false);
     }
   };
 
   // ── Loading state ─────────────────────────────────────────────────────────
-  if (lookupsLoading) {
+  if (lookupsLoading || fetchingCase) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-3 text-slate-400">
@@ -288,7 +427,7 @@ export default function FirCaseForm() {
         <div className="glass-card rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-8 text-center space-y-5 animate-fade-in">
           <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto" />
           <h2 className="text-xl font-bold text-slate-100 uppercase tracking-tight">
-            FIR Case Created Successfully
+            FIR Case {caseId ? "Updated" : "Created"} Successfully
           </h2>
           <div className="grid grid-cols-2 gap-4 text-left max-w-sm mx-auto">
             <div>
@@ -323,12 +462,21 @@ export default function FirCaseForm() {
             >
               View Case Details
             </a>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors border border-slate-700 cursor-pointer"
-            >
-              Register Another
-            </button>
+            {caseId ? (
+              <a
+                href="/fir/cases"
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors border border-slate-700 cursor-pointer"
+              >
+                Back to List
+              </a>
+            ) : (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors border border-slate-700 cursor-pointer"
+              >
+                Register Another
+              </button>
+            )}
           </div>
         </div>
       </div>

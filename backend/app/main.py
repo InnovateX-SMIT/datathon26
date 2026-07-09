@@ -239,6 +239,17 @@ async def rate_limiting_middleware(request: Request, call_next):
     request_counts[client_ip].append(current_time)
     return await call_next(request)
 
+
+# Exception handler for NoActiveDatasetException
+from backend.core.exceptions import NoActiveDatasetException
+
+@app.exception_handler(NoActiveDatasetException)
+async def no_active_dataset_exception_handler(request: Request, exc: NoActiveDatasetException):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
 # XSS / Script Injection Sanitization Middleware
 @app.middleware("http")
 async def input_sanitization_middleware(request: Request, call_next):

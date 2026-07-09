@@ -122,6 +122,117 @@ class FIRRepository:
             .first()
         )
 
+    def delete_case(self, case_id: int, performed_by_user_id: Optional[int] = None) -> bool:
+        """
+        Deletes a CaseMaster record by ID. Manually deletes children first to avoid ForeignKey constraint failures.
+        """
+        case = self.db.query(CaseMaster).filter(CaseMaster.id == case_id).first()
+        if not case:
+            return False
+        
+        crime_no = case.CrimeNo
+        case_no = case.CaseNo
+        
+        # Explicitly delete child records in correct order to respect ForeignKey constraints
+        self.db.query(Inv_OccuranceTime).filter(Inv_OccuranceTime.CaseMasterID == case_id).delete()
+        self.db.query(ComplainantDetails).filter(ComplainantDetails.CaseMasterID == case_id).delete()
+        self.db.query(FIRVictim).filter(FIRVictim.CaseMasterID == case_id).delete()
+        self.db.query(Accused).filter(Accused.CaseMasterID == case_id).delete()
+        self.db.query(ArrestSurrender).filter(ArrestSurrender.CaseMasterID == case_id).delete()
+        self.db.query(ChargesheetDetails).filter(ChargesheetDetails.CaseMasterID == case_id).delete()
+        self.db.query(ActSectionAssociation).filter(ActSectionAssociation.CaseMasterID == case_id).delete()
+        
+        self.db.delete(case)
+        self.db.commit()
+        
+        self._log_audit(
+            user_id=performed_by_user_id,
+            action="CASE_DELETED",
+            entity_type="case_master",
+            entity_id=case_id,
+            details={"CrimeNo": crime_no, "CaseNo": case_no}
+        )
+        return True
+
+    def update_case(
+        self,
+        case_id: int,
+        crime_no: str,
+        case_no: str,
+        registered_date: date,
+        police_person_id: int,
+        police_station_id: int,
+        case_category_id: int,
+        gravity_offence_id: int,
+        crime_major_head_id: int,
+        crime_minor_head_id: int,
+        case_status_id: int,
+        court_id: int,
+        brief_facts: Optional[str] = None,
+        # Occurance Time details
+        incident_from_date: Optional[datetime] = None,
+        incident_to_date: Optional[datetime] = None,
+        info_received_ps_date: Optional[datetime] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        occurrence_brief_facts: Optional[str] = None,
+        performed_by_user_id: Optional[int] = None,
+        commit: bool = True
+    ) -> Optional[CaseMaster]:
+        """
+        Updates an existing CaseMaster record and its 1:1 companion Inv_OccuranceTime record.
+        """
+        case = self.db.query(CaseMaster).filter(CaseMaster.id == case_id).first()
+        if not case:
+            return None
+            
+        case.CrimeNo = crime_no
+        case.CaseNo = case_no
+        case.CrimeRegisteredDate = registered_date
+        case.PolicePersonID = police_person_id
+        case.PoliceStationID = police_station_id
+        case.CaseCategoryID = case_category_id
+        case.GravityOffenceID = gravity_offence_id
+        case.CrimeMajorHeadID = crime_major_head_id
+        case.CrimeMinorHeadID = crime_minor_head_id
+        case.CaseStatusID = case_status_id
+        case.CourtID = court_id
+        case.BriefFacts = brief_facts
+        
+        # Occurrence time updates
+        if incident_from_date is not None and info_received_ps_date is not None:
+            if not case.occurrence_time:
+                occurrence = Inv_OccuranceTime(
+                    CaseMasterID=case_id,
+                    IncidentFromDate=incident_from_date,
+                    IncidentToDate=incident_to_date,
+                    InfoReceivedPSDate=info_received_ps_date,
+                    latitude=latitude,
+                    longitude=longitude,
+                    BriefFacts=occurrence_brief_facts if occurrence_brief_facts else brief_facts
+                )
+                self.db.add(occurrence)
+            else:
+                case.occurrence_time.IncidentFromDate = incident_from_date
+                case.occurrence_time.IncidentToDate = incident_to_date
+                case.occurrence_time.InfoReceivedPSDate = info_received_ps_date
+                case.occurrence_time.latitude = latitude
+                case.occurrence_time.longitude = longitude
+                case.occurrence_time.BriefFacts = occurrence_brief_facts if occurrence_brief_facts else brief_facts
+        
+        if commit:
+            self.db.commit()
+            self.db.refresh(case)
+            
+        self._log_audit(
+            user_id=performed_by_user_id,
+            action="CASE_UPDATED",
+            entity_type="case_master",
+            entity_id=case.id,
+            details={"CrimeNo": crime_no, "CaseNo": case_no}
+        )
+        return case
+
     def list_cases(
         self,
         page: int = 1,

@@ -408,3 +408,99 @@ def test_cascade_restrict_on_case_master_deletion(db_session):
         db_session.commit()
     
     db_session.rollback()
+
+
+def test_repo_update_and_delete_case(db_session):
+    repo = FIRRepository(db_session)
+    
+    # Create lookups first
+    nat = NationalityMaster(name="Indian")
+    gen = GenderMaster(name="Male")
+    cat = CaseCategory(name="FIR")
+    grav = GravityOffence(name="Heinous")
+    status_act = CaseStatusMaster(name="Under Investigation")
+    db_session.add_all([nat, gen, cat, grav, status_act])
+    db_session.commit()
+    
+    st = State(name="Karnataka", NationalityID=nat.id)
+    db_session.add(st)
+    db_session.commit()
+    
+    dist = District(name="Bengaluru", StateID=st.id)
+    db_session.add(dist)
+    db_session.commit()
+    
+    ut = UnitType(name="Police Station")
+    db_session.add(ut)
+    db_session.commit()
+    
+    un = Unit(name="Central PS", TypeID=ut.id, StateID=st.id, DistrictID=dist.id)
+    db_session.add(un)
+    db_session.commit()
+    
+    ct = Court(name="High Court", DistrictID=dist.id, StateID=st.id)
+    rk = Rank(name="Inspector")
+    des = Designation(name="SHO")
+    db_session.add_all([ct, rk, des])
+    db_session.commit()
+    
+    emp = Employee(DistrictID=dist.id, UnitID=un.id, RankID=rk.id, DesignationID=des.id, KGID="KA001", FirstName="A", GenderID=gen.id)
+    db_session.add(emp)
+    db_session.commit()
+    
+    ds = Dataset(name="TestDS", original_filename="test.csv", display_name="Test DS", status="Ready")
+    db_session.add(ds)
+    db_session.commit()
+    
+    ch = CrimeHead(CrimeGroupName="Theft Group")
+    db_session.add(ch)
+    db_session.commit()
+    
+    csh = CrimeSubHead(CrimeHeadID=ch.id, CrimeHeadName="House Theft", SeqID=1)
+    db_session.add(csh)
+    db_session.commit()
+    
+    # 1. Register case
+    case = repo.create_case(
+        crime_no="1", case_no="1", registered_date=date(2026, 7, 1),
+        police_person_id=emp.id, police_station_id=un.id,
+        case_category_id=cat.id, gravity_offence_id=grav.id,
+        crime_major_head_id=ch.id, crime_minor_head_id=csh.id, case_status_id=status_act.id,
+        court_id=ct.id, dataset_id=ds.id,
+        incident_from_date=datetime(2026, 7, 1, 10, 0), info_received_ps_date=datetime(2026, 7, 1, 12, 0)
+    )
+    assert case.id is not None
+    
+    # Add children
+    repo.add_accused_to_case(case_id=case.id, name="Accused A", gender_id=gen.id)
+    repo.add_victim_to_case(case_id=case.id, name="Victim A", gender_id=gen.id, age=30)
+    repo.add_complainant_to_case(case_id=case.id, name="Complainant A", gender_id=gen.id, age=40)
+    
+    # Verify children exist
+    assert len(case.accused) == 1
+    assert len(case.victims) == 1
+    assert len(case.complainants) == 1
+    
+    # 2. Update case
+    updated = repo.update_case(
+        case_id=case.id,
+        crime_no="1", case_no="1", registered_date=date(2026, 7, 1),
+        police_person_id=emp.id, police_station_id=un.id,
+        case_category_id=cat.id, gravity_offence_id=grav.id,
+        crime_major_head_id=ch.id, crime_minor_head_id=csh.id, case_status_id=status_act.id,
+        court_id=ct.id, brief_facts="New facts details here",
+        incident_from_date=datetime(2026, 7, 1, 10, 30), info_received_ps_date=datetime(2026, 7, 1, 12, 30)
+    )
+    assert updated.BriefFacts == "New facts details here"
+    assert updated.occurrence_time.IncidentFromDate == datetime(2026, 7, 1, 10, 30)
+    
+    # 3. Delete case (and verify manual cascade)
+    success = repo.delete_case(case_id=case.id)
+    assert success is True
+    
+    # Verify everything is gone
+    assert db_session.query(CaseMaster).filter_by(id=case.id).first() is None
+    assert db_session.query(Inv_OccuranceTime).filter_by(CaseMasterID=case.id).first() is None
+    assert db_session.query(Accused).filter_by(CaseMasterID=case.id).first() is None
+    assert db_session.query(FIRVictim).filter_by(CaseMasterID=case.id).first() is None
+    assert db_session.query(ComplainantDetails).filter_by(CaseMasterID=case.id).first() is None

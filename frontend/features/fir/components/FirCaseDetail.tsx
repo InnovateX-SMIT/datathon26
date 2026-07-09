@@ -16,7 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import SectionHeader from "@/components/layout/section-header";
-import { getCase } from "../services/firApi";
+import { getCase, deleteCase } from "../services/firApi";
 import { useFirLookups } from "../hooks/useFirLookups";
 import type { CaseMasterResponse } from "../types/fir";
 
@@ -42,7 +42,21 @@ export default function FirCaseDetail({ caseId }: FirCaseDetailProps) {
   const [caseData, setCaseData] = useState<CaseMasterResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { lookups } = useFirLookups();
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this case?")) return;
+    setDeleting(true);
+    try {
+      await deleteCase(caseId);
+      alert("Case deleted successfully.");
+      window.location.href = "/fir/cases";
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete case");
+      setDeleting(false);
+    }
+  };
 
   const loadCase = async () => {
     setLoading(true);
@@ -162,6 +176,21 @@ export default function FirCaseDetail({ caseId }: FirCaseDetailProps) {
               <p className="text-sm font-mono text-slate-300 mt-0.5">
                 {formatDate(c.CrimeRegisteredDate)}
               </p>
+            </div>
+            <div className="flex items-center gap-2 border-l border-slate-800/80 pl-4 ml-2">
+              <a
+                href={`/fir/cases/${c.id}/edit`}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-indigo-500/20"
+              >
+                Edit
+              </a>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 bg-rose-600/80 hover:bg-rose-500 hover:text-white text-rose-100 font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-rose-500/30 disabled:opacity-50 cursor-pointer shadow-lg hover:shadow-rose-500/20"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ from datetime import date, datetime
 from typing import Optional, List, Tuple
 
 from backend.repositories.fir_repository import FIRRepository
-from backend.models import CaseMaster, Unit
+from backend.models import CaseMaster, Unit, ComplainantDetails, FIRVictim, Accused
 from backend.schemas.fir import (
     CaseMasterCreate, CaseMasterResponse,
     StateDTO, DistrictDTO, CourtDTO, UnitDTO, RankDTO, DesignationDTO, EmployeeDTO,
@@ -324,3 +324,124 @@ class FIRService:
 
     def get_crime_sub_heads(self, crime_head_id: Optional[int] = None) -> List[CrimeSubHeadDTO]:
         return [CrimeSubHeadDTO.model_validate(x) for x in self.repo.list_crime_sub_heads(crime_head_id)]
+
+    def update_case(
+        self, 
+        case_id: int,
+        case_dto: CaseMasterCreate, 
+        user_id: Optional[int] = None
+    ) -> CaseMasterResponse:
+        """
+        Updates an existing FIR case, enforcing validations, and returning the Response DTO.
+        """
+        # Validate coordinates
+        if case_dto.occurrence_time:
+            if not validate_latitude(case_dto.occurrence_time.latitude):
+                raise ValueError(f"Invalid latitude: {case_dto.occurrence_time.latitude}. Must be between -90 and 90.")
+            if not validate_longitude(case_dto.occurrence_time.longitude):
+                raise ValueError(f"Invalid longitude: {case_dto.occurrence_time.longitude}. Must be between -180 and 180.")
+
+        # Validate ages
+        for comp in case_dto.complainants:
+            if not validate_age(comp.AgeYear):
+                raise ValueError(f"Invalid complainant age: {comp.AgeYear}. Must be between 0 and 125.")
+        for vic in case_dto.victims:
+            if not validate_age(vic.AgeYear):
+                raise ValueError(f"Invalid victim age: {vic.AgeYear}. Must be between 0 and 125.")
+        for acc in case_dto.accused:
+            if not validate_age(acc.AgeYear):
+                raise ValueError(f"Invalid accused age: {acc.AgeYear}. Must be between 0 and 125.")
+
+        # Resolve or validate CrimeNo and CaseNo
+        crime_no = case_dto.CrimeNo
+        case_no = case_dto.CaseNo
+
+        if crime_no:
+            if not validate_crime_no(crime_no):
+                raise ValueError(f"Invalid CrimeNo format: {crime_no}. Must be 18 digits containing a valid year.")
+            if not case_no:
+                case_no = generate_case_no(crime_no)
+            elif not validate_case_no(case_no):
+                raise ValueError(f"Invalid CaseNo format: {case_no}. Must be 9 digits containing a valid year.")
+        else:
+            raise ValueError("CrimeNo is required to update a case.")
+
+        # Update case master and occurrence time in repo
+        repo = FIRRepository(self.db)
+        case = repo.update_case(
+            case_id=case_id,
+            crime_no=crime_no,
+            case_no=case_no,
+            registered_date=case_dto.CrimeRegisteredDate,
+            police_person_id=case_dto.PolicePersonID,
+            police_station_id=case_dto.PoliceStationID,
+            case_category_id=case_dto.CaseCategoryID,
+            gravity_offence_id=case_dto.GravityOffenceID,
+            crime_major_head_id=case_dto.CrimeMajorHeadID,
+            crime_minor_head_id=case_dto.CrimeMinorHeadID,
+            case_status_id=case_dto.CaseStatusID,
+            court_id=case_dto.CourtID,
+            brief_facts=case_dto.BriefFacts,
+            incident_from_date=case_dto.occurrence_time.IncidentFromDate if case_dto.occurrence_time else None,
+            incident_to_date=case_dto.occurrence_time.IncidentToDate if case_dto.occurrence_time else None,
+            info_received_ps_date=case_dto.occurrence_time.InfoReceivedPSDate if case_dto.occurrence_time else None,
+            latitude=case_dto.occurrence_time.latitude if case_dto.occurrence_time else None,
+            longitude=case_dto.occurrence_time.longitude if case_dto.occurrence_time else None,
+            occurrence_brief_facts=case_dto.occurrence_time.BriefFacts if case_dto.occurrence_time else None,
+            performed_by_user_id=user_id,
+            commit=False
+        )
+
+        if not case:
+            raise ValueError(f"Case with ID {case_id} not found.")
+
+        # Sync/update complainants
+        self.db.query(ComplainantDetails).filter(ComplainantDetails.CaseMasterID == case_id).delete()
+        for comp in case_dto.complainants:
+            repo.add_complainant_to_case(
+                case_id=case_id,
+                name=comp.ComplainantName,
+                gender_id=comp.GenderID,
+                age=comp.AgeYear,
+                occupation_id=comp.OccupationID,
+                religion_id=comp.ReligionID,
+                caste_id=comp.CasteID,
+                commit=False
+            )
+
+        # Sync/update victims
+        self.db.query(FIRVictim).filter(FIRVictim.CaseMasterID == case_id).delete()
+        for vic in case_dto.victims:
+            repo.add_victim_to_case(
+                case_id=case_id,
+                name=vic.VictimName,
+                gender_id=vic.GenderID,
+                age=vic.AgeYear,
+                is_police=vic.IsPolice,
+                commit=False
+            )
+
+        # Sync/update accused
+        self.db.query(Accused).filter(Accused.CaseMasterID == case_id).delete()
+        for acc in case_dto.accused:
+            repo.add_accused_to_case(
+                case_id=case_id,
+                name=acc.AccusedName,
+                gender_id=acc.GenderID,
+                age=acc.AgeYear,
+                commit=False
+            )
+
+        self.db.commit()
+        self.db.refresh(case)
+
+        # Fetch eagerly loaded updated case
+        updated_case = repo.get_case_by_id(case_id)
+        return CaseMasterResponse.model_validate(updated_case)
+
+    def delete_case(self, case_id: int, user_id: Optional[int] = None) -> bool:
+        """
+        Deletes a case and returns True if successful, False otherwise.
+        """
+        repo = FIRRepository(self.db)
+        return repo.delete_case(case_id=case_id, performed_by_user_id=user_id)

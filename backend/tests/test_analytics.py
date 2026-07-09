@@ -27,9 +27,16 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
+        # Seed active dataset
+        from backend.models.dataset import Dataset
+        ds = Dataset(id=1, name="test_analytics", original_filename="test_analytics.csv", display_name="Test Analytics", is_active=True, status="Ready", upload_status="Completed")
+        db.add(ds)
+        db.flush()
+
         # Seed test data
         crimes = [
             CrimeEvent(
+                dataset_id=1,
                 crime_type="Theft",
                 crime_category="Theft",
                 crime_subcategory="Vehicle Theft",
@@ -39,6 +46,7 @@ def db_session():
                 status="reported"
             ),
             CrimeEvent(
+                dataset_id=1,
                 crime_type="Assault",
                 crime_category="Violent Crime",
                 crime_subcategory="Simple Assault",
@@ -49,6 +57,7 @@ def db_session():
             ),
             # Prev month (June 2026 is current month, so May 2026 is prev month)
             CrimeEvent(
+                dataset_id=1,
                 crime_type="Theft",
                 crime_category="Theft",
                 crime_subcategory="House Theft",
@@ -59,6 +68,7 @@ def db_session():
             ),
             # Prev year
             CrimeEvent(
+                dataset_id=1,
                 crime_type="Fraud",
                 crime_category="Financial Crime",
                 crime_subcategory="Online Fraud",

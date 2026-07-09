@@ -61,6 +61,30 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `API error ${res.status}: ${path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function apiDelete(path: string): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `API error ${res.status}: ${path}`);
+  }
+}
+
 // ── Case CRUD ───────────────────────────────────────────────────────────────
 
 export async function createCase(payload: CaseMasterCreate): Promise<CaseMasterResponse> {
@@ -69,6 +93,14 @@ export async function createCase(payload: CaseMasterCreate): Promise<CaseMasterR
 
 export async function getCase(caseId: number): Promise<CaseMasterResponse> {
   return apiGet<CaseMasterResponse>(`${FIR_PREFIX}/${caseId}`);
+}
+
+export async function updateCase(caseId: number, payload: CaseMasterCreate): Promise<CaseMasterResponse> {
+  return apiPut<CaseMasterResponse>(`${FIR_PREFIX}/${caseId}`, payload);
+}
+
+export async function deleteCase(caseId: number): Promise<void> {
+  return apiDelete(`${FIR_PREFIX}/${caseId}`);
 }
 
 export interface ListCasesParams {

@@ -28,6 +28,12 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
+        # Seed active dataset
+        from backend.models.dataset import Dataset
+        ds = Dataset(id=1, name="test_report", original_filename="test_report.csv", display_name="Test Report", is_active=True, status="Ready", upload_status="Completed")
+        db.add(ds)
+        db.flush()
+
         # Seed test tables
         loc = Location(state="Karnataka", district="Bengaluru Urban", latitude=12.97, longitude=77.59)
         db.add(loc)
@@ -36,6 +42,7 @@ def db_session():
 
         crimes = [
             CrimeEvent(
+                dataset_id=1,
                 crime_type="Theft",
                 crime_category="Theft",
                 crime_subcategory="Vehicle Theft",
@@ -47,6 +54,7 @@ def db_session():
                 severity=2.0
             ),
             CrimeEvent(
+                dataset_id=1,
                 crime_type="Assault",
                 crime_category="Violent Crime",
                 crime_subcategory="Simple Assault",
@@ -62,8 +70,8 @@ def db_session():
         db.commit()
 
         criminals = [
-            Criminal(name="Raman", risk_score=8.5, status="active", age=28.0, gender="Male", occupation="None", caste="General"),
-            Criminal(name="Shekhar", risk_score=4.2, status="active", age=32.0, gender="Male", occupation="Laborer", caste="OBC")
+            Criminal(dataset_id=1, name="Raman", risk_score=8.5, status="active", age=28.0, gender="Male", occupation="None", caste="General"),
+            Criminal(dataset_id=1, name="Shekhar", risk_score=4.2, status="active", age=32.0, gender="Male", occupation="Laborer", caste="OBC")
         ]
         db.add_all(criminals)
         db.commit()

@@ -53,6 +53,36 @@ def get_case_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Case with ID {case_id} not found.")
     return case
 
+@router.put("/{case_id}", response_model=CaseMasterResponse)
+def update_case_endpoint(
+    case_id: int,
+    case_dto: CaseMasterCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = FIRService(db)
+        user_id = getattr(current_user, "id", 0)
+        return service.update_case(case_id, case_dto, user_id=user_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error updating FIR case: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update case.")
+
+@router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_case_endpoint(
+    case_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    service = FIRService(db)
+    user_id = getattr(current_user, "id", 0)
+    success = service.delete_case(case_id, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Case with ID {case_id} not found.")
+    return
+
 @router.get("/", response_model=dict)
 def list_cases_endpoint(
     page: int = Query(1, ge=1),
