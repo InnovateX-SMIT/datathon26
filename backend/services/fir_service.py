@@ -27,21 +27,23 @@ class FIRService:
     def get_next_serial_number(self, station_id: int, year: int) -> int:
         """
         Calculates the next incremental serial number for the given PS unit and year.
+        Optimized to use database-side cast/substring aggregation instead of in-memory lists.
         """
-        cases = self.db.query(CaseMaster).filter(
-            CaseMaster.PoliceStationID == station_id,
-            CaseMaster.CrimeNo.like(f"_________{year:04d}%")
-        ).all()
+        from sqlalchemy import func, Integer
+        from sqlalchemy.sql.expression import cast
         
-        serials = []
-        for c in cases:
-            if c.CrimeNo and len(c.CrimeNo) == 18:
-                try:
-                    # Serial is the last 5 digits per official spec
-                    serials.append(int(c.CrimeNo[-5:]))
-                except ValueError:
-                    pass
-        return max(serials) + 1 if serials else 1
+        # CrimeNo length must be 18 digits. The serial number is the last 5 characters.
+        # SQLite SUBSTR is 1-indexed. The 14th character is the start of the 5-character serial.
+        max_serial = self.db.query(
+            func.max(cast(func.substr(CaseMaster.CrimeNo, 14, 5), Integer))
+        ).filter(
+            CaseMaster.PoliceStationID == station_id,
+            CaseMaster.CrimeNo.like(f"_________{year:04d}%"),
+            func.length(CaseMaster.CrimeNo) == 18
+        ).scalar()
+        
+        return (max_serial or 0) + 1
+
 
     def create_case(
         self, 

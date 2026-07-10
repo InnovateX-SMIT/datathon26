@@ -56,3 +56,29 @@ def test_rate_limiting(client):
         assert "Too many requests" in res.json()["detail"]
     finally:
         backend.app.main.RATE_LIMIT_MAX_REQUESTS = original_max
+
+def test_standard_response_wrapping(client):
+    # Temporarily override settings.ENVIRONMENT to non-test so the middleware wraps the response
+    old_env = settings.ENVIRONMENT
+    settings.ENVIRONMENT = "production"
+    try:
+        # Hit /api/v1/predictions/health to test success wrapping
+        response = client.get("/api/v1/predictions/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+        assert "message" in data
+        assert "data" in data
+        assert "meta" in data
+        assert data["success"] is True
+        
+        # Test error wrapping with an invalid payload
+        response = client.post("/api/v1/predictions/repeat-offender", json={"invalid": "payload"})
+        assert response.status_code == 422
+        data = response.json()
+        assert data["success"] is False
+        assert "message" in data
+        assert "errors" in data
+    finally:
+        settings.ENVIRONMENT = old_env
+
