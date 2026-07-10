@@ -49,6 +49,13 @@ import DatasetManagementPanel from "@/features/admin/components/dataset-manageme
 
 type PreviewTabId = "data" | "schema" | "statistics";
 
+const unwrapResponseData = <T,>(res: any): T => {
+  if (res && typeof res === "object" && res.success === true && "data" in res) {
+    return res.data;
+  }
+  return res;
+};
+
 export default function DatasetManagerPage() {
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"datasets" | "operations">("datasets");
@@ -131,24 +138,40 @@ export default function DatasetManagerPage() {
     loadConfig();
   }, []);
 
-  const loadDatasets = async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    const hasActiveJob = datasets.some(
+      (ds) => ds.status === "Uploading" || ds.status === "Validating" || ds.status === "Importing"
+    );
+
+    if (hasActiveJob) {
+      const interval = setInterval(() => {
+        loadDatasets(true);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [datasets]);
+
+  const loadDatasets = async (silent = false) => {
+    if (!silent) setLoading(true);
+    if (!silent) setError(null);
     try {
       const data = await fetchDatasets();
-      setDatasets(data);
+      setDatasets(unwrapResponseData<DatasetInfo[]>(data) || []);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to fetch dataset registry.");
+      if (!silent) setError(err.response?.data?.detail || "Failed to fetch dataset registry.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   const loadConfig = async () => {
     try {
       const cfg = await fetchDatasetConfig();
-      setConfig(cfg);
-      setMaxActiveInput(cfg.max_active_datasets);
+      const unwrapped = unwrapResponseData<DatasetConfig>(cfg);
+      setConfig(unwrapped);
+      if (unwrapped) {
+        setMaxActiveInput(unwrapped.max_active_datasets);
+      }
     } catch (err: any) {
       console.error("Failed to load settings configuration", err);
     }
@@ -414,8 +437,8 @@ export default function DatasetManagerPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getStatusBadge = (status: string, is_active: boolean) => {
-    if (is_active) {
+  const getStatusBadge = (ds: DatasetInfo) => {
+    if (ds.is_active) {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -424,7 +447,7 @@ export default function DatasetManagerPage() {
       );
     }
     
-    switch (status) {
+    switch (ds.status) {
       case "Ready":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-700 text-slate-400">
@@ -449,16 +472,27 @@ export default function DatasetManagerPage() {
       case "Uploading":
       case "Validating":
       case "Importing":
+        let progress = 0;
+        let progressText: string = ds.status;
+        if (ds.import_summary) {
+          try {
+            const summary = JSON.parse(ds.import_summary);
+            if (typeof summary.progress === "number") {
+              progress = summary.progress;
+              progressText = `${ds.status} (${progress}%)`;
+            }
+          } catch (e) {}
+        }
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse">
             <RefreshCw className="w-3 h-3 animate-spin text-amber-400 shrink-0" />
-            {status}
+            {progressText}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 border border-slate-500/20 text-slate-400">
-            {status}
+            {ds.status}
           </span>
         );
     }
@@ -812,7 +846,7 @@ export default function DatasetManagerPage() {
               <span>Config Limits</span>
             </button>
             <button
-              onClick={loadDatasets}
+              onClick={() => loadDatasets()}
               disabled={loading}
               className="p-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-xl cursor-pointer transition-all disabled:opacity-50"
               title="Sync Directory"
@@ -908,7 +942,7 @@ export default function DatasetManagerPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(ds.status, ds.is_active)}
+                      {getStatusBadge(ds)}
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-slate-200">
                       {ds.status === "Ready" ? ds.row_count.toLocaleString() : "-"}

@@ -292,9 +292,11 @@ class DatasetService:
         display_name: str,
         description: Optional[str],
         file_name: str,
-        file_bytes: bytes,
-        user_id: int,
-        preview: bool = False
+        file_bytes: Optional[bytes] = None,
+        file_obj: Optional[Union[bytes, Any]] = None,
+        user_id: int = 0,
+        preview: bool = False,
+        background: Optional[bool] = None
     ) -> Union[Dataset, dict]:
         """
         Registers an uploaded file in the registry under 'Uploading', dry-runs validations under 'Validating',
@@ -305,35 +307,409 @@ class DatasetService:
         if not (file_name.lower().endswith(".csv") or file_name.lower().endswith(".xlsx") or file_name.lower().endswith(".xls")):
             raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx, .xls) files are supported.")
 
+        # If file_bytes is None, we need to extract from file_obj if possible
+        if file_bytes is None and file_obj is not None:
+            if isinstance(file_obj, bytes):
+                file_bytes = file_obj
+                file_obj = None
+
         # Validate Empty File size
-        if len(file_bytes) == 0:
+        if file_bytes is not None and len(file_bytes) == 0:
             raise ValueError("File is empty. No data found.")
 
-        # If preview mode, validate and return BulkUploadSummary without writing to DB or files
+        # Create temporary storage path to preview or process
+        os.makedirs("datasets/uploaded", exist_ok=True)
+        storage_filename = f"temp_preview_{int(datetime.utcnow().timestamp())}_{file_name}"
+        storage_path = os.path.join("datasets", "uploaded", storage_filename)
+        
+        # If preview mode, validate and return BulkUploadSummary without writing to DB or files permanently
         if preview:
-            if file_name.lower().endswith((".xlsx", ".xls")):
-                try:
-                    df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
-                except Exception as parse_err:
-                    raise ValueError(f"Failed to parse Excel file: {str(parse_err)}")
-            elif file_name.lower().endswith(".csv"):
-                try:
-                    df = pd.read_csv(io.BytesIO(file_bytes))
-                except Exception as parse_err:
-                    raise ValueError(f"Failed to parse CSV file: {str(parse_err)}")
+            try:
+                if file_bytes is not None:
+                    with open(storage_path, "wb") as f:
+                        f.write(file_bytes)
+                elif file_obj is not None:
+                    with open(storage_path, "wb") as f:
+                        import shutil
+                        shutil.copyfileobj(file_obj, f)
+                
+                # Check empty file size on disk
+                if os.path.exists(storage_path) and os.path.getsize(storage_path) == 0:
+                    raise ValueError("File is empty. No data found.")
+                
+                # Run preview
+                return self.run_preview(storage_path, file_name)
+            finally:
+                if os.path.exists(storage_path):
+                    try:
+                        os.remove(storage_path)
+                    except Exception:
+                        pass
+
+        # Validate Duplicate Filename (excluding failed and archived ones)
+        duplicate_check = self.db.query(Dataset).filter(
+            Dataset.original_filename == file_name,
+            Dataset.status != "Failed",
+            Dataset.status != "Archived"
+        ).first()
+        if duplicate_check:
+            raise ValueError(f"A dataset with filename '{file_name}' has already been uploaded.")
+
+        # 1. Create dataset record under 'Uploading' status
+        db_dataset = Dataset(
+            name=f"dataset_{int(datetime.utcnow().timestamp())}",
+            original_filename=file_name,
+            display_name=display_name,
+            description=description,
+            source_type="CSV" if file_name.lower().endswith(".csv") else "Excel",
+            row_count=0,
+            column_count=0,
+            file_size=len(file_bytes) if file_bytes else 0,
+            status="Uploading",
+            upload_status="Uploading",
+            storage_path=None,
+            is_active=False
+        )
+        self.db.add(db_dataset)
+        self.db.commit()
+        self.db.refresh(db_dataset)
+
+        try:
+            # Write file to storage
+            real_storage_filename = f"{db_dataset.id}_{file_name}"
+            real_storage_path = os.path.join("datasets", "uploaded", real_storage_filename)
+            
+            if file_bytes is not None:
+                with open(real_storage_path, "wb") as f:
+                    f.write(file_bytes)
+                db_dataset.file_size = len(file_bytes)
+            elif file_obj is not None:
+                with open(real_storage_path, "wb") as f:
+                    import shutil
+                    shutil.copyfileobj(file_obj, f)
+                db_dataset.file_size = os.path.getsize(real_storage_path)
+                
+            db_dataset.storage_path = real_storage_path
+            db_dataset.upload_status = "Completed"
+            self.db.commit()
+
+            # Detect schema type from headers
+            import pandas as pd
+            if real_storage_path.lower().endswith(".csv"):
+                df_headers = pd.read_csv(real_storage_path, nrows=0)
             else:
-                raise ValueError("Unsupported format.")
-
-            if df.empty or len(df) == 0:
-                raise ValueError("File is empty.")
-
-            df = df.replace({np.nan: None})
-
+                df_headers = pd.read_excel(real_storage_path, nrows=0, engine="openpyxl")
+            
+            db_dataset.column_count = len(df_headers.columns)
+            self.db.commit()
+            
             from backend.services.fir_import_service import FIRImportService
             fir_importer = FIRImportService(self.db)
-            detected_schema = fir_importer.detect_schema_type(df.columns)
+            schema_type = fir_importer.detect_schema_type(df_headers.columns)
+            db_dataset.schema_type = schema_type
+            self.db.commit()
 
-            if detected_schema == "fir_normalized":
+            # Check if running in background
+            is_test = False
+            try:
+                bind = self.db.bind
+                if bind and hasattr(bind, "url") and bind.url:
+                    is_test = bind.url.drivername == "sqlite" and (bind.url.database == ":memory:" or not bind.url.database)
+            except Exception:
+                pass
+                
+            is_large = db_dataset.file_size > 500_000
+            run_bg = background if background is not None else (is_large and not is_test)
+            
+            if run_bg:
+                # Background task runs in a separate thread
+                import threading
+                threading.Thread(
+                    target=run_dataset_import_bg,
+                    args=(db_dataset.id, user_id, real_storage_path, schema_type),
+                    daemon=True
+                ).start()
+                return db_dataset
+            else:
+                # Run synchronously
+                self.execute_import(db_dataset.id, user_id, real_storage_path, schema_type, self.db)
+                self.db.refresh(db_dataset)
+                return db_dataset
+
+        except Exception as file_err:
+            self.db.rollback()
+            db_dataset.status = "Failed"
+            db_dataset.upload_status = "Failed"
+            
+            summary = {
+                "total_rows": 0,
+                "successful_imports": 0,
+                "failed_imports": 1,
+                "skipped_imports": 0,
+                "errors": [{"row": "unknown", "error": str(file_err)}]
+            }
+            db_dataset.import_summary = json.dumps(summary)
+            self.db.commit()
+            logger.error(f"Dataset import failed: {file_err}", exc_info=True)
+            raise ValueError(f"Failed to process dataset file: {str(file_err)}")
+
+    def run_preview(self, storage_path: str, file_name: str) -> dict:
+        import numpy as np
+        import re
+        
+        # 1. Count total rows
+        total_rows = 0
+        if storage_path.lower().endswith(".csv"):
+            with open(storage_path, "r", encoding="utf-8", errors="ignore") as f:
+                for _ in f:
+                    total_rows += 1
+            total_rows = max(1, total_rows - 1)
+        else:
+            import openpyxl
+            wb = openpyxl.load_workbook(storage_path, read_only=True)
+            sheet = wb.active
+            total_rows = max(1, (sheet.max_row or 1) - 1)
+            wb.close()
+
+        # 2. Parse first 10 rows
+        import pandas as pd
+        if storage_path.lower().endswith(".csv"):
+            df = pd.read_csv(storage_path, nrows=10)
+        else:
+            df = pd.read_excel(storage_path, nrows=10, engine="openpyxl")
+        df = df.replace({np.nan: None})
+        
+        from backend.services.fir_import_service import FIRImportService
+        fir_importer = FIRImportService(self.db)
+        schema_type = fir_importer.detect_schema_type(df.columns)
+
+        ALIAS_MAP = {
+            "case_category": "case_category", "category": "case_category",
+            "gravity_offence": "gravity_offence", "gravity": "gravity_offence",
+            "case_status": "case_status", "status": "case_status",
+            "state": "state", "district": "district", "court": "court",
+            "unit_type": "unit_type", "unit": "unit", "police_station": "unit",
+            "officer_kgid": "officer_kgid", "kgid": "officer_kgid",
+            "officer_name": "officer_name", "officer_rank": "officer_rank",
+            "rank": "officer_rank", "officer_designation": "officer_designation",
+            "designation": "officer_designation", "officer_dob": "officer_dob",
+            "officer_gender": "officer_gender", "officer_blood_group": "officer_blood_group",
+            "officer_physically_challenged": "officer_physically_challenged",
+            "officer_appointment_date": "officer_appointment_date",
+            "crime_no": "crime_no", "crimeno": "crime_no", "case_no": "case_no", "caseno": "case_no",
+            "registered_date": "registered_date", "crime_registered_date": "registered_date",
+            "brief_facts": "brief_facts", "incident_from_date": "incident_from_date",
+            "incident_to_date": "incident_to_date", "info_received_date": "info_received_date",
+            "latitude": "latitude", "lat": "latitude", "longitude": "longitude", "lng": "longitude", "lon": "longitude",
+            "occurrence_brief_facts": "occurrence_brief_facts", "crime_group_name": "crime_group_name",
+            "crime_head_name": "crime_head_name", "act_code": "act_code", "act_description": "act_description",
+            "short_name": "short_name", "section_code": "section_code", "section_description": "section_description",
+            "act_order": "act_order", "section_order": "section_order", "complainant_name": "complainant_name",
+            "complainant_age": "complainant_age", "complainant_occupation": "complainant_occupation",
+            "complainant_religion": "complainant_religion", "complainant_caste": "complainant_caste",
+            "complainant_gender": "complainant_gender", "victim_name": "victim_name", "victim_age": "victim_age",
+            "victim_gender": "victim_gender", "victim_police": "victim_police", "accused_name": "accused_name",
+            "accused_age": "accused_age", "accused_gender": "accused_gender", "accused_person_id": "accused_person_id",
+            "arrest_type": "arrest_type", "arrest_date": "arrest_date", "arrest_state": "arrest_state",
+            "arrest_district": "arrest_district", "arrest_station": "arrest_station", "arrest_io_kgid": "arrest_io_kgid",
+            "arrest_court": "arrest_court", "arrest_primary_accused_name": "arrest_primary_accused_name",
+            "arrest_joint_accused_names": "arrest_joint_accused_names", "chargesheet_date": "chargesheet_date",
+            "chargesheet_type": "chargesheet_type", "chargesheet_officer_kgid": "chargesheet_officer_kgid"
+        } if schema_type == "fir_normalized" else {
+            "fir_id": "fir_id", "firid": "fir_id", "fir_no": "fir_id", "fir_number": "fir_id", "firno": "fir_id",
+            "case_id": "fir_id", "case_number": "fir_id", "crime_type": "crime_type", "crimetype": "crime_type",
+            "type_of_crime": "crime_type", "offence_type": "crime_type", "offencetype": "crime_type",
+            "offense_type": "crime_type", "type": "crime_type", "crime": "crime_type", "crime_category": "crime_category",
+            "crimecategory": "crime_category", "category": "crime_category", "district": "district", "dist": "district",
+            "district_name": "district", "districtname": "district", "police_station": "police_station",
+            "policestation": "police_station", "ps": "police_station", "ps_name": "police_station", "station": "police_station",
+            "station_name": "police_station", "stationname": "police_station", "police_station_name": "police_station",
+            "policestationname": "police_station", "crime_date": "crime_date", "crimedate": "crime_date", "date": "crime_date",
+            "date_of_crime": "crime_date", "incident_date": "crime_date", "incidentdate": "crime_date", "offence_date": "crime_date",
+            "crime_time": "crime_time", "crimetime": "crime_time", "time": "crime_time", "time_of_crime": "crime_time",
+            "incident_time": "crime_time", "latitude": "latitude", "lat": "latitude", "longitude": "longitude",
+            "lng": "longitude", "lon": "longitude", "long": "longitude", "victim_age": "victim_age", "victimage": "victim_age",
+            "victim_s_age": "victim_age", "age_of_victim": "victim_age", "accused_age": "accused_age", "accusedage": "accused_age",
+            "accused_s_age": "accused_age", "age_of_accused": "age_of_accused", "criminal_age": "accused_age", "gender": "gender",
+            "sex": "gender", "victim_gender": "gender", "occupation": "occupation", "victim_occupation": "occupation",
+            "severity": "severity", "crime_severity": "severity", "crimeseverity": "severity", "seriousness": "severity",
+            "repeat_offender": "repeat_offender", "repeatoffender": "repeat_offender", "recidivist": "repeat_offender",
+            "repeat": "repeat_offender", "status": "status", "case_status": "status", "casestatus": "status",
+            "crime_status": "status"
+        }
+
+        def normalize_header(header: str) -> str:
+            h = str(header).strip().lower().lstrip('\ufeff')
+            h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
+            h = re.sub(r'[^a-z0-9_]', '', h)
+            return re.sub(r'_+', '_', h).strip('_')
+
+        df.columns = [normalize_header(c) for c in df.columns]
+        
+        # Check required columns for legacy schema
+        if schema_type != "fir_normalized":
+            required_cols = {"district", "police_station", "crime_date", "crime_type"}
+            actual_cols = {ALIAS_MAP.get(c, c) for c in df.columns}
+            missing_cols = required_cols - actual_cols
+            if missing_cols:
+                import pandas as pd
+                if storage_path.lower().endswith(".csv"):
+                    df_raw = pd.read_csv(storage_path, nrows=0)
+                else:
+                    df_raw = pd.read_excel(storage_path, nrows=0, engine="openpyxl")
+                raise ValueError(
+                    f"Missing required columns after header normalization: {sorted(missing_cols)}. "
+                    f"Columns found in file: {sorted(df_raw.columns)}"
+                )
+
+        rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
+        df = df.rename(columns=rename_dict)
+        preview_rows = df.to_dict(orient="records")
+
+        # 3. Validate rows in chunks
+        total_errors = []
+        rows_validated = 0
+        for chunk_rows in self.stream_rows(storage_path, schema_type, chunk_size=5000):
+            normalized_chunk_rows = []
+            for r in chunk_rows:
+                normalized_r = {}
+                for k, v in r.items():
+                    normalized_k = normalize_header(k)
+                    if normalized_k in ALIAS_MAP:
+                        normalized_r[ALIAS_MAP[normalized_k]] = v
+                    else:
+                        normalized_r[normalized_k] = v
+                normalized_chunk_rows.append(normalized_r)
+            if schema_type == "fir_normalized":
+                chunk_errors = fir_importer.validate_rows(normalized_chunk_rows)
+            else:
+                chunk_errors = self.validate_legacy_rows(self.db, normalized_chunk_rows, start_row_num=rows_validated + 2)
+            if chunk_errors:
+                total_errors.extend(chunk_errors[:100])
+            rows_validated += len(chunk_rows)
+
+        formatted_errors = []
+        for idx, e in enumerate(total_errors[:100]):
+            row_match = re.search(r"Row (\d+):", e)
+            row_num = int(row_match.group(1)) if row_match else (idx + 2)
+            formatted_errors.append({
+                "row": row_num,
+                "errors": {"validation": e},
+                "raw_data": {}
+            })
+
+        return {
+            "schema_type": schema_type,
+            "total_rows": total_rows,
+            "valid_count": total_rows - len(total_errors),
+            "invalid_count": len(total_errors),
+            "errors": formatted_errors,
+            "preview": preview_rows
+        }
+
+    def stream_rows(self, storage_path: str, schema_type: str, chunk_size: int = 5000):
+        import numpy as np
+        if storage_path.lower().endswith(".csv"):
+            for chunk in pd.read_csv(storage_path, chunksize=chunk_size):
+                chunk = chunk.replace({np.nan: None})
+                yield chunk.to_dict(orient="records")
+        else:
+            import openpyxl
+            wb = openpyxl.load_workbook(storage_path, read_only=True, data_only=True)
+            sheet = wb.active
+            
+            headers = []
+            rows = []
+            for r_idx, row in enumerate(sheet.iter_rows(values_only=True)):
+                if r_idx == 0:
+                    headers = [str(cell).strip() if cell is not None else f"col_{i}" for i, cell in enumerate(row)]
+                else:
+                    row_dict = {}
+                    for h, cell in zip(headers, row):
+                        row_dict[h] = cell
+                    rows.append(row_dict)
+                    if len(rows) >= chunk_size:
+                        yield rows
+                        rows = []
+            if rows:
+                yield rows
+            wb.close()
+
+    def validate_legacy_rows(self, db: Session, rows: list[dict], start_row_num: int) -> list[str]:
+        from backend.models.location import Location
+        from backend.models.police_station import PoliceStation
+        
+        locations = db.query(Location).all()
+        district_to_loc_id = {loc.district: loc.id for loc in locations}
+        stations = db.query(PoliceStation).all()
+        station_to_station_id = {s.station_name: s.id for s in stations}
+        
+        errors = []
+        for idx, row in enumerate(rows):
+            row_num = start_row_num + idx
+            
+            missing_fields = []
+            for field in ["district", "police_station", "crime_date", "crime_type"]:
+                val = row.get(field)
+                if val is None or (isinstance(val, str) and val.strip() == ""):
+                    missing_fields.append(field)
+            if missing_fields:
+                errors.append(f"Row {row_num}: Missing required fields: {', '.join(missing_fields)}")
+            else:
+                dist = str(row["district"]).strip()
+                ps = str(row["police_station"]).strip()
+                if dist not in district_to_loc_id:
+                    errors.append(f"Row {row_num}: District '{dist}' not found in location master data.")
+                if ps not in station_to_station_id:
+                    errors.append(f"Row {row_num}: Police station '{ps}' not found in master data.")
+                
+                date_str = str(row["crime_date"]).strip()
+                try:
+                    if "/" in date_str:
+                        datetime.strptime(date_str, "%d/%m/%Y").date()
+                    elif "-" in date_str and len(date_str.split("-")[0]) == 2:
+                        datetime.strptime(date_str, "%d-%m-%Y").date()
+                    else:
+                        datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+                except ValueError:
+                    errors.append(f"Row {row_num}: Invalid date format: {date_str}.")
+        return errors
+
+    def execute_import(
+        self,
+        dataset_id: int,
+        user_id: int,
+        storage_path: str,
+        schema_type: str,
+        db: Session,
+        db_progress: Optional[Session] = None
+    ):
+        if db_progress is None:
+            db_progress = db
+            
+        db_dataset_progress = db_progress.query(Dataset).filter(Dataset.id == dataset_id).first()
+        db_dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        
+        db_dataset_progress.status = "Validating"
+        db_progress.commit()
+        
+        try:
+            total_rows = 0
+            if storage_path.lower().endswith(".csv"):
+                with open(storage_path, "r", encoding="utf-8", errors="ignore") as f:
+                    for _ in f:
+                        total_rows += 1
+                total_rows = max(1, total_rows - 1)
+            else:
+                import openpyxl
+                wb = openpyxl.load_workbook(storage_path, read_only=True)
+                sheet = wb.active
+                total_rows = max(1, (sheet.max_row or 1) - 1)
+                wb.close()
+                
+            if schema_type == "fir_normalized":
+                from backend.services.fir_import_service import FIRImportService
+                fir_importer = FIRImportService(db)
                 ALIAS_MAP = {
                     "case_category": "case_category", "category": "case_category",
                     "gravity_offence": "gravity_offence", "gravity": "gravity_offence",
@@ -367,37 +743,6 @@ class DatasetService:
                     "arrest_joint_accused_names": "arrest_joint_accused_names", "chargesheet_date": "chargesheet_date",
                     "chargesheet_type": "chargesheet_type", "chargesheet_officer_kgid": "chargesheet_officer_kgid"
                 }
-
-                def normalize_header(header: str) -> str:
-                    h = str(header).strip().lower().lstrip('\ufeff')
-                    h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
-                    h = re.sub(r'[^a-z0-9_]', '', h)
-                    return re.sub(r'_+', '_', h).strip('_')
-
-                df.columns = [normalize_header(c) for c in df.columns]
-                rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
-                df = df.rename(columns=rename_dict)
-                rows = df.to_dict(orient="records")
-
-                val_errors = fir_importer.validate_rows(rows)
-                formatted_errors = []
-                for idx, e in enumerate(val_errors):
-                    row_match = re.search(r"Row (\d+):", e)
-                    row_num = int(row_match.group(1)) if row_match else (idx + 2)
-                    formatted_errors.append({
-                        "row": row_num,
-                        "errors": {"validation": e},
-                        "raw_data": rows[row_num - 2] if (0 <= row_num - 2 < len(rows)) else {}
-                    })
-
-                return {
-                    "schema_type": "fir_normalized",
-                    "total_rows": len(rows),
-                    "valid_count": len(rows) - len(val_errors),
-                    "invalid_count": len(val_errors),
-                    "errors": formatted_errors,
-                    "preview": rows[:10]
-                }
             else:
                 ALIAS_MAP = {
                     "fir_id": "fir_id", "firid": "fir_id", "fir_no": "fir_id", "fir_number": "fir_id", "firno": "fir_id",
@@ -414,7 +759,7 @@ class DatasetService:
                     "incident_time": "crime_time", "latitude": "latitude", "lat": "latitude", "longitude": "longitude",
                     "lng": "longitude", "lon": "longitude", "long": "longitude", "victim_age": "victim_age", "victimage": "victim_age",
                     "victim_s_age": "victim_age", "age_of_victim": "victim_age", "accused_age": "accused_age", "accusedage": "accused_age",
-                    "accused_s_age": "accused_age", "age_of_accused": "accused_age", "criminal_age": "accused_age", "gender": "gender",
+                    "accused_s_age": "accused_age", "age_of_accused": "age_of_accused", "criminal_age": "accused_age", "gender": "gender",
                     "sex": "gender", "victim_gender": "gender", "occupation": "occupation", "victim_occupation": "occupation",
                     "severity": "severity", "crime_severity": "severity", "crimeseverity": "severity", "seriousness": "severity",
                     "repeat_offender": "repeat_offender", "repeatoffender": "repeat_offender", "recidivist": "repeat_offender",
@@ -422,628 +767,284 @@ class DatasetService:
                     "crime_status": "status"
                 }
 
-                def normalize_header(header: str) -> str:
-                    h = str(header).strip().lower().lstrip('\ufeff')
-                    h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
-                    h = re.sub(r'[^a-z0-9_]', '', h)
-                    return re.sub(r'_+', '_', h)
+            def normalize_header(header: str) -> str:
+                h = str(header).strip().lower().lstrip('\ufeff')
+                h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
+                h = re.sub(r'[^a-z0-9_]', '', h)
+                return re.sub(r'_+', '_', h).strip('_')
 
-                df.columns = [normalize_header(c) for c in df.columns]
-                rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
-                df = df.rename(columns=rename_dict)
-                rows = df.to_dict(orient="records")
+            # Check required columns for legacy schema
+            if schema_type != "fir_normalized":
+                import pandas as pd
+                if storage_path.lower().endswith(".csv"):
+                    df_raw = pd.read_csv(storage_path, nrows=0)
+                else:
+                    df_raw = pd.read_excel(storage_path, nrows=0, engine="openpyxl")
+                actual_cols = {ALIAS_MAP.get(normalize_header(c), normalize_header(c)) for c in df_raw.columns}
+                required_cols = {"district", "police_station", "crime_date", "crime_type"}
+                missing_cols = required_cols - actual_cols
+                if missing_cols:
+                    raise ValueError(
+                        f"Missing required columns after header normalization: {sorted(missing_cols)}. "
+                        f"Columns found in file: {sorted(df_raw.columns)}"
+                    )
 
+            # 2. Validation and Duplicate Check Loop
+            total_errors = []
+            rows_validated = 0
+            for chunk_rows in self.stream_rows(storage_path, schema_type, chunk_size=5000):
+                normalized_chunk_rows = []
+                for r in chunk_rows:
+                    normalized_r = {}
+                    for k, v in r.items():
+                        normalized_k = normalize_header(k)
+                        if normalized_k in ALIAS_MAP:
+                            normalized_r[ALIAS_MAP[normalized_k]] = v
+                        else:
+                            normalized_r[normalized_k] = v
+                    normalized_chunk_rows.append(normalized_r)
+
+                if schema_type == "fir_normalized":
+                    chunk_errors = fir_importer.validate_rows(normalized_chunk_rows)
+                else:
+                    chunk_errors = self.validate_legacy_rows(db, normalized_chunk_rows, start_row_num=rows_validated + 2)
+                    
+                if chunk_errors:
+                    total_errors.extend(chunk_errors[:100])
+                    
+                rows_validated += len(chunk_rows)
+                
+                progress = int((rows_validated / total_rows) * 50)
+                db_dataset_progress.import_summary = json.dumps({
+                    "progress": progress,
+                    "status": "Validating",
+                    "processed_rows": rows_validated,
+                    "total_rows": total_rows
+                })
+                db_progress.commit()
+                
+            if total_errors:
+                raise ValueError("Validation errors: " + " | ".join(total_errors[:50]))
+                
+            # 3. Transition to Ingesting/Importing
+            db_dataset_progress.status = "Importing"
+            db_progress.commit()
+            
+            # 4. Ingestion Loop
+            rows_imported = 0
+            summary_reports = []
+            
+            if schema_type == "fir_normalized":
+                fir_importer.preload_caches()
+            else:
                 from backend.models.location import Location
                 from backend.models.police_station import PoliceStation
-                locations = self.db.query(Location).all()
+                locations = db.query(Location).all()
                 district_to_loc_id = {loc.district: loc.id for loc in locations}
-                stations = self.db.query(PoliceStation).all()
+                stations = db.query(PoliceStation).all()
                 station_to_station_id = {s.station_name: s.id for s in stations}
+                
+                first_names = ["Amit", "Rahul", "Vijay", "Sanjay", "Anil", "Sunil", "Rajesh", "Prakash", "Kiran", "Ramesh", "Deepak", "Suresh", "Priya", "Sunita", "Anita", "Geeta"]
+                last_names = ["Kumar", "Sharma", "Singh", "Patil", "Gowda", "Reddy", "Nair", "Joshi", "Das", "Mehta", "Sen", "Rao", "Patel", "Chatterjee", "Mukherjee", "Pillai"]
+                castes = ["General", "OBC", "SC", "ST"]
 
-                errors = []
-                for idx, row in enumerate(rows):
-                    row_num = idx + 2
-                    err_dict = {}
+            for chunk_rows in self.stream_rows(storage_path, schema_type, chunk_size=5000):
+                normalized_chunk_rows = []
+                for r in chunk_rows:
+                    normalized_r = {}
+                    for k, v in r.items():
+                        normalized_k = normalize_header(k)
+                        if normalized_k in ALIAS_MAP:
+                            normalized_r[ALIAS_MAP[normalized_k]] = v
+                        else:
+                            normalized_r[normalized_k] = v
+                    normalized_chunk_rows.append(normalized_r)
                     
-                    missing_fields = []
-                    for field in ["district", "police_station", "crime_date", "crime_type"]:
-                        val = row.get(field)
-                        if val is None or (isinstance(val, str) and val.strip() == ""):
-                            missing_fields.append(field)
-                    if missing_fields:
-                        err_dict["validation"] = f"Missing required fields: {', '.join(missing_fields)}"
-                    else:
+                if schema_type == "fir_normalized":
+                    report = fir_importer.import_normalized_dataset(normalized_chunk_rows, dataset_id, user_id=None, commit=False)
+                    summary_reports.append(report)
+                    rows_imported += report.get("cases_inserted", 0)
+                else:
+                    successful_imports = 0
+                    crime_events = []
+                    victim_infos = []
+                    criminal_infos = []
+                    
+                    from backend.models.crime import CrimeEvent
+                    from backend.models.criminal import Criminal
+                    from backend.models.victim import Victim
+                    from backend.models.crime_participation import CrimeParticipation
+                    
+                    for idx, row in enumerate(normalized_chunk_rows):
+                        global_idx = rows_imported + idx
                         dist = str(row["district"]).strip()
                         ps = str(row["police_station"]).strip()
-                        if dist not in district_to_loc_id:
-                            err_dict["district"] = f"District '{dist}' not found in location master data."
-                        if ps not in station_to_station_id:
-                            err_dict["police_station"] = f"Police station '{ps}' not found in master data."
+                        loc_id = district_to_loc_id.get(dist)
+                        ps_id = station_to_station_id.get(ps)
                         
                         date_str = str(row["crime_date"]).strip()
-                        try:
-                            if "/" in date_str:
-                                datetime.strptime(date_str, "%d/%m/%Y").date()
-                            elif "-" in date_str and len(date_str.split("-")[0]) == 2:
-                                datetime.strptime(date_str, "%d-%m-%Y").date()
-                            else:
-                                datetime.strptime(date_str[:10], "%Y-%m-%d").date()
-                        except ValueError:
-                            err_dict["crime_date"] = f"Invalid date format: {date_str}."
-
-                    if err_dict:
-                        errors.append({
-                            "row": row_num,
-                            "errors": err_dict,
-                            "raw_data": row
-                        })
-
-                return {
-                    "schema_type": "legacy_crime_intel",
-                    "total_rows": len(rows),
-                    "valid_count": len(rows) - len(errors),
-                    "invalid_count": len(errors),
-                    "errors": errors,
-                    "preview": rows[:10]
-                }
-
-
-        # Validate Duplicate Filename (excluding failed and archived ones)
-        duplicate_check = self.db.query(Dataset).filter(
-            Dataset.original_filename == file_name,
-            Dataset.status != "Failed",
-            Dataset.status != "Archived"
-        ).first()
-        if duplicate_check:
-            raise ValueError(f"A dataset with filename '{file_name}' has already been uploaded.")
-
-        from backend.models.crime import CrimeEvent
-        from backend.models.criminal import Criminal
-        from backend.models.victim import Victim
-        from backend.models.crime_participation import CrimeParticipation
-        from backend.models.location import Location
-        from backend.models.police_station import PoliceStation
-
-        # 1. Create dataset record under 'Uploading' status
-        db_dataset = Dataset(
-            name=f"dataset_{int(datetime.utcnow().timestamp())}",
-            original_filename=file_name,
-            display_name=display_name,
-            description=description,
-            source_type="CSV" if file_name.lower().endswith(".csv") else "Excel",
-            row_count=0,
-            column_count=0,
-            file_size=len(file_bytes),
-            status="Uploading",
-            upload_status="Uploading",
-            storage_path=None,
-            is_active=False
-        )
-        self.db.add(db_dataset)
-        self.db.commit()
-        self.db.refresh(db_dataset)
-
-        try:
-            # Create folder if not exists
-            os.makedirs("datasets/uploaded", exist_ok=True)
-            
-            # Write file bytes
-            storage_filename = f"{db_dataset.id}_{file_name}"
-            storage_path = os.path.join("datasets", "uploaded", storage_filename)
-            with open(storage_path, "wb") as f:
-                f.write(file_bytes)
-            
-            db_dataset.storage_path = storage_path
-            db_dataset.upload_status = "Completed"
-            self.db.commit()
-
-            # Transition to 'Validating'
-            db_dataset.status = "Validating"
-            self.db.commit()
-
-            # Parse CSV or Excel
-            if file_name.lower().endswith(".xlsx") or file_name.lower().endswith(".xls"):
-                try:
-                    df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
-                except Exception as parse_err:
-                    raise ValueError(f"Failed to parse Excel file. It may be corrupted or invalid. Error: {str(parse_err)}")
-            elif file_name.lower().endswith(".csv"):
-                try:
-                    df = pd.read_csv(io.BytesIO(file_bytes))
-                except Exception as parse_err:
-                    raise ValueError(f"Failed to parse CSV file. It may be corrupted or invalid. Error: {str(parse_err)}")
-            else:
-                raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx) are supported.")
-
-            if df.empty or len(df) == 0:
-                raise ValueError("File is empty. No data rows found.")
-
-            # Record column count
-            db_dataset.column_count = len(df.columns)
-            self.db.commit()
-
-            df = df.replace({np.nan: None})
-
-            # 1.5 Route to FIR Import Service if normalized FIR schema is detected
-            from backend.services.fir_import_service import FIRImportService
-            fir_importer = FIRImportService(self.db)
-            detected_schema = fir_importer.detect_schema_type(df.columns)
-
-            if detected_schema == "fir_normalized":
-                db_dataset.schema_type = "fir_normalized"
-                self.db.commit()
-
-                # Aliased Header Normalization mapping
-                ALIAS_MAP = {
-                    "case_category": "case_category",
-                    "category": "case_category",
-                    "gravity_offence": "gravity_offence",
-                    "gravity": "gravity_offence",
-                    "case_status": "case_status",
-                    "status": "case_status",
-                    "state": "state",
-                    "district": "district",
-                    "court": "court",
-                    "unit_type": "unit_type",
-                    "unit": "unit",
-                    "police_station": "unit",
-                    "officer_kgid": "officer_kgid",
-                    "kgid": "officer_kgid",
-                    "officer_name": "officer_name",
-                    "officer_rank": "officer_rank",
-                    "rank": "officer_rank",
-                    "officer_designation": "officer_designation",
-                    "designation": "officer_designation",
-                    "officer_dob": "officer_dob",
-                    "officer_gender": "officer_gender",
-                    "officer_blood_group": "officer_blood_group",
-                    "officer_physically_challenged": "officer_physically_challenged",
-                    "officer_appointment_date": "officer_appointment_date",
-                    "crime_no": "crime_no",
-                    "crimeno": "crime_no",
-                    "case_no": "case_no",
-                    "caseno": "case_no",
-                    "registered_date": "registered_date",
-                    "crime_registered_date": "registered_date",
-                    "brief_facts": "brief_facts",
-                    "incident_from_date": "incident_from_date",
-                    "incident_to_date": "incident_to_date",
-                    "info_received_date": "info_received_date",
-                    "latitude": "latitude",
-                    "lat": "latitude",
-                    "longitude": "longitude",
-                    "lng": "longitude",
-                    "lon": "longitude",
-                    "occurrence_brief_facts": "occurrence_brief_facts",
-                    "crime_group_name": "crime_group_name",
-                    "crime_head_name": "crime_head_name",
-                    "act_code": "act_code",
-                    "act_description": "act_description",
-                    "short_name": "short_name",
-                    "section_code": "section_code",
-                    "section_description": "section_description",
-                    "act_order": "act_order",
-                    "section_order": "section_order",
-                    "complainant_name": "complainant_name",
-                    "complainant_age": "complainant_age",
-                    "complainant_occupation": "complainant_occupation",
-                    "complainant_religion": "complainant_religion",
-                    "complainant_caste": "complainant_caste",
-                    "complainant_gender": "complainant_gender",
-                    "victim_name": "victim_name",
-                    "victim_age": "victim_age",
-                    "victim_gender": "victim_gender",
-                    "victim_police": "victim_police",
-                    "accused_name": "accused_name",
-                    "accused_age": "accused_age",
-                    "accused_gender": "accused_gender",
-                    "accused_person_id": "accused_person_id",
-                    "arrest_type": "arrest_type",
-                    "arrest_date": "arrest_date",
-                    "arrest_state": "arrest_state",
-                    "arrest_district": "arrest_district",
-                    "arrest_station": "arrest_station",
-                    "arrest_io_kgid": "arrest_io_kgid",
-                    "arrest_court": "arrest_court",
-                    "arrest_primary_accused_name": "arrest_primary_accused_name",
-                    "arrest_joint_accused_names": "arrest_joint_accused_names",
-                    "chargesheet_date": "chargesheet_date",
-                    "chargesheet_type": "chargesheet_type",
-                    "chargesheet_officer_kgid": "chargesheet_officer_kgid"
-                }
-
-                # Normalization alias mapping: normalized header name to the standard database column name
-                def normalize_header(header: str) -> str:
-                    h = str(header).strip().lower()
-                    h = h.lstrip('\ufeff')
-                    h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
-                    h = re.sub(r'[^a-z0-9_]', '', h)
-                    h = re.sub(r'_+', '_', h)
-                    return h.strip('_')
-
-                df.columns = [normalize_header(c) for c in df.columns]
-                rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
-                df = df.rename(columns=rename_dict)
-
-                rows = df.to_dict(orient="records")
-
-                # Dry-run Ingestion validations
-                val_errors = fir_importer.validate_rows(rows)
-                if val_errors:
-                    raise ValueError("Validation errors: " + " | ".join(val_errors))
-
-                # Transition to 'Importing'
-                db_dataset.status = "Importing"
-                self.db.commit()
-
-                # Import via single transaction
-                summary = fir_importer.import_normalized_dataset(rows, db_dataset.id, user_id)
-
-                # Set dataset status to Ready
-                db_dataset.status = "Ready"
-                db_dataset.row_count = summary["cases_inserted"]
-                db_dataset.import_summary = json.dumps(summary)
-                self.db.commit()
-
-                # Automatically activate dataset
-                self.activate_dataset(db_dataset.id)
-                return db_dataset
-
-            # Normalization alias mapping: normalized header name to the standard database column name
-            def normalize_header(header: str) -> str:
-                h = str(header).strip().lower()
-                # Remove BOM characters
-                h = h.lstrip('\ufeff')
-                # Replace various separators with underscore
-                h = h.replace(" ", "_").replace("-", "_").replace(".", "_")
-                # Remove non-alphanumeric, non-underscore characters
-                h = re.sub(r'[^a-z0-9_]', '', h)
-                # Collapse multiple underscores
-                h = re.sub(r'_+', '_', h)
-                # Strip leading/trailing underscores
-                h = h.strip('_')
-                return h
-
-            ALIAS_MAP = {
-                # FIR ID
-                "fir_id": "fir_id",
-                "firid": "fir_id",
-                "fir_no": "fir_id",
-                "fir_number": "fir_id",
-                "firno": "fir_id",
-                "case_id": "fir_id",
-                "case_number": "fir_id",
-                # Crime Type
-                "crime_type": "crime_type",
-                "crimetype": "crime_type",
-                "type_of_crime": "crime_type",
-                "offence_type": "crime_type",
-                "offencetype": "crime_type",
-                "offense_type": "crime_type",
-                "type": "crime_type",
-                "crime": "crime_type",
-                # Crime Category
-                "crime_category": "crime_category",
-                "crimecategory": "crime_category",
-                "category": "crime_category",
-                # District
-                "district": "district",
-                "dist": "district",
-                "district_name": "district",
-                "districtname": "district",
-                # Police Station
-                "police_station": "police_station",
-                "policestation": "police_station",
-                "ps": "police_station",
-                "ps_name": "police_station",
-                "station": "police_station",
-                "station_name": "police_station",
-                "stationname": "police_station",
-                "police_station_name": "police_station",
-                "policestationname": "police_station",
-                # Crime Date
-                "crime_date": "crime_date",
-                "crimedate": "crime_date",
-                "date": "crime_date",
-                "date_of_crime": "crime_date",
-                "incident_date": "crime_date",
-                "incidentdate": "crime_date",
-                "offence_date": "crime_date",
-                # Crime Time
-                "crime_time": "crime_time",
-                "crimetime": "crime_time",
-                "time": "crime_time",
-                "time_of_crime": "crime_time",
-                "incident_time": "crime_time",
-                # Latitude / Longitude
-                "latitude": "latitude",
-                "lat": "latitude",
-                "longitude": "longitude",
-                "lng": "longitude",
-                "lon": "longitude",
-                "long": "longitude",
-                # Victim Age
-                "victim_age": "victim_age",
-                "victimage": "victim_age",
-                "victim_s_age": "victim_age",
-                "age_of_victim": "victim_age",
-                # Accused Age
-                "accused_age": "accused_age",
-                "accusedage": "accused_age",
-                "accused_s_age": "accused_age",
-                "age_of_accused": "accused_age",
-                "criminal_age": "accused_age",
-                # Gender
-                "gender": "gender",
-                "sex": "gender",
-                "victim_gender": "gender",
-                # Occupation
-                "occupation": "occupation",
-                "victim_occupation": "occupation",
-                # Severity
-                "severity": "severity",
-                "crime_severity": "severity",
-                "crimeseverity": "severity",
-                "seriousness": "severity",
-                # Repeat Offender
-                "repeat_offender": "repeat_offender",
-                "repeatoffender": "repeat_offender",
-                "recidivist": "repeat_offender",
-                "repeat": "repeat_offender",
-                # Status
-                "status": "status",
-                "case_status": "status",
-                "casestatus": "status",
-                "crime_status": "status",
-            }
-
-            df.columns = [normalize_header(c) for c in df.columns]
-            rename_dict = {col: ALIAS_MAP[col] for col in df.columns if col in ALIAS_MAP}
-            df = df.rename(columns=rename_dict)
-
-            # Verify required columns exist after normalization
-            required_cols = {"district", "police_station", "crime_date", "crime_type"}
-            actual_cols = set(df.columns)
-            missing_cols = required_cols - actual_cols
-            if missing_cols:
-                raise ValueError(
-                    f"Missing required columns after header normalization: {sorted(missing_cols)}. "
-                    f"Columns found in file: {sorted(actual_cols)}"
-                )
-            
-            # Fetch location and station mappings
-            locations = self.db.query(Location).all()
-            district_to_loc_id = {loc.district: loc.id for loc in locations}
-
-            stations = self.db.query(PoliceStation).all()
-            station_to_station_id = {s.station_name: s.id for s in stations}
-
-            first_names = ["Amit", "Rahul", "Vijay", "Sanjay", "Anil", "Sunil", "Rajesh", "Prakash", "Kiran", "Ramesh", "Deepak", "Suresh", "Priya", "Sunita", "Anita", "Geeta"]
-            last_names = ["Kumar", "Sharma", "Singh", "Patil", "Gowda", "Reddy", "Nair", "Joshi", "Das", "Mehta", "Sen", "Rao", "Patel", "Chatterjee", "Mukherjee", "Pillai"]
-            castes = ["General", "OBC", "SC", "ST"]
-
-            rows = df.to_dict(orient="records")
-            total_records = len(rows)
-            batch_size = 5000
-            
-            # Perform strict dry-run validation of all rows first
-            for idx, row in enumerate(rows):
-                row_num = idx + 2
-                
-                # Required fields check (value must be non-empty after normalization)
-                missing_fields = []
-                for field in ["district", "police_station", "crime_date", "crime_type"]:
-                    val = row.get(field)
-                    if val is None or (isinstance(val, str) and val.strip() == ""):
-                        missing_fields.append(field)
-                if missing_fields:
-                    raise ValueError(f"Row {row_num}: Missing required field values: {', '.join(missing_fields)}")
-
-                dist = str(row["district"]).strip()
-                ps = str(row["police_station"]).strip()
-
-                loc_id = district_to_loc_id.get(dist)
-                ps_id = station_to_station_id.get(ps)
-                
-                # Geographic mapping reference checks
-                if not loc_id:
-                    raise ValueError(f"Row {row_num}: District '{dist}' not found in location master data.")
-                if not ps_id:
-                    raise ValueError(f"Row {row_num}: Police Station '{ps}' not found in master data.")
-
-                # Date syntax checking
-                date_str = str(row["crime_date"]).strip()
-                try:
-                    if "/" in date_str:
-                        datetime.strptime(date_str, "%d/%m/%Y").date()
-                    elif "-" in date_str and len(date_str.split("-")[0]) == 2:
-                        datetime.strptime(date_str, "%d-%m-%Y").date()
-                    else:
-                        datetime.strptime(date_str[:10], "%Y-%m-%d").date()
-                except ValueError:
-                    raise ValueError(f"Row {row_num}: Invalid date format: {date_str}. Expected YYYY-MM-DD or DD/MM/YYYY")
-
-            # Transition to 'Importing'
-            db_dataset.status = "Importing"
-            self.db.commit()
-
-            # 2. Perform Transactional Import
-            successful_imports = 0
-            
-            for i in range(0, total_records, batch_size):
-                batch_rows = rows[i:i+batch_size]
-                
-                crime_events = []
-                victim_infos = []
-                criminal_infos = []
-                
-                for idx, row in enumerate(batch_rows):
-                    global_idx = i + idx
-                    
-                    dist = str(row["district"]).strip()
-                    ps = str(row["police_station"]).strip()
-
-                    loc_id = district_to_loc_id.get(dist)
-                    ps_id = station_to_station_id.get(ps)
-
-                    # Parse date and time
-                    date_str = str(row["crime_date"]).strip()
-                    if "/" in date_str:
-                        date_obj = datetime.strptime(date_str, "%d/%m/%Y").date()
-                    elif "-" in date_str and len(date_str.split("-")[0]) == 2:
-                        date_obj = datetime.strptime(date_str, "%d-%m-%Y").date()
-                    else:
-                        date_obj = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
-
-                    time_obj = None
-                    if row.get("crime_time"):
-                        time_str = str(row["crime_time"]).strip()
-                        try:
-                            time_obj = datetime.strptime(time_str[:5], "%H:%M").time()
-                        except ValueError:
+                        if "/" in date_str:
+                            date_obj = datetime.strptime(date_str, "%d/%m/%Y").date()
+                        elif "-" in date_str and len(date_str.split("-")[0]) == 2:
+                            date_obj = datetime.strptime(date_str, "%d-%m-%Y").date()
+                        else:
+                            date_obj = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+                            
+                        time_obj = None
+                        if row.get("crime_time"):
+                            time_str = str(row["crime_time"]).strip()
                             try:
-                                time_obj = datetime.strptime(time_str, "%H:%M:%S").time()
+                                time_obj = datetime.strptime(time_str[:5], "%H:%M").time()
                             except ValueError:
-                                pass
-
-                    # Create CrimeEvent model
-                    crime = CrimeEvent(
-                        crime_type=str(row["crime_type"]),
-                        crime_category=str(row["crime_type"]),
-                        crime_subcategory=f"{row['crime_type']} - Subcategory",
-                        description=f"{row['crime_type']} incident registered under {row.get('fir_id', 'unknown')}",
-                        severity=float(row["severity"]) if row.get("severity") else 1.0,
-                        status=str(row.get("status", "reported")),
-                        crime_date=date_obj,
-                        crime_time=time_obj,
-                        location_id=loc_id,
-                        police_station_id=ps_id,
-                        victim_count=1,
-                        accused_count=1,
-                        dataset_id=db_dataset.id
-                    )
-                    crime_events.append(crime)
-
-                    # Prepare Victim and Criminal details
-                    v_age = float(row["victim_age"]) if row.get("victim_age") else None
-                    c_age = float(row["accused_age"]) if row.get("accused_age") else None
-                    gender = str(row.get("gender", "Male"))
-                    occ = str(row.get("occupation", "Unemployed"))
-
-                    # Deterministic names and castes
-                    c_name = f"{first_names[global_idx % len(first_names)]} {last_names[(global_idx * 3) % len(last_names)]}"
-                    c_caste = castes[global_idx % len(castes)]
-                    risk_score = 0.85 if str(row.get("repeat_offender")) == "1" else 0.15
-
-                    victim_infos.append({
-                        "gender": gender,
-                        "age": v_age,
-                        "occupation": occ,
-                        "location_id": loc_id
-                    })
-
-                    criminal_infos.append({
-                        "name": c_name,
-                        "gender": gender,
-                        "age": c_age,
-                        "occupation": occ,
-                        "caste": c_caste,
-                        "risk_score": risk_score,
-                        "status": "accused" if row.get("status") != "Closed" else "convicted"
-                    })
-                    successful_imports += 1
-
-                # Insert batch
-                if crime_events:
-                    self.db.add_all(crime_events)
-                    self.db.flush()
-
-                    criminals_to_add = []
-                    victims_to_add = []
-                    for idx, crime in enumerate(crime_events):
-                        c_info = criminal_infos[idx]
-                        criminal = Criminal(
-                            name=c_info["name"],
-                            gender=c_info["gender"],
-                            age=c_info["age"],
-                            occupation=c_info["occupation"],
-                            caste=c_info["caste"],
-                            risk_score=c_info["risk_score"],
-                            status=c_info["status"],
-                            dataset_id=db_dataset.id
+                                try:
+                                    time_obj = datetime.strptime(time_str, "%H:%M:%S").time()
+                                except ValueError:
+                                    pass
+                                    
+                        crime = CrimeEvent(
+                            crime_type=str(row["crime_type"]),
+                            crime_category=str(row["crime_type"]),
+                            crime_subcategory=f"{row['crime_type']} - Subcategory",
+                            description=f"{row['crime_type']} incident registered under {row.get('fir_id', 'unknown')}",
+                            severity=float(row["severity"]) if row.get("severity") else 1.0,
+                            status=str(row.get("status", "reported")),
+                            crime_date=date_obj,
+                            crime_time=time_obj,
+                            location_id=loc_id,
+                            police_station_id=ps_id,
+                            victim_count=1,
+                            accused_count=1,
+                            dataset_id=dataset_id
                         )
-                        criminals_to_add.append(criminal)
-
-                        v_info = victim_infos[idx]
-                        victim = Victim(
-                            crime_event_id=crime.id,
-                            gender=v_info["gender"],
-                            age=v_info["age"],
-                            occupation=v_info["occupation"],
-                            location_id=v_info["location_id"],
-                            dataset_id=db_dataset.id
-                        )
-                        victims_to_add.append(victim)
-
-                    self.db.add_all(criminals_to_add)
-                    self.db.flush()
-
-                    participations_to_add = []
-                    for idx, crime in enumerate(crime_events):
-                        criminal = criminals_to_add[idx]
-                        participation = CrimeParticipation(
-                            crime_event_id=crime.id,
-                            criminal_id=criminal.id,
-                            role="principal accused",
-                            dataset_id=db_dataset.id
-                        )
-                        participations_to_add.append(participation)
-
-                    self.db.add_all(victims_to_add + participations_to_add)
-                    self.db.flush()
-
-            # Set dataset status to Ready
-            db_dataset.status = "Ready"
-            db_dataset.row_count = successful_imports
+                        crime_events.append(crime)
+                        
+                        v_age = float(row["victim_age"]) if row.get("victim_age") else None
+                        c_age = float(row["accused_age"]) if row.get("accused_age") else None
+                        gender = str(row.get("gender", "Male"))
+                        occ = str(row.get("occupation", "Unemployed"))
+                        c_name = f"{first_names[global_idx % len(first_names)]} {last_names[(global_idx * 3) % len(last_names)]}"
+                        c_caste = castes[global_idx % len(castes)]
+                        risk_score = 0.85 if str(row.get("repeat_offender")) == "1" else 0.15
+                        
+                        victim_infos.append({
+                            "gender": gender,
+                            "age": v_age,
+                            "occupation": occ,
+                            "location_id": loc_id
+                        })
+                        criminal_infos.append({
+                            "name": c_name,
+                            "gender": gender,
+                            "age": c_age,
+                            "occupation": occ,
+                            "caste": c_caste,
+                            "risk_score": risk_score,
+                            "status": "accused" if row.get("status") != "Closed" else "convicted"
+                        })
+                        successful_imports += 1
+                        
+                    if crime_events:
+                        db.add_all(crime_events)
+                        db.flush()
+                        
+                        criminals_to_add = []
+                        victims_to_add = []
+                        for idx, crime in enumerate(crime_events):
+                            c_info = criminal_infos[idx]
+                            criminal = Criminal(
+                                name=c_info["name"],
+                                gender=c_info["gender"],
+                                age=c_info["age"],
+                                occupation=c_info["occupation"],
+                                caste=c_info["caste"],
+                                risk_score=c_info["risk_score"],
+                                status=c_info["status"],
+                                dataset_id=dataset_id
+                            )
+                            criminals_to_add.append(criminal)
+                            
+                            v_info = victim_infos[idx]
+                            victim = Victim(
+                                crime_event_id=crime.id,
+                                gender=v_info["gender"],
+                                age=v_info["age"],
+                                occupation=v_info["occupation"],
+                                location_id=v_info["location_id"],
+                                dataset_id=dataset_id
+                            )
+                            victims_to_add.append(victim)
+                            
+                        db.add_all(criminals_to_add)
+                        db.flush()
+                        
+                        participations_to_add = []
+                        for idx, crime in enumerate(crime_events):
+                            criminal = criminals_to_add[idx]
+                            participation = CrimeParticipation(
+                                crime_event_id=crime.id,
+                                criminal_id=criminal.id,
+                                role="principal accused",
+                                dataset_id=dataset_id
+                            )
+                            participations_to_add.append(participation)
+                            
+                        db.add_all(victims_to_add + participations_to_add)
+                        db.flush()
+                        
+                    rows_imported += successful_imports
+                    
+                progress = 50 + int((rows_imported / total_rows) * 50)
+                db_dataset_progress.import_summary = json.dumps({
+                    "progress": progress,
+                    "status": "Importing",
+                    "processed_rows": rows_imported,
+                    "total_rows": total_rows
+                })
+                db_progress.commit()
+                
+            db.commit()
             
-            summary = {
-                "total_rows": total_records,
-                "successful_imports": successful_imports,
-                "failed_imports": 0,
-                "skipped_imports": 0,
-                "errors": []
-            }
-            db_dataset.import_summary = json.dumps(summary)
-            self.db.commit()
+            if schema_type == "fir_normalized":
+                summary = {
+                    "total_rows": total_rows,
+                    "cases_inserted": sum(r.get("cases_inserted", 0) for r in summary_reports),
+                    "victims_inserted": sum(r.get("victims_inserted", 0) for r in summary_reports),
+                    "accused_inserted": sum(r.get("accused_inserted", 0) for r in summary_reports),
+                    "complainants_inserted": sum(r.get("complainants_inserted", 0) for r in summary_reports),
+                    "arrests_inserted": sum(r.get("arrests_inserted", 0) for r in summary_reports),
+                    "chargesheets_inserted": sum(r.get("chargesheets_inserted", 0) for r in summary_reports),
+                    "warnings": [w for r in summary_reports for w in r.get("warnings", [])]
+                }
+            else:
+                summary = {
+                    "total_rows": total_rows,
+                    "successful_imports": rows_imported,
+                    "failed_imports": 0,
+                    "skipped_imports": 0,
+                    "errors": []
+                }
+                
+            db_dataset_progress.status = "Ready"
+            db_dataset_progress.row_count = rows_imported
+            db_dataset_progress.import_summary = json.dumps(summary)
+            db_progress.commit()
             
-            # Make the newly imported dataset active so uploads immediately drive the UI.
-            self.activate_dataset(db_dataset.id)
-            self.db.refresh(db_dataset)
-
-        except Exception as file_err:
-            self.db.rollback()
-            db_dataset.status = "Failed"
-            db_dataset.upload_status = "Failed"
-            
-            # Parse row number for statistical tracking
-            row_num_err = "unknown"
-            match = re.search(r"Row (\d+):", str(file_err))
-            if match:
-                row_num_err = int(match.group(1))
-
-            summary = {
-                "total_rows": len(rows) if 'rows' in locals() else 0,
-                "successful_imports": 0,
-                "failed_imports": len(rows) if 'rows' in locals() else 1,
-                "skipped_imports": 0,
-                "errors": [{"row": row_num_err, "error": str(file_err)}]
-            }
-            db_dataset.import_summary = json.dumps(summary)
-            self.db.commit()
-            logger.error(f"Dataset import failed: {file_err}", exc_info=True)
-            raise ValueError(f"Failed to process dataset file: {str(file_err)}")
-
-        return db_dataset
+            # Auto-activate completed dataset
+            db_dataset_ref = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+            if db_dataset_ref:
+                self.activate_dataset(db_dataset_ref.id)
+                
+        except Exception as e:
+            db.rollback()
+            db_dataset_progress.status = "Failed"
+            db_dataset_progress.upload_status = "Failed"
+            db_dataset_progress.import_summary = json.dumps({
+                "progress": 0,
+                "status": "Failed",
+                "errors": [{"row": "unknown", "error": str(e)}]
+            })
+            db_progress.commit()
+            raise e
 
     def get_dataset_summary(self, dataset_id: int) -> dict:
         """
@@ -1167,4 +1168,19 @@ class DatasetService:
             "numeric_columns": numeric_columns,
             "categorical_columns": categorical_columns
         }
+
+
+def run_dataset_import_bg(dataset_id: int, user_id: int, storage_path: str, schema_type: str):
+    from backend.core.database import SessionLocal
+    from backend.services.dataset_service import DatasetService
+    db = SessionLocal()
+    db_progress = SessionLocal()
+    try:
+        service = DatasetService(db)
+        service.execute_import(dataset_id, user_id, storage_path, schema_type, db, db_progress)
+    except Exception as e:
+        logger.error(f"Background dataset import failed for ID {dataset_id}: {e}", exc_info=True)
+    finally:
+        db.close()
+        db_progress.close()
 

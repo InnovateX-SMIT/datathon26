@@ -150,7 +150,6 @@ async def import_fir_dataset_endpoint(
     current_user = Depends(get_current_user)
 ):
     try:
-        file_bytes = await file.read()
         filename = file.filename
 
         if not (filename.lower().endswith(".csv") or filename.lower().endswith(".xlsx") or filename.lower().endswith(".xls")):
@@ -163,7 +162,7 @@ async def import_fir_dataset_endpoint(
             display_name=display_name or filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title(),
             description=description,
             file_name=filename,
-            file_bytes=file_bytes,
+            file_obj=file.file,
             user_id=user_id,
             preview=preview
         )

@@ -230,7 +230,6 @@ async def upload_dataset_file(
         results = []
 
         for f in upload_files:
-            file_bytes = await f.read()
             # If multiple files are uploaded, display name is customized
             if len(upload_files) > 1:
                 # If display name was provided, suffix it
@@ -246,7 +245,7 @@ async def upload_dataset_file(
                 display_name=current_display_name,
                 description=description,
                 file_name=f.filename,
-                file_bytes=file_bytes,
+                file_obj=f.file,
                 user_id=admin_id,
                 preview=preview
             )

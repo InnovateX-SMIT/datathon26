@@ -62,14 +62,41 @@ class NetworkAnalyticsService:
             from backend.models.fir_geography import District
             from backend.models.fir_organization import Unit
             from sqlalchemy import func
+            from sqlalchemy.orm import joinedload
             
-            accused_list = self.db.query(Accused).join(CaseMaster).filter(CaseMaster.dataset_id == dataset_id).all()
-            cases = self.db.query(CaseMaster).filter(CaseMaster.dataset_id == dataset_id).all()
+            # Capping: fetch only latest 5000 cases to prevent memory exhaustion and browser crash
+            cases = (
+                self.db.query(CaseMaster)
+                .filter(CaseMaster.dataset_id == dataset_id)
+                .options(
+                    joinedload(CaseMaster.case_status),
+                    joinedload(CaseMaster.gravity_offence),
+                    joinedload(CaseMaster.crime_minor_head),
+                    joinedload(CaseMaster.crime_major_head)
+                )
+                .order_by(CaseMaster.id.desc())
+                .limit(5000)
+                .all()
+            )
+            case_ids = [c.id for c in cases]
             
-            # Load unique districts referenced by cases
-            districts = self.db.query(District).join(Unit).join(CaseMaster, CaseMaster.PoliceStationID == Unit.id).filter(
-                CaseMaster.dataset_id == dataset_id
-            ).distinct().all()
+            # Fetch accused for these cases only
+            accused_list = (
+                self.db.query(Accused)
+                .filter(Accused.CaseMasterID.in_(case_ids))
+                .options(joinedload(Accused.gender))
+                .all()
+            )
+            
+            # Load unique districts referenced by these cases
+            districts = (
+                self.db.query(District)
+                .join(Unit)
+                .join(CaseMaster, CaseMaster.PoliceStationID == Unit.id)
+                .filter(CaseMaster.id.in_(case_ids))
+                .distinct()
+                .all()
+            )
             
             # 2. Add criminal nodes
             for a in accused_list:
@@ -131,21 +158,59 @@ class NetworkAnalyticsService:
                 if G.has_node(crim_node_id) and G.has_node(crime_node_id):
                     G.add_edge(crim_node_id, crime_node_id, relationship="INVOLVED_IN", role="accused")
                     
-            # 6. Add edges for Crime Occurrence: Case -> Location
+            # 6. Add edges for Crime Occurrence: Case -> Location (Preloaded Map avoids N+1 queries)
+            unit_ids = [c.PoliceStationID for c in cases if c.PoliceStationID]
+            units_map = {}
+            if unit_ids:
+                units = self.db.query(Unit).filter(Unit.id.in_(unit_ids)).all()
+                units_map = {u.id: u for u in units}
+                
             for c in cases:
-                unit = self.db.query(Unit).filter(Unit.id == c.PoliceStationID).first()
+                unit = units_map.get(c.PoliceStationID)
                 if unit and unit.DistrictID:
                     crime_node_id = f"crime_{c.id}"
                     loc_node_id = f"location_{unit.DistrictID}"
                     if G.has_node(crime_node_id) and G.has_node(loc_node_id):
                         G.add_edge(crime_node_id, loc_node_id, relationship="OCCURRED_AT")
         else:
-            # 1. Load entities
-            criminals = self.repo.get_all_criminals(dataset_id=dataset_id)
-            crimes = self.repo.get_all_crimes(dataset_id=dataset_id)
-            locations = self.repo.get_all_locations()
-            participations = self.repo.get_all_participations(dataset_id=dataset_id)
-
+            from backend.models.crime import CrimeEvent
+            from backend.models.criminal import Criminal
+            from backend.models.location import Location
+            from backend.models.crime_participation import CrimeParticipation
+            
+            # Capping: fetch only latest 5000 crimes
+            crimes = (
+                self.db.query(CrimeEvent)
+                .filter(CrimeEvent.dataset_id == dataset_id)
+                .order_by(CrimeEvent.id.desc())
+                .limit(5000)
+                .all()
+            )
+            crime_ids = [cr.id for cr in crimes]
+            
+            # Fetch participations for these crimes only
+            participations = (
+                self.db.query(CrimeParticipation)
+                .filter(CrimeParticipation.crime_event_id.in_(crime_ids))
+                .all()
+            )
+            criminal_ids = [p.criminal_id for p in participations]
+            
+            # Fetch criminals for these participations
+            criminals = (
+                self.db.query(Criminal)
+                .filter(Criminal.id.in_(criminal_ids))
+                .all()
+            )
+            
+            # Fetch only locations referenced by these crimes
+            location_ids = [cr.location_id for cr in crimes if cr.location_id]
+            locations = (
+                self.db.query(Location)
+                .filter(Location.id.in_(location_ids))
+                .all()
+            )
+ 
             # 2. Add criminal nodes
             for c in criminals:
                 G.add_node(
@@ -159,7 +224,7 @@ class NetworkAnalyticsService:
                     caste=c.caste,
                     status=c.status
                 )
-
+ 
             # 3. Add crime event nodes
             for cr in crimes:
                 G.add_node(
@@ -172,7 +237,7 @@ class NetworkAnalyticsService:
                     status=cr.status,
                     crime_date=str(cr.crime_date) if cr.crime_date else None
                 )
-
+ 
             # 4. Add location nodes
             for loc in locations:
                 G.add_node(
@@ -184,7 +249,7 @@ class NetworkAnalyticsService:
                     latitude=loc.latitude,
                     longitude=loc.longitude
                 )
-
+ 
             # 5. Add edges for Crime Participation: Criminal -> Crime Event
             for part in participations:
                 crim_node_id = f"criminal_{part.criminal_id}"
@@ -198,7 +263,7 @@ class NetworkAnalyticsService:
                         relationship="INVOLVED_IN",
                         role=part.role or "accused"
                     )
-
+ 
             # 6. Add edges for Crime Occurrence: Crime Event -> Location
             for cr in crimes:
                 if cr.location_id:
@@ -211,7 +276,7 @@ class NetworkAnalyticsService:
                             loc_node_id,
                             relationship="OCCURRED_AT"
                         )
-
+ 
         return G
 
     def get_centrality(self, limit: int = 50) -> Dict[str, List[Dict[str, Any]]]:

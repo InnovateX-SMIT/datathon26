@@ -56,6 +56,56 @@ class FIRImportService:
         # Counter for reporting new inserts
         self.lookups_inserted = 0
 
+    def preload_caches(self):
+        """
+        Loads all master lookup tables into in-memory caches to prevent N+1 queries.
+        """
+        for obj in self.db.query(NationalityMaster).all():
+            self.nationality_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(GenderMaster).all():
+            self.gender_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(BloodGroupMaster).all():
+            self.blood_group_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(CasteMaster).all():
+            self.caste_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(ReligionMaster).all():
+            self.religion_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(OccupationMaster).all():
+            self.occupation_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(CaseCategory).all():
+            self.category_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(GravityOffence).all():
+            self.gravity_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(CaseStatusMaster).all():
+            self.status_cache[str(obj.name).strip()] = obj.id
+            
+        for obj in self.db.query(State).all():
+            self.state_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(District).all():
+            self.district_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(Court).all():
+            self.court_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(UnitType).all():
+            self.unit_type_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(Unit).all():
+            self.unit_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(Rank).all():
+            self.rank_cache[str(obj.name).strip()] = obj.id
+        for obj in self.db.query(Designation).all():
+            self.designation_cache[str(obj.name).strip()] = obj.id
+            
+        for obj in self.db.query(Employee).all():
+            self.employee_cache[str(obj.KGID).strip()] = obj.id
+            
+        for obj in self.db.query(Act).all():
+            self.act_cache[str(obj.ActCode).strip()] = obj.ActCode
+        for obj in self.db.query(Section).all():
+            self.section_cache[(str(obj.ActCode).strip(), str(obj.SectionCode).strip())] = obj.SectionCode
+        for obj in self.db.query(CrimeHead).all():
+            self.crime_head_cache[str(obj.CrimeGroupName).strip()] = obj.id
+        for obj in self.db.query(CrimeSubHead).all():
+            self.crime_sub_head_cache[str(obj.CrimeHeadName).strip()] = obj.id
+
     # ── Master Lookup Resolver Helpers (with auto-insert fallback & caching) ───
 
     def get_nationality(self, name: str) -> int:
@@ -482,7 +532,8 @@ class FIRImportService:
         self,
         rows: list[dict],
         dataset_id: int,
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
+        commit: bool = True
     ) -> dict:
         """
         Ingests flat normalized records inside a single transaction, resolving 
@@ -507,13 +558,21 @@ class FIRImportService:
         chargesheet_count = 0
         warnings = []
 
+        # Bulk query existing crime numbers to avoid N+1 queries
+        incoming_crime_nos = list(grouped_cases.keys())
+        existing_crime_nos = set()
+        for idx in range(0, len(incoming_crime_nos), 5000):
+            batch = incoming_crime_nos[idx:idx+5000]
+            existing = self.db.query(CaseMaster.CrimeNo).filter(CaseMaster.CrimeNo.in_(batch)).all()
+            for (c_no,) in existing:
+                existing_crime_nos.add(c_no)
+
         try:
             for crime_no, case_rows in grouped_cases.items():
                 first_row = case_rows[0]
                 
-                # Check duplicate case in DB
-                dup = self.db.query(CaseMaster).filter(CaseMaster.CrimeNo == crime_no).first()
-                if dup:
+                # Check duplicate case in DB (optimized via preloaded set)
+                if crime_no in existing_crime_nos:
                     warnings.append(f"CrimeNo '{crime_no}' already exists in database. Skipped duplicate import.")
                     continue
 
@@ -584,7 +643,7 @@ class FIRImportService:
                     latitude=first_row.get("latitude"),
                     longitude=first_row.get("longitude"),
                     occurrence_brief_facts=first_row.get("occurrence_brief_facts"),
-                    performed_by_user_id=user_id,
+                    performed_by_user_id=None,
                     commit=False
                 )
                 cases_inserted += 1
@@ -614,7 +673,7 @@ class FIRImportService:
                             religion_id=comp_rel,
                             caste_id=comp_caste,
                             gender_id=comp_gender,
-                            performed_by_user_id=user_id,
+                            performed_by_user_id=None,
                             commit=False
                         )
                         complainant_count += 1
@@ -631,7 +690,7 @@ class FIRImportService:
                             age=int(float(r["victim_age"])) if r.get("victim_age") is not None else None,
                             gender_id=vic_gender,
                             victim_police=str(r.get("victim_police", "0")),
-                            performed_by_user_id=user_id,
+                            performed_by_user_id=None,
                             commit=False
                         )
                         victim_count += 1
@@ -648,7 +707,7 @@ class FIRImportService:
                             age=int(float(r["accused_age"])) if r.get("accused_age") is not None else None,
                             gender_id=acc_gender,
                             person_id=r.get("accused_person_id"),
-                            performed_by_user_id=user_id,
+                            performed_by_user_id=None,
                             commit=False
                         )
                         accused_count += 1
@@ -668,7 +727,7 @@ class FIRImportService:
                                 section_code=sec_code,
                                 act_order_id=r.get("act_order", 1),
                                 section_order_id=r.get("section_order", 1),
-                                performed_by_user_id=user_id,
+                                performed_by_user_id=None,
                                 commit=False
                             )
 
@@ -728,7 +787,7 @@ class FIRImportService:
                                 is_accused=True,
                                 is_complainant_accused=False,
                                 other_accused_ids=joint_ids,
-                                performed_by_user_id=user_id,
+                                performed_by_user_id=None,
                                 commit=False
                             )
                             arrest_count += 1
@@ -751,13 +810,14 @@ class FIRImportService:
                             date_val=cs_dt,
                             cs_type=r["chargesheet_type"],
                             police_person_id=cs_officer_id,
-                            performed_by_user_id=user_id,
+                            performed_by_user_id=None,
                             commit=False
                         )
                         chargesheet_count += 1
                         
-            # Final Transaction Commit
-            self.db.commit()
+            # Final Transaction Commit (only if requested)
+            if commit:
+                self.db.commit()
 
         except Exception as e:
             self.db.rollback()
