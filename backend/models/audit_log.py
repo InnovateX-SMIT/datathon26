@@ -8,11 +8,23 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_name = Column(String(150), nullable=True)
+    user_role = Column(String(50), nullable=True)
+    module = Column(String(100), nullable=True, index=True)
     action = Column(String(100), nullable=False, index=True)
+    action_type = Column(String(100), nullable=True, index=True)
     entity_type = Column(String(50), nullable=True, index=True)
     entity_id = Column(Integer, nullable=True)
     details = Column(String(2000), nullable=True)
+    previous_value = Column(String(4000), nullable=True)
+    new_value = Column(String(4000), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    request_method = Column(String(10), nullable=True)
+    api_endpoint = Column(String(500), nullable=True)
+    response_status = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Use backref to avoid modifying user.py
     user = relationship("User", backref="audit_logs")
+

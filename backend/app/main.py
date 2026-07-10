@@ -20,6 +20,10 @@ from backend.core.database import engine, Base
 # Import all models to ensure they are registered on Metadata before we call create_all
 from backend import models
 
+import contextvars
+request_var = contextvars.ContextVar("request", default=None)
+
+
 def migrate_database_schema(db_engine):
     from sqlalchemy import text
     try:
@@ -151,13 +155,45 @@ def migrate_database_schema(db_engine):
                 conn.execute(text("ALTER TABLE reports ADD COLUMN data_payload TEXT NULL"))
                 logger.info("Added missing 'data_payload' column to reports table.")
 
+            # Handle audit_logs table migrations
+            result = conn.execute(text("PRAGMA table_info(audit_logs)"))
+            audit_cols = {row[1] for row in result.fetchall()}
+            if audit_cols:
+                missing_audit_cols = []
+                if "user_name" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN user_name VARCHAR(150) NULL")
+                if "user_role" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN user_role VARCHAR(50) NULL")
+                if "module" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN module VARCHAR(100) NULL")
+                if "action_type" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN action_type VARCHAR(100) NULL")
+                if "previous_value" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN previous_value VARCHAR(4000) NULL")
+                if "new_value" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN new_value VARCHAR(4000) NULL")
+                if "ip_address" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN ip_address VARCHAR(45) NULL")
+                if "user_agent" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN user_agent VARCHAR(500) NULL")
+                if "request_method" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN request_method VARCHAR(10) NULL")
+                if "api_endpoint" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN api_endpoint VARCHAR(500) NULL")
+                if "response_status" not in audit_cols:
+                    missing_audit_cols.append("ALTER TABLE audit_logs ADD COLUMN response_status INTEGER NULL")
+                
+                for sql in missing_audit_cols:
+                    logger.info(f"Running audit_logs migration SQL: {sql}")
+                    conn.execute(text(sql))
+
         logger.info("AuditLog table ensured via create_all.")
     except Exception as e:
         logger.error(f"Error during dynamic alerts table migration: {e}")
 
-# Create tables in development
-if settings.ENVIRONMENT == "development":
-    logger.info("Recreating database tables in development environment...")
+# Create tables and run schema migrations
+if settings.ENVIRONMENT in ["development", "test"]:
+    logger.info(f"Recreating database tables and migrating schema in {settings.ENVIRONMENT} environment...")
     Base.metadata.create_all(bind=engine)
     migrate_database_schema(engine)
     
@@ -206,6 +242,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next):
+    token = request_var.set(request)
+    try:
+        return await call_next(request)
+    finally:
+        request_var.reset(token)
 
 # Custom performance log middleware
 @app.middleware("http")
@@ -520,6 +564,7 @@ def system_status():
     }
 
 # API routers
+from backend.api.auth.router import router as auth_router
 from backend.api.crimes.router import router as crimes_router
 from backend.api.analytics.router import router as analytics_router
 from backend.api.geo.router import router as geo_router
@@ -532,6 +577,7 @@ from backend.api.admin.router import router as admin_router
 from backend.api.fir.router import router as fir_router
 
 # Register routers with API Prefix
+app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
 app.include_router(crimes_router, prefix=f"{settings.API_V1_STR}/crimes", tags=["Crimes"])
 app.include_router(analytics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["Crime Analytics"])
 app.include_router(geo_router, prefix=f"{settings.API_V1_STR}/geo", tags=["Geo Intelligence"])

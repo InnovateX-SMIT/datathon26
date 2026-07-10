@@ -120,11 +120,36 @@ class AdminService:
         page: int = 1,
         page_size: int = 50,
         action_filter: Optional[str] = None,
+        user_id_filter: Optional[int] = None,
+        module_filter: Optional[str] = None,
+        search_filter: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
         performed_by_user_id: Optional[int] = None
     ) -> Dict[str, Any]:
         skip = (page - 1) * page_size
-        logs = self.repo.get_audit_logs(skip, page_size, action_filter)
-        total = self.repo.get_audit_log_count(action_filter)
+        logs = self.repo.get_audit_logs(
+            skip=skip,
+            limit=page_size,
+            action_filter=action_filter,
+            user_id_filter=user_id_filter,
+            module_filter=module_filter,
+            search_filter=search_filter,
+            start_date=start_date,
+            end_date=end_date,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        total = self.repo.get_audit_log_count(
+            action_filter=action_filter,
+            user_id_filter=user_id_filter,
+            module_filter=module_filter,
+            search_filter=search_filter,
+            start_date=start_date,
+            end_date=end_date
+        )
 
         # Log only if performed by a user
         if performed_by_user_id is not None:
@@ -132,7 +157,12 @@ class AdminService:
                 user_id=performed_by_user_id,
                 action="AUDIT_LOGS_VIEWED",
                 entity_type="audit",
-                details=json.dumps({"page": page, "page_size": page_size, "action_filter": action_filter})
+                details=json.dumps({
+                    "page": page,
+                    "page_size": page_size,
+                    "action_filter": action_filter,
+                    "search_filter": search_filter
+                })
             )
 
         return {

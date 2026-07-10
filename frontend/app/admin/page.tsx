@@ -131,16 +131,7 @@ export default function AdminPage() {
         )}
 
         {activeTab === "audit" && (
-          <AuditLogsPanel
-            auditLogs={auditLogs}
-            loading={auditLoading}
-            auditPage={auditPage}
-            auditPageSize={auditPageSize}
-            auditActionFilter={auditActionFilter}
-            onPageChange={setAuditPage}
-            onActionFilterChange={setAuditActionFilter}
-            onLoad={loadAuditLogs}
-          />
+          <AuditLogsPanel />
         )}
 
         {activeTab === "dataset" && (

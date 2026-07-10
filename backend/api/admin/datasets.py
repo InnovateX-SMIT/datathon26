@@ -98,7 +98,22 @@ def deactivate_dataset_endpoint(
     """
     try:
         service = DatasetService(db)
-        return service.deactivate_dataset(payload.dataset_id)
+        dataset = service.deactivate_dataset(payload.dataset_id)
+        # Audit Log deactivation
+        try:
+            admin_id = get_current_user_id(current_user)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=admin_id,
+                action="DATASET_DEACTIVATED",
+                entity_type="dataset",
+                entity_id=payload.dataset_id,
+                details=f"Deactivated dataset '{dataset.display_name}' (ID: {payload.dataset_id})"
+            )
+        except Exception as ae:
+            logger.error(f"Failed to log dataset deactivation audit: {ae}")
+        return dataset
     except ValueError as ve:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -237,6 +252,37 @@ async def upload_dataset_file(
             )
             results.append(db_dataset)
 
+        # Audit dataset upload/import
+        if not preview:
+            try:
+                import json
+                from backend.repositories.admin_repository import AdminRepository
+                admin_repo = AdminRepository(db)
+                for res in results:
+                    record_count = 0
+                    if hasattr(res, "import_summary") and res.import_summary:
+                        try:
+                            summary_data = json.loads(res.import_summary)
+                            record_count = summary_data.get("inserted_rows", 0)
+                        except Exception:
+                            pass
+                    
+                    existing_matching = db.query(Dataset).filter(
+                        Dataset.display_name == res.display_name,
+                        Dataset.id != res.id
+                    ).first()
+                    action = "DATASET_REPLACED" if existing_matching else "DATASET_IMPORTED"
+                    
+                    admin_repo.create_audit_log(
+                        user_id=admin_id,
+                        action=action,
+                        entity_type="dataset",
+                        entity_id=res.id,
+                        details=f"Uploaded and imported dataset '{res.display_name}'. Records: {record_count}. File: {res.original_filename}"
+                    )
+            except Exception as ae:
+                logger.error(f"Failed to log dataset upload audit: {ae}")
+
         # If a single file was uploaded, return the single response (compatibility with tests)
         if len(upload_files) == 1 and file is not None:
             return results[0]
@@ -268,12 +314,9 @@ def activate_dataset(
     """
     try:
         service = DatasetService(db)
-        # Clear graph cache on switch
         from backend.services.network_analytics_service import NetworkAnalyticsService
-        # Set new active dataset
         dataset = service.activate_dataset(payload.dataset_id)
         
-        # Explicitly invalidate network analytics caches
         NetworkAnalyticsService._cached_graph = None
         NetworkAnalyticsService._cached_dataset_id = None
         NetworkAnalyticsService._cached_centrality = None
@@ -281,6 +324,21 @@ def activate_dataset(
         NetworkAnalyticsService._cached_associations = None
         NetworkAnalyticsService._cached_location_intel = None
         
+        # Audit Log Activation
+        try:
+            admin_id = get_current_user_id(current_user)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=admin_id,
+                action="DATASET_ACTIVATED",
+                entity_type="dataset",
+                entity_id=payload.dataset_id,
+                details=f"Activated dataset '{dataset.display_name}' (ID: {payload.dataset_id})"
+            )
+        except Exception as ae:
+            logger.error(f"Failed to log dataset activation audit: {ae}")
+            
         return dataset
     except ValueError as ve:
         raise HTTPException(
@@ -305,7 +363,23 @@ def delete_dataset_record(
     """
     try:
         service = DatasetService(db)
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        ds_name = dataset.display_name if dataset else f"ID {dataset_id}"
         service.delete_dataset(dataset_id)
+        # Audit Log Deletion
+        try:
+            admin_id = get_current_user_id(current_user)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=admin_id,
+                action="DATASET_DELETED",
+                entity_type="dataset",
+                entity_id=dataset_id,
+                details=f"Deleted dataset '{ds_name}' (ID: {dataset_id})"
+            )
+        except Exception as ae:
+            logger.error(f"Failed to log dataset deletion audit: {ae}")
         return {"detail": "Dataset deleted successfully."}
     except ValueError as ve:
         raise HTTPException(
@@ -429,7 +503,23 @@ def delete_dataset_permanent_endpoint(
     """
     try:
         service = DatasetService(db)
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        ds_name = dataset.display_name if dataset else f"ID {dataset_id}"
         service.delete_dataset_permanent(dataset_id)
+        # Audit Log Permanent Deletion
+        try:
+            admin_id = get_current_user_id(current_user)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=admin_id,
+                action="DATASET_DELETED",
+                entity_type="dataset",
+                entity_id=dataset_id,
+                details=f"Permanently deleted dataset '{ds_name}' (ID: {dataset_id})"
+            )
+        except Exception as ae:
+            logger.error(f"Failed to log dataset permanent deletion audit: {ae}")
         return {"detail": "Dataset and all associated records permanently deleted."}
     except ValueError as ve:
         raise HTTPException(

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
+import time
+import json
 
 from backend.core.database import get_db
 from backend.core.logging import logger
@@ -49,6 +51,7 @@ def predict_repeat_offender(
     """
     Predict probability of an offender becoming a repeat offender.
     """
+    start_time = time.time()
     try:
         service = PredictionService(db)
         result = service.predict_repeat_offender(
@@ -57,6 +60,32 @@ def predict_repeat_offender(
             caste=payload.caste,
             district=payload.district
         )
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # Audit log prediction
+        try:
+            user_id = getattr(current_user, "id", None)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=user_id,
+                action="PREDICTION_REPEAT_OFFENDER",
+                entity_type="prediction",
+                details=json.dumps({
+                    "model_used": "repeat_offender_xgb",
+                    "confidence_score": result.get("probability"),
+                    "execution_time_ms": duration_ms,
+                    "features": {
+                        "age": payload.age,
+                        "occupation": payload.occupation,
+                        "caste": payload.caste,
+                        "district": payload.district
+                    }
+                })
+            )
+        except Exception as ae:
+            logger.error(f"Failed to write prediction audit log: {ae}")
+
         return RepeatOffenderResponse(data=result)
     except FileNotFoundError as fnfe:
         raise HTTPException(
@@ -79,6 +108,7 @@ def predict_crime_risk(
     """
     Predict risk level of crime occurrence in a district.
     """
+    start_time = time.time()
     try:
         service = PredictionService(db)
         result = service.predict_crime_risk(
@@ -86,6 +116,31 @@ def predict_crime_risk(
             crime_category=payload.crime_category,
             historical_crime_count=payload.historical_crime_count
         )
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # Audit log prediction
+        try:
+            user_id = getattr(current_user, "id", None)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=user_id,
+                action="PREDICTION_CRIME_RISK",
+                entity_type="prediction",
+                details=json.dumps({
+                    "model_used": "crime_risk_xgb",
+                    "confidence_score": result.get("risk_score") / 100.0 if result.get("risk_score") else 0.0,
+                    "execution_time_ms": duration_ms,
+                    "features": {
+                        "district": payload.district,
+                        "crime_category": payload.crime_category,
+                        "historical_crime_count": payload.historical_crime_count
+                    }
+                })
+            )
+        except Exception as ae:
+            logger.error(f"Failed to write prediction audit log: {ae}")
+
         return CrimeRiskResponse(data=result)
     except FileNotFoundError as fnfe:
         raise HTTPException(
@@ -108,6 +163,7 @@ def predict_crime_type(
     """
     Predict likely future crime category.
     """
+    start_time = time.time()
     try:
         service = PredictionService(db)
         result = service.predict_crime_type(
@@ -117,6 +173,33 @@ def predict_crime_type(
             day_of_week=payload.day_of_week,
             historical_crime_count=payload.historical_crime_count
         )
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # Audit log prediction
+        try:
+            user_id = getattr(current_user, "id", None)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=user_id,
+                action="PREDICTION_CRIME_TYPE",
+                entity_type="prediction",
+                details=json.dumps({
+                    "model_used": "crime_type_xgb",
+                    "confidence_score": result.get("confidence"),
+                    "execution_time_ms": duration_ms,
+                    "features": {
+                        "district": payload.district,
+                        "month": payload.month,
+                        "hour": payload.hour,
+                        "day_of_week": payload.day_of_week,
+                        "historical_crime_count": payload.historical_crime_count
+                    }
+                })
+            )
+        except Exception as ae:
+            logger.error(f"Failed to write prediction audit log: {ae}")
+
         return CrimeTypeResponse(data=result)
     except FileNotFoundError as fnfe:
         raise HTTPException(
@@ -139,6 +222,7 @@ def predict_hotspot(
     """
     Predict district emerging hotspot probability.
     """
+    start_time = time.time()
     try:
         service = PredictionService(db)
         result = service.predict_hotspot(
@@ -146,6 +230,31 @@ def predict_hotspot(
             trend_metrics=payload.trend_metrics,
             historical_crime_growth=payload.historical_crime_growth
         )
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # Audit log prediction
+        try:
+            user_id = getattr(current_user, "id", None)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=user_id,
+                action="PREDICTION_EMERGING_HOTSPOT",
+                entity_type="prediction",
+                details=json.dumps({
+                    "model_used": "hotspot_xgb",
+                    "confidence_score": result.get("hotspot_probability"),
+                    "execution_time_ms": duration_ms,
+                    "features": {
+                        "district": payload.district,
+                        "trend_metrics": payload.trend_metrics,
+                        "historical_crime_growth": payload.historical_crime_growth
+                    }
+                })
+            )
+        except Exception as ae:
+            logger.error(f"Failed to write prediction audit log: {ae}")
+
         return HotspotResponse(data=result)
     except FileNotFoundError as fnfe:
         raise HTTPException(
@@ -168,12 +277,33 @@ def predict_explain(
     """
     Explain predictions with SHAP values.
     """
+    start_time = time.time()
     try:
         service = PredictionService(db)
         result = service.generate_shap_explanation(
             prediction_type=payload.prediction_type,
             features=payload.features
         )
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # Audit log SHAP explain
+        try:
+            user_id = getattr(current_user, "id", None)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=user_id,
+                action="PREDICTION_EXPLAINED",
+                entity_type="prediction",
+                details=json.dumps({
+                    "model_used": f"{payload.prediction_type}_xgb",
+                    "execution_time_ms": duration_ms,
+                    "prediction_type": payload.prediction_type
+                })
+            )
+        except Exception as ae:
+            logger.error(f"Failed to write explanation audit log: {ae}")
+
         return ExplainResponse(data=result)
     except FileNotFoundError as fnfe:
         raise HTTPException(

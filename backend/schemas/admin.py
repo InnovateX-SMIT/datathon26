@@ -35,10 +35,21 @@ class AdminUserResponse(BaseModel):
 class AuditLogResponse(BaseModel):
     id: int
     user_id: Optional[int] = None
+    user_name: Optional[str] = None
+    user_role: Optional[str] = None
+    module: Optional[str] = None
     action: str
+    action_type: Optional[str] = None
     entity_type: Optional[str] = None
     entity_id: Optional[int] = None
     details: Optional[str] = None
+    previous_value: Optional[str] = None
+    new_value: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    request_method: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    response_status: Optional[int] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

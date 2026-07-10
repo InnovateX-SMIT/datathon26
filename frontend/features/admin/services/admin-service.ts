@@ -31,10 +31,24 @@ export async function fetchModelStatus(): Promise<ModelStatusResponse> {
 export async function fetchAuditLogs(
   page: number = 1,
   pageSize: number = 50,
-  action?: string
+  action?: string,
+  search?: string,
+  userId?: number,
+  moduleName?: string,
+  startDate?: string,
+  endDate?: string,
+  sortBy?: string,
+  sortOrder?: string
 ): Promise<AuditLogListResponse> {
   const params: Record<string, string | number> = { page, page_size: pageSize };
   if (action && action !== "ALL") params.action = action;
+  if (search) params.search = search;
+  if (userId !== undefined && userId !== null) params.user_id = userId;
+  if (moduleName && moduleName !== "ALL") params.module = moduleName;
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  if (sortBy) params.sort_by = sortBy;
+  if (sortOrder) params.sort_order = sortOrder;
 
   const res = await axios.get<AuditLogListResponse>(
     `${API_BASE}/api/v1/admin/audit-logs`,

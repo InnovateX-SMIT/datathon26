@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Any
@@ -260,4 +260,49 @@ def download_report_csv(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to export CSV dossier."
+        )
+
+@router.post("/{report_id}/share")
+def share_report(
+    report_id: int,
+    shared_with_email: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Simulates sharing an executive report with another user/agency.
+    """
+    check_executive_clearance(current_user)
+    try:
+        service = ReportService(db)
+        report_data = service.get_report_by_id(report_id)
+        if not report_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Report with ID {report_id} not found."
+            )
+        
+        # Audit Log Sharing
+        try:
+            user_id = getattr(current_user, "id", None)
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=user_id,
+                action="REPORT_SHARED",
+                entity_type="report",
+                entity_id=report_id,
+                details=f"Shared report ID {report_id} with email {shared_with_email}"
+            )
+        except Exception as ae:
+            logger.error(f"Failed to log report sharing audit: {ae}")
+            
+        return {"success": True, "message": f"Report shared with {shared_with_email} successfully."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in share_report: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to share executive report."
         )

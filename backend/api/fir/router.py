@@ -226,6 +226,22 @@ def get_case_endpoint(
     case = service.get_case(case_id)
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Case with ID {case_id} not found.")
+    
+    # Audit log view
+    try:
+        user_id = getattr(current_user, "id", None)
+        from backend.repositories.admin_repository import AdminRepository
+        admin_repo = AdminRepository(db)
+        admin_repo.create_audit_log(
+            user_id=user_id,
+            action="FIR_VIEWED",
+            entity_type="fir",
+            entity_id=case_id,
+            details=f"Viewed FIR Case No: {case.CaseNo or 'N/A'}"
+        )
+    except Exception as ae:
+        logger.error(f"Failed to write view audit log: {ae}")
+        
     return case
 
 @router.put("/{case_id}", response_model=CaseMasterResponse)

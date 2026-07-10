@@ -96,6 +96,21 @@ def export_table_records(
             export_format=export_format
         )
 
+        # Audit Log Table Export
+        try:
+            admin_id = get_current_user_id(current_user)
+            action_name = "FIR_EXPORTED" if table == "case_master" else f"DATABASE_TABLE_EXPORTED_{table.upper()}"
+            from backend.repositories.admin_repository import AdminRepository
+            admin_repo = AdminRepository(db)
+            admin_repo.create_audit_log(
+                user_id=admin_id,
+                action=action_name,
+                entity_type=table,
+                details=f"Exported {table} table as {export_format.upper()}. Filters: {filters or 'None'}"
+            )
+        except Exception as ae:
+            logger.error(f"Failed to write export audit log: {ae}")
+
         # Set appropriate MIME content types
         if export_format.lower() == "excel":
             media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
