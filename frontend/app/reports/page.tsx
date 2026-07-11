@@ -481,11 +481,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Footer System Roster */}
-      <div className="pt-8 border-t border-slate-900 flex justify-between items-center text-[10px] font-mono text-slate-650 tracking-wider">
-        <span>SECURE INTEL GRID — PORTAL SYSTEM ACTIVE</span>
-        <span>PHASE 9 ENGINE ONLINE</span>
-      </div>
     </div>
   );
 }

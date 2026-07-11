@@ -143,11 +143,6 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <div className="pt-6 mt-4 border-t border-slate-900/60 flex justify-between items-center text-[9px] font-mono text-slate-700/60 tracking-widest select-none">
-        <span>ADMIN CONTROL INFRASTRUCTURE</span>
-        <span>PHASE 10 ENGINE ACTIVE</span>
-      </div>
     </div>
   );
 }

@@ -13,14 +13,13 @@ import {
   Scale,
   Bell,
   FileSpreadsheet,
-  ShieldCheck,
-  Database,
   Pin,
   PinOff,
-  Sparkles,
+  Home,
   Layers,
   FileText,
-  FilePlus
+  FilePlus,
+  Users
 } from "lucide-react";
 
 interface SidebarProps {
@@ -28,7 +27,7 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { name: "Get Started", href: "/", icon: Sparkles, group: "Start" },
+  { name: "Home", href: "/", icon: Home, group: "Operations" },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, group: "Operations" },
   { name: "Alerts Panel", href: "/alerts", icon: Bell, group: "Operations" },
   { name: "FIR Cases", href: "/fir/cases", icon: FileText, group: "Operations" },
@@ -39,11 +38,11 @@ const menuItems = [
   { name: "Network Intel", href: "/network", icon: Network, group: "Intelligence" },
   { name: "Decision Support", href: "/decision-support", icon: Scale, group: "Intelligence" },
   { name: "Executive Reports", href: "/reports", icon: FileSpreadsheet, group: "Administration" },
-  { name: "Admin Portal", href: "/admin", icon: ShieldCheck, group: "Administration" },
   { name: "Dataset Manager", href: "/dataset-manager", icon: Layers, group: "Administration" },
+  { name: "About Us", href: "/about", icon: Users, group: "Administration" },
 ];
 
-const groups = ["Start", "Operations", "Intelligence", "Administration"];
+const groups = ["Operations", "Intelligence", "Administration"];
 
 export default function Sidebar({ onPinnedChange }: SidebarProps) {
   const pathname = usePathname();

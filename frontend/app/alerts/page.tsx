@@ -28,7 +28,7 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState<"dispatch" | "logs">("dispatch");
 
   return (
-    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 space-y-8 animate-fade-in relative">
+    <div className="space-y-8 animate-fade-in relative">
       {/* Background glowing gradients */}
       <div className="absolute top-[10%] right-[10%] w-[400px] h-[400px] rounded-full bg-rose-500/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[20%] left-[5%] w-[350px] h-[350px] rounded-full bg-indigo-500/5 blur-[100px] pointer-events-none" />
@@ -130,11 +130,6 @@ export default function AlertsPage() {
         )}
       </div>
 
-      {/* Footer System Roster */}
-      <div className="pt-6 mt-4 border-t border-slate-900/60 flex justify-between items-center text-[9px] font-mono text-slate-700/60 tracking-widest select-none">
-        <span>CRIME INTELLIGENCE COMMAND INFRASTRUCTURE</span>
-        <span>PHASE 8 RULE ENGINE ACTIVE</span>
-      </div>
     </div>
   );
 }

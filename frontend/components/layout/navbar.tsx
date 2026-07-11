@@ -1,10 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Bell, RefreshCw, Cpu, CheckCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const BREADCRUMBS: Record<string, string> = {
-  "/": "Get Started",
+  "/": "Home",
   "/dashboard": "Command Center",
   "/analytics": "Crime Analytics",
   "/geo": "Geo Intelligence",
@@ -15,10 +16,12 @@ const BREADCRUMBS: Record<string, string> = {
   "/reports": "Executive Reports",
   "/admin": "Admin Portal",
   "/database-management": "Database Management",
+  "/about": "About Us",
 };
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const currentPage = BREADCRUMBS[pathname] || "Intelligence Platform";
 
   return (
@@ -43,7 +46,12 @@ export default function Navbar() {
         <button onClick={() => window.location.reload()} aria-label="Refresh page data" title="Refresh Data" className="text-slate-500 hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-slate-800/60 focus-visible:ring-1 focus-visible:ring-indigo-500">
           <RefreshCw className="w-4 h-4" />
         </button>
-        <button aria-label="View system alerts" title="System alerts" className="text-slate-500 hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-slate-800/60 relative">
+        <button
+          onClick={() => router.push("/alerts")}
+          aria-label="View system alerts"
+          title="System alerts"
+          className="text-slate-500 hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-slate-800/60 relative"
+        >
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full" aria-hidden="true" />
         </button>

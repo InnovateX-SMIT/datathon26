@@ -8,158 +8,178 @@ import {
   BrainCircuit,
   Database,
   FileSpreadsheet,
-  GitBranch,
-  Layers3,
+  FileText,
+  FilePlus,
   Map,
   Network,
-  Rocket,
   Scale,
   ShieldAlert,
-  ShieldCheck,
-  UploadCloud,
-  Workflow
 } from "lucide-react";
 
-const workflow = [
-  ["Upload Dataset", "CSV or Excel records enter the platform through managed import."],
-  ["Dataset Validation", "Headers, required fields, districts, dates, and stations are checked before import."],
-  ["Dataset Registry", "Every dataset is tracked with status, row counts, summaries, and provenance."],
-  ["Activate Dataset", "The active dataset becomes the single source for analytics and intelligence modules."],
-  ["Dashboard Updates", "KPIs, temporal trends, categories, districts, and recent incidents refresh dynamically."],
-  ["Geo Intelligence", "District, station, heatmap, and hotspot maps render from active records."],
-  ["Network Intelligence", "Criminal, crime, and location relationships are explored as interactive graphs."],
-  ["Predictions", "ML models generate crime risk, type, hotspot, and repeat-offender forecasts."],
-  ["Decision Support", "Recommendations and resource allocation support operational planning."],
-  ["Executive Reports", "Structured intelligence dossiers combine analytics, risks, networks, and alerts."],
-  ["Deployment Ready Intelligence", "The result is a polished command experience ready for live demonstration."],
+const modules = [
+  {
+    icon: BarChart3,
+    label: "Command Center",
+    desc: "Live KPIs, crime trends, district rankings, and recent incident feed.",
+    href: "/dashboard",
+    accent: "indigo",
+  },
+  {
+    icon: FileText,
+    label: "FIR Cases",
+    desc: "Browse, search, and manage all registered First Information Reports.",
+    href: "/fir/cases",
+    accent: "indigo",
+  },
+  {
+    icon: Map,
+    label: "Geo Intelligence",
+    desc: "Interactive district maps, station markers, crime heatmaps, and hotspot clusters.",
+    href: "/geo",
+    accent: "cyan",
+  },
+  {
+    icon: Network,
+    label: "Network Intelligence",
+    desc: "Criminal co-accused relationship graphs and gang structure exploration.",
+    href: "/network",
+    accent: "violet",
+  },
+  {
+    icon: BrainCircuit,
+    label: "Predictive Intel",
+    desc: "ML-powered crime risk, hotspot, type, and repeat-offender forecasts.",
+    href: "/prediction",
+    accent: "indigo",
+  },
+  {
+    icon: Scale,
+    label: "Decision Support",
+    desc: "Tactical recommendations, LP-solver resource optimization, and patrol assignments.",
+    href: "/decision-support",
+    accent: "emerald",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "Executive Reports",
+    desc: "Generate, print, and export structured intelligence dossiers.",
+    href: "/reports",
+    accent: "indigo",
+  },
+  {
+    icon: Bell,
+    label: "Alerts Panel",
+    desc: "Operational alerts with severity triage and dispatch-oriented monitoring.",
+    href: "/alerts",
+    accent: "rose",
+  },
+  {
+    icon: Database,
+    label: "Dataset Manager",
+    desc: "Upload, validate, activate, and govern datasets that power every module.",
+    href: "/dataset-manager",
+    accent: "violet",
+  },
+  {
+    icon: FilePlus,
+    label: "Register FIR",
+    desc: "Create a new First Information Report directly into the active dataset.",
+    href: "/fir/cases/new",
+    accent: "indigo",
+  },
 ];
 
-const features = [
-  [LayoutDashboardIcon, "Dashboard", "Live command overview for KPIs, temporal trends, category distribution, district load, and latest incidents.", "/dashboard"],
-  [Database, "Dataset Registry", "Upload, validate, register, activate, summarize, and govern datasets from one operational control surface.", "/admin"],
-  [Map, "Geo Intelligence", "Interactive district maps, station markers, heat density, hotspot detection, and fullscreen map investigation.", "/geo"],
-  [Network, "Network Intelligence", "Explore offender-to-crime and crime-to-location links with active-dataset-aware graph lookups.", "/network"],
-  [BrainCircuit, "Prediction Engine", "Run repeat-offender, hotspot, crime risk, and crime type predictions with explainability output.", "/prediction"],
-  [Scale, "Decision Support", "Convert intelligence into recommended actions, tactical triage, and resource optimization scenarios.", "/decision-support"],
-  [FileSpreadsheet, "Executive Reports", "Generate and export executive-ready intelligence dossiers for leadership review and judging.", "/reports"],
-  [Bell, "Alert System", "Review generated operational alerts, severity, status, source signals, and dispatch-oriented monitoring.", "/alerts"],
-  [Layers3, "Database Management", "Inspect, upload, export, and manage operational tables through a controlled data workspace.", "/database-management"],
-  [ShieldCheck, "Administration", "Monitor platform health, models, datasets, users, and audit activity from the admin portal.", "/admin"],
-];
+const accentMap: Record<string, { bg: string; border: string; text: string; glow: string }> = {
+  indigo: { bg: "bg-indigo-500/10", border: "border-indigo-500/20", text: "text-indigo-400", glow: "group-hover:border-indigo-500/40" },
+  cyan: { bg: "bg-cyan-500/10", border: "border-cyan-500/20", text: "text-cyan-400", glow: "group-hover:border-cyan-500/40" },
+  violet: { bg: "bg-violet-500/10", border: "border-violet-500/20", text: "text-violet-400", glow: "group-hover:border-violet-500/40" },
+  emerald: { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-400", glow: "group-hover:border-emerald-500/40" },
+  rose: { bg: "bg-rose-500/10", border: "border-rose-500/20", text: "text-rose-400", glow: "group-hover:border-rose-500/40" },
+};
 
-const howTo = [
-  "Upload a dataset",
-  "Activate the dataset",
-  "Explore the dashboard",
-  "Analyze geo intelligence",
-  "Explore criminal networks",
-  "Generate predictions",
-  "Generate executive reports",
-  "Use decision support"
-];
-
-function LayoutDashboardIcon(props: React.ComponentProps<typeof BarChart3>) {
-  return <BarChart3 {...props} />;
-}
-
-export default function AboutPage() {
+export default function HomePage() {
   return (
-    <div className="min-h-screen pb-12 space-y-10 animate-fade-in">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/50 px-6 py-8 sm:px-8 lg:px-10">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:18px_18px] pointer-events-none" />
-        <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-300">
+    <div className="space-y-10 pb-12 animate-fade-in">
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/60 px-6 py-10 sm:px-10">
+        {/* Dot grid background */}
+        <div className="absolute inset-0 opacity-[0.07] bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+        {/* Ambient glow */}
+        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-indigo-600/10 blur-[80px] pointer-events-none" />
+
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-4">
               <ShieldAlert className="h-3.5 w-3.5" />
-              Enterprise Crime Intelligence Platform
+              Crime Intelligence &amp; Decision Support Platform
             </div>
-            <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-tight text-white sm:text-5xl">
-              CrimeNexus AI
+
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+              CrimeNexus <span className="text-indigo-400">AI</span>
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-              CrimeNexus AI transforms structured crime records into operational intelligence: dashboards, geospatial analysis, criminal network graphs, prediction workflows, decision support, alerts, and executive reports. It is designed as a deployment-ready command platform for data-driven law enforcement planning and hackathon demonstration.
+            <p className="mt-4 text-sm leading-7 text-slate-400 max-w-xl">
+              Unified operational intelligence for law enforcement — connecting structured crime records into real-time dashboards, geospatial maps, network graphs, ML predictions, and executive dossiers.
             </p>
+
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-indigo-500">
-                Open Dashboard
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 transition-all"
+              >
+                Open Command Center
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/admin" className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-300 transition-colors hover:border-indigo-500/40 hover:text-indigo-300">
-                Manage Datasets
-                <UploadCloud className="h-4 w-4" />
+              <Link
+                href="/dataset-manager"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 hover:border-indigo-500/40 hover:text-indigo-300 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-slate-300 transition-all"
+              >
+                Dataset Manager
+                <Database className="h-4 w-4" />
               </Link>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-2 gap-3 lg:min-w-[260px]">
             {[
-              [Database, "Active Dataset Core", "Every module reads from the Dataset Resolver."],
-              [BrainCircuit, "AI Capability", "Prediction and explainability workflows are built in."],
-              [Rocket, "Deployment Ready", "Optimized build, public entry, and clean module flow."],
-            ].map(([Icon, title, text]) => {
-              const TypedIcon = Icon as typeof Database;
-              return (
-                <div key={title as string} className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-4">
-                  <TypedIcon className="h-5 w-5 text-indigo-400" />
-                  <h3 className="mt-3 text-sm font-black uppercase tracking-wider text-slate-200">{title as string}</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{text as string}</p>
-                </div>
-              );
-            })}
+              { label: "Modules", value: "10" },
+              { label: "ML Models", value: "4" },
+              { label: "Map Layers", value: "4" },
+              { label: "Report Types", value: "5+" },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-4 text-center">
+                <p className="text-2xl font-black text-indigo-400">{value}</p>
+                <p className="mt-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
+      {/* ── Module Grid ──────────────────────────────────────────────────── */}
       <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Workflow className="h-5 w-5 text-indigo-400" />
-          <h2 className="text-xl font-black uppercase tracking-tight text-slate-100">Complete Project Workflow</h2>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {workflow.map(([title, desc], index) => (
-            <div key={title} className="relative rounded-xl border border-slate-800/70 bg-slate-950/45 p-4 transition-colors hover:border-indigo-500/30">
-              <div className="flex items-start gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-500/25 bg-indigo-500/10 text-xs font-black text-indigo-300">{index + 1}</span>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-200">{title}</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{desc}</p>
-                </div>
-              </div>
-              {index < workflow.length - 1 && <GitBranch className="absolute right-4 top-4 h-4 w-4 text-slate-700" />}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-xl font-black uppercase tracking-tight text-slate-100">Feature Surface</h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {features.map(([Icon, title, desc, href]) => {
-            const TypedIcon = Icon as typeof Database;
+        <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Platform Modules</h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {modules.map(({ icon: Icon, label, desc, href, accent }) => {
+            const a = accentMap[accent];
             return (
-              <Link key={title as string} href={href as string} className="group rounded-xl border border-slate-800/70 bg-slate-950/45 p-5 transition-all hover:-translate-y-0.5 hover:border-indigo-500/35 hover:bg-slate-950/70">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="rounded-lg border border-slate-800 bg-slate-950 p-2 text-indigo-400 group-hover:border-indigo-500/30">
-                    <TypedIcon className="h-5 w-5" />
+              <Link
+                key={href}
+                href={href}
+                className={`group relative flex flex-col rounded-xl border border-slate-800/70 bg-slate-950/50 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-950/80 ${a.glow}`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className={`p-2.5 rounded-xl border ${a.bg} ${a.border} shrink-0`}>
+                    <Icon className={`h-4.5 w-4.5 ${a.text}`} />
                   </div>
-                  <ArrowRight className="h-4 w-4 text-slate-700 transition-colors group-hover:text-indigo-400" />
+                  <ArrowRight className="h-4 w-4 text-slate-700 transition-colors group-hover:text-slate-400 mt-0.5" />
                 </div>
-                <h3 className="mt-4 text-sm font-black uppercase tracking-wider text-slate-200">{title as string}</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-500">{desc as string}</p>
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-200 mb-1.5">{label}</h3>
+                <p className="text-xs leading-5 text-slate-500">{desc}</p>
               </Link>
             );
           })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-800/70 bg-slate-950/45 p-6">
-        <h2 className="text-xl font-black uppercase tracking-tight text-slate-100">How To Use</h2>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {howTo.map((item, index) => (
-            <div key={item} className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Step {index + 1}</span>
-              <p className="mt-2 text-sm font-bold text-slate-200">{item}</p>
-            </div>
-          ))}
         </div>
       </section>
     </div>
