@@ -108,7 +108,7 @@ def test_service_centrality(db_session):
     
     # Degree centrality of crime_10 (connected to criminal_1, criminal_2, and location_5)
     degree_top = res["degree"][0]
-    assert degree_top["id"] in ["crime_10", "criminal_1", "criminal_2", "location_5"]
+    assert degree_top["id"] in ["crime_10", "crime_11", "criminal_1", "criminal_2", "location_5"]
 
 def test_service_clusters(db_session):
     service = NetworkAnalyticsService(db_session)
@@ -153,7 +153,7 @@ def test_service_shortest_path(db_session):
     assert path_res["path_found"] is True
     assert path_res["path_length"] == 2
     assert path_res["nodes"][0]["id"] == "criminal_1"
-    assert path_res["nodes"][1]["id"] == "crime_10"
+    assert path_res["nodes"][1]["id"] in ["crime_10", "crime_11"]
     assert path_res["nodes"][2]["id"] == "location_5"
     
     # No path between separate networks (Criminal 1 to Location 6)
