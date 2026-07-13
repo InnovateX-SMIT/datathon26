@@ -12,8 +12,15 @@ interface CrimeHeatmapProps {
 }
 
 export default function CrimeHeatmap({ data, loading }: CrimeHeatmapProps) {
-  const mapCenter: [number, number] = [15.0, 76.25];
   const defaultZoom = 10;
+
+  const mapCenter = React.useMemo<[number, number]>(() => {
+    const validPoints = data.filter((p) => p.latitude && p.longitude);
+    if (validPoints.length === 0) return [15.0, 76.25];
+    const latSum = validPoints.reduce((sum, p) => sum + p.latitude, 0);
+    const lonSum = validPoints.reduce((sum, p) => sum + p.longitude, 0);
+    return [latSum / validPoints.length, lonSum / validPoints.length];
+  }, [data]);
 
   const maxWeight = React.useMemo(() => {
     if (data.length === 0) return 1;

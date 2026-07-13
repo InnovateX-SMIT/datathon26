@@ -12,12 +12,16 @@ def aggregate_district_crime(records: list[dict]) -> list[dict]:
     if 'district' not in df.columns:
         return []
         
+    group_cols = ['district']
+    if 'latitude' in df.columns and 'longitude' in df.columns:
+        group_cols.extend(['latitude', 'longitude'])
+
     if 'crime_count' in df.columns:
         # Pre-aggregated from SQL
-        aggregated = df.groupby('district')['crime_count'].sum().reset_index()
+        aggregated = df.groupby(group_cols)['crime_count'].sum().reset_index()
     else:
         # Raw records
-        aggregated = df.groupby('district').size().reset_index(name='crime_count')
+        aggregated = df.groupby(group_cols).size().reset_index(name='crime_count')
         
     aggregated = aggregated.sort_values(by='crime_count', ascending=False)
     return aggregated.to_dict(orient='records')
