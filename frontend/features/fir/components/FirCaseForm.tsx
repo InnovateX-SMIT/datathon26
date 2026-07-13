@@ -350,6 +350,22 @@ export default function FirCaseForm({ caseId }: { caseId?: number }) {
     setSubmitError(null);
     setCreatedCase(null);
 
+    if (
+      !crimeRegisteredDate ||
+      policePersonID === "" ||
+      selectedUnitId === "" ||
+      caseCategoryID === "" ||
+      gravityOffenceID === "" ||
+      crimeMajorHeadID === "" ||
+      crimeMinorHeadID === "" ||
+      caseStatusID === "" ||
+      courtID === ""
+    ) {
+      setSubmitError("Please select all required fields (State, District, Police Station, Officer, Category, Gravity, Crime Major Head, Crime Minor Head, Case Status, and Court) before submitting.");
+      setSubmitting(false);
+      return;
+    }
+
     const payload: CaseMasterCreate = {
       CrimeRegisteredDate: crimeRegisteredDate || null,
       PolicePersonID: policePersonID as number,

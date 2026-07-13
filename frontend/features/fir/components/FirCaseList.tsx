@@ -31,6 +31,7 @@ export default function FirCaseList() {
   const [localStatusId, setLocalStatusId] = useState<string>("");
   const [localStartDate, setLocalStartDate] = useState("");
   const [localEndDate, setLocalEndDate] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
   const [districts, setDistricts] = useState<DistrictDTO[]>([]);
 
   // Load districts for filter if a state exists
@@ -47,6 +48,7 @@ export default function FirCaseList() {
     if (localStatusId) f.case_status_id = Number(localStatusId);
     if (localStartDate) f.start_date = localStartDate;
     if (localEndDate) f.end_date = localEndDate;
+    if (localSearchQuery.trim()) f.q = localSearchQuery.trim();
     setFilters(f);
   };
 
@@ -55,11 +57,12 @@ export default function FirCaseList() {
     setLocalStatusId("");
     setLocalStartDate("");
     setLocalEndDate("");
+    setLocalSearchQuery("");
     setFilters({});
   };
 
   const hasActiveFilters =
-    filters.district_id || filters.case_status_id || filters.start_date || filters.end_date;
+    filters.district_id || filters.case_status_id || filters.start_date || filters.end_date || filters.q;
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -112,7 +115,20 @@ export default function FirCaseList() {
   return (
     <div className="space-y-5 animate-fade-in">
       {/* ── Filter Bar ─────────────────────────────────────────────────────── */}
-      <div className="glass-card rounded-xl border border-slate-800/60 p-4">
+      <div className="glass-card rounded-xl border border-slate-800/60 p-4 space-y-4">
+        {/* Primary Search Input */}
+        <div className="relative">
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search by FIR / Crime No or Case No (e.g. 200060009202600001)..."
+            value={localSearchQuery}
+            onChange={(e) => setLocalSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+            className="w-full bg-slate-900/60 border border-slate-700/60 text-slate-200 text-sm rounded-lg pl-10 pr-3 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-colors placeholder:text-slate-600 focus:outline-none"
+          />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">

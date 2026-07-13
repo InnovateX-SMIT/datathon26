@@ -249,7 +249,8 @@ class FIRService:
         case_status_id: Optional[int] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
-        active_dataset_id: Optional[int] = None
+        active_dataset_id: Optional[int] = None,
+        q: Optional[str] = None
     ) -> Tuple[List[CaseMasterResponse], int]:
         """
         Query and paginate case listings.
@@ -261,7 +262,8 @@ class FIRService:
             case_status_id=case_status_id,
             start_date=start_date,
             end_date=end_date,
-            active_dataset_id=active_dataset_id
+            active_dataset_id=active_dataset_id,
+            q=q
         )
         return [CaseMasterResponse.model_validate(r) for r in records], count
 

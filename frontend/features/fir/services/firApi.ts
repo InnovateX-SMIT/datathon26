@@ -110,6 +110,7 @@ export interface ListCasesParams {
   case_status_id?: number | null;
   start_date?: string | null;
   end_date?: string | null;
+  q?: string | null;
 }
 
 export async function listCases(params: ListCasesParams = {}): Promise<CaseListResponse> {
@@ -120,6 +121,7 @@ export async function listCases(params: ListCasesParams = {}): Promise<CaseListR
   if (params.case_status_id) qs.set("case_status_id", String(params.case_status_id));
   if (params.start_date) qs.set("start_date", params.start_date);
   if (params.end_date) qs.set("end_date", params.end_date);
+  if (params.q) qs.set("q", params.q);
   const qsStr = qs.toString();
   return apiGet<CaseListResponse>(`${FIR_PREFIX}/${qsStr ? `?${qsStr}` : ""}`);
 }

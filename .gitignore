@@ -65,7 +65,7 @@ backend/crime_intel.db
 
 # Datasets
 datasets/uploaded/
-datasets/processed/
+# datasets/processed/ (Allowed so seed datasets, locations, and stations can be shared)
 datasets/models/
 backend/datasets/uploaded/
 backend/datasets/models/

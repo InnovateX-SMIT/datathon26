@@ -202,6 +202,7 @@ def _warmup_network_cache():
     """Background thread: pre-builds all NetworkAnalyticsService caches at startup."""
     from backend.core.database import SessionLocal
     from backend.services.network_analytics_service import NetworkAnalyticsService
+    from backend.core.exceptions import NoActiveDatasetException
     db = SessionLocal()
     try:
         logger.info("Network cache warmup started...")
@@ -212,6 +213,8 @@ def _warmup_network_cache():
         svc.get_repeat_associations()
         svc.get_location_intelligence()
         logger.info("Network cache warmup complete.")
+    except NoActiveDatasetException:
+        logger.info("No active dataset selected. Skipping network cache warmup until a dataset is activated.")
     except Exception as e:
         logger.error(f"Network cache warmup failed: {e}", exc_info=True)
     finally:

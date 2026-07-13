@@ -241,7 +241,8 @@ class FIRRepository:
         case_status_id: Optional[int] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
-        active_dataset_id: Optional[int] = None
+        active_dataset_id: Optional[int] = None,
+        q: Optional[str] = None
     ) -> Tuple[List[CaseMaster], int]:
         """
         Lists and paginates CaseMaster records with optional filters.
@@ -250,6 +251,13 @@ class FIRRepository:
 
         if active_dataset_id is not None:
             query = query.filter(CaseMaster.dataset_id == active_dataset_id)
+
+        if q:
+            search_pattern = f"%{q.strip()}%"
+            query = query.filter(
+                (CaseMaster.CrimeNo.like(search_pattern)) |
+                (CaseMaster.CaseNo.like(search_pattern))
+            )
 
         if district_id is not None:
             query = query.join(CaseMaster.police_station).filter(Unit.DistrictID == district_id)

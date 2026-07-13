@@ -12,6 +12,7 @@ export interface CaseFilters {
   case_status_id?: number | null;
   start_date?: string | null;
   end_date?: string | null;
+  q?: string | null;
 }
 
 interface UseFirCasesReturn {
@@ -49,6 +50,7 @@ export function useFirCases(initialPageSize = 10): UseFirCasesReturn {
         case_status_id: filters.case_status_id,
         start_date: filters.start_date,
         end_date: filters.end_date,
+        q: filters.q,
       });
       if (mountedRef.current) {
         setCases(result.records);
