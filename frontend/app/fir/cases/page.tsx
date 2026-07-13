@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { FileText, Plus, ShieldAlert, RefreshCw } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
 import FirCaseList from "@/features/fir/components/FirCaseList";
@@ -43,12 +44,12 @@ export default function FirCasesPage() {
           <p className="text-sm text-slate-400 leading-relaxed">
             FIR case management requires an active FIR-normalized dataset. Please activate one from the Dataset Manager.
           </p>
-          <a
+          <Link
             href="/dataset-manager"
             className="block w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/10"
           >
             Go to Dataset Manager
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -65,12 +66,12 @@ export default function FirCasesPage() {
             The currently active dataset uses the legacy schema. FIR case management requires an FIR-normalized dataset.
             Switch to an FIR dataset in the Dataset Manager to use this feature.
           </p>
-          <a
+          <Link
             href="/dataset-manager"
             className="block w-full py-3 px-4 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
           >
             Switch Dataset
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -87,12 +88,12 @@ export default function FirCasesPage() {
         subtitle="First Information Report Management"
         description="Browse, search, and manage all registered FIR cases. Click any row to view full case details."
       >
-        <a
+        <Link
           href="/fir/cases/new"
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/20"
         >
           <Plus className="w-4 h-4" /> Register New FIR
-        </a>
+        </Link>
       </PageHeader>
 
       <FirCaseList />

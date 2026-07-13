@@ -11,6 +11,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/geo": "Geo Intelligence",
   "/prediction": "Predictive Intel",
   "/network": "Network Intel",
+  "/dataset-manager": "Dataset Manager",
   "/decision-support": "Decision Support",
   "/alerts": "Alerts Panel",
   "/reports": "Executive Reports",

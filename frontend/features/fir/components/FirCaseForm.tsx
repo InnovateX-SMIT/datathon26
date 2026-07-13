@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Plus,
   Trash2,
@@ -472,19 +473,19 @@ export default function FirCaseForm({ caseId }: { caseId?: number }) {
             </div>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <a
+            <Link
               href={`/fir/cases/${createdCase.id}`}
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors"
             >
               View Case Details
-            </a>
+            </Link>
             {caseId ? (
-              <a
+              <Link
                 href="/fir/cases"
                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors border border-slate-700 cursor-pointer"
               >
                 Back to List
-              </a>
+              </Link>
             ) : (
               <button
                 onClick={() => window.location.reload()}

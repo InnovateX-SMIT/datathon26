@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   AlertCircle,
@@ -141,12 +142,12 @@ export default function FirCaseDetail({ caseId }: FirCaseDetailProps) {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Back button */}
-      <a
+      <Link
         href="/fir/cases"
         className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-400 transition-colors uppercase tracking-wider"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Case List
-      </a>
+      </Link>
 
       {/* ── Header Banner ──────────────────────────────────────────────────── */}
       <div className="glass-card rounded-2xl border border-indigo-500/20 p-6">

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import FirCaseDetail from "@/features/fir/components/FirCaseDetail";
 
 export default function FirCaseDetailPage() {
@@ -14,12 +15,12 @@ export default function FirCaseDetailPage() {
         <div className="glass-card rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center max-w-sm">
           <h2 className="text-lg font-bold text-slate-200 mb-2">Invalid Case ID</h2>
           <p className="text-sm text-slate-400 mb-4">The case ID in the URL is not valid.</p>
-          <a
+          <Link
             href="/fir/cases"
             className="inline-flex px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors"
           >
             Back to Cases
-          </a>
+          </Link>
         </div>
       </div>
     );
