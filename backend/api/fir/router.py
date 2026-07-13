@@ -110,6 +110,7 @@ def list_cases_endpoint(
     case_status_id: Optional[int] = Query(None),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    q: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -126,7 +127,8 @@ def list_cases_endpoint(
             case_status_id=case_status_id,
             start_date=start_date,
             end_date=end_date,
-            active_dataset_id=active_dataset_id
+            active_dataset_id=active_dataset_id,
+            q=q
         )
         return {
             "records": [CaseMasterResponse.model_validate(c) for c in cases],

@@ -11,18 +11,29 @@ export interface AdminUser {
   updated_at: string;
 }
 
-export interface AuditLogEntry {
+export interface AuditLogResponse {
   id: number;
   user_id: number | null;
+  user_name: string | null;
+  user_role: string | null;
+  module: string | null;
   action: string;
+  action_type: string | null;
   entity_type: string | null;
   entity_id: number | null;
   details: string | null;
+  previous_value: string | null;
+  new_value: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  request_method: string | null;
+  api_endpoint: string | null;
+  response_status: number | null;
   created_at: string;
 }
 
 export interface AuditLogListResponse {
-  logs: AuditLogEntry[];
+  logs: AuditLogResponse[];
   total: number;
   page: number;
   page_size: number;

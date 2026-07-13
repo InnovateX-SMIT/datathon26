@@ -136,7 +136,8 @@ export default function DatasetManagerPage() {
     setError(null);
     try {
       const data = await fetchDatasets();
-      setDatasets(data);
+      const list = Array.isArray(data) ? data : (data && typeof data === "object" && "data" in data && Array.isArray((data as any).data) ? (data as any).data : []);
+      setDatasets(list);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to fetch dataset registry.");
     } finally {
@@ -464,12 +465,12 @@ export default function DatasetManagerPage() {
     }
   };
 
-  const activeDatasetsList = datasets.filter(d => d.is_active);
+  const activeDatasetsList = (Array.isArray(datasets) ? datasets : []).filter(d => d.is_active);
   const activeCount = activeDatasetsList.length;
   const maxActiveStr = config?.max_active_datasets || "1";
 
   // Filters search results
-  const filteredDatasets = datasets.filter(
+  const filteredDatasets = (Array.isArray(datasets) ? datasets : []).filter(
     (ds) =>
       ds.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ds.original_filename.toLowerCase().includes(searchQuery.toLowerCase())

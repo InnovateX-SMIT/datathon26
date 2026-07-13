@@ -17,8 +17,8 @@ def main():
     excel_path = "datasets/processed/fir_normalized_seed.xlsx"
     
     os.makedirs("datasets/processed", exist_ok=True)
-    generator.generate_and_export(csv_path, excel_path, num_records=50)
-    print(f"Generated FIR dataset with 50 cases: {csv_path} & {excel_path}")
+    generator.generate_and_export(csv_path, excel_path, num_records=1000)
+    print(f"Generated FIR dataset with 1000 cases: {csv_path} & {excel_path}")
     
     # 2. Generate Legacy Crime Events dataset
     # We will generate a basic legacy crimes CSV to test the legacy upload path
