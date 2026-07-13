@@ -240,7 +240,7 @@ export default function FirCaseForm({ caseId }: { caseId?: number }) {
   }, [caseId, loadCourts, loadEmployees, loadSections, loadCrimeSubHeads]);
 
   useEffect(() => {
-    import("@/features/admin/services/database-service").then((s) => {
+    import("@/services/dataset.service").then((s) => {
       s.fetchActiveDatasets()
         .then((activeList) => {
           if (activeList && activeList.length > 0) {

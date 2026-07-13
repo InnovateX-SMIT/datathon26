@@ -10,7 +10,7 @@ import {
   fetchRecentCrimes,
   fetchSystemStatus,
 } from "@/services/dashboardService";
-import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
+import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
 import type {
   DashboardSummary,
   TrendDataPoint,

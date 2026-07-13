@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 
 from backend.models.police_station import PoliceStation
-from backend.models.prediction import Prediction
 from backend.models.recommendation import Recommendation, ResourceAllocation
 from backend.models.crime import CrimeEvent
 from backend.repositories.recommendation_repository import RecommendationRepository
@@ -280,61 +279,7 @@ class RecommendationService:
 
         schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
 
-        # 1. Hotspots predictions (severity >= 0.70 threshold)
-        hotspots = self.db.query(Prediction).filter(
-            Prediction.prediction_type == "hotspot"
-        ).order_by(Prediction.generated_at.desc()).limit(20).all()
 
-        for h in hotspots:
-            try:
-                prob = h.confidence_score
-                district = "Unknown"
-                if h.crime_event and h.crime_event.location:
-                    district = h.crime_event.location.district
-                elif schema_type == "fir_normalized":
-                    district = "Mysuru"
-
-                if prob >= 0.70:
-                    text = f"Deploy high-intensity patrols to predicted hotspots in {district}."
-                    reason = f"Hotspot forecaster indicates {prob * 100:.1f}% probability of emerging crime spike."
-                    if text not in seen_texts:
-                        seen_texts.add(text)
-                        recs_to_create.append(RecommendationCreate(
-                            crime_event_id=h.crime_event_id,
-                            priority="high",
-                            recommendation_text=text,
-                            reason=reason,
-                            status="pending",
-                            confidence=prob,
-                            supporting_analytics=f"Spatial Hotspot Analytics ({district} - Prob: {prob:.2f})"
-                        ))
-            except Exception:
-                pass
-
-        # 2. High risk repeat offender predictions
-        recidivism = self.db.query(Prediction).filter(
-            Prediction.prediction_type == "repeat-offender"
-        ).order_by(Prediction.generated_at.desc()).limit(20).all()
-
-        for r in recidivism:
-            try:
-                prob = r.confidence_score
-                if prob >= 0.70:
-                    text = "Initiate active monitoring checklist and community check-ins."
-                    reason = f"Recidivism forecaster predicts high probability ({prob * 100:.1f}%) of repeat offense."
-                    if text not in seen_texts:
-                        seen_texts.add(text)
-                        recs_to_create.append(RecommendationCreate(
-                            crime_event_id=r.crime_event_id,
-                            priority="medium",
-                            recommendation_text=text,
-                            reason=reason,
-                            status="pending",
-                            confidence=prob,
-                            supporting_analytics=f"Recidivism Prediction Attributions (Offender Prob: {prob:.2f})"
-                        ))
-            except Exception:
-                pass
 
         # High risk criminals from table directly
         if schema_type == "fir_normalized":

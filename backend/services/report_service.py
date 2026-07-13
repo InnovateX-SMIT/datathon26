@@ -7,11 +7,9 @@ from datetime import datetime
 from backend.models.report import Report
 from backend.models.crime import CrimeEvent
 from backend.models.criminal import Criminal
-from backend.models.prediction import Prediction
 from backend.repositories.report_repository import ReportRepository
 
 from backend.services.analytics_service import AnalyticsService
-from backend.services.prediction_service import PredictionService
 from backend.services.network_analytics_service import NetworkAnalyticsService
 from backend.services.recommendation_service import RecommendationService
 from backend.services.alert_service import AlertService
@@ -49,7 +47,6 @@ class ReportService:
         self.db = db
         self.repo = ReportRepository(db)
         self.analytics_service = AnalyticsService(db)
-        self.prediction_service = PredictionService(db)
         self.network_analytics_service = NetworkAnalyticsService(db)
         self.recommendation_service = RecommendationService(db)
         self.alert_service = AlertService(db)
@@ -149,12 +146,8 @@ class ReportService:
         active_ds = self.db.query(Dataset).filter(Dataset.id == active_id).first()
         dataset_name = active_ds.display_name if active_ds else "Unknown"
 
-        from backend.models.ml_model import MLModel
-        latest_model = self.db.query(MLModel).filter(
-            MLModel.status == "Completed"
-        ).order_by(MLModel.created_at.desc()).first()
-        model_version = latest_model.version if latest_model else "Bundled Fallback"
-        accuracy = latest_model.accuracy if latest_model else 0.85
+        model_version = "Bundled Fallback"
+        accuracy = 0.85
 
         return {
             "report_id": db_report.id,
@@ -240,31 +233,18 @@ class ReportService:
             from backend.models.fir_case import CaseMaster
             from backend.models.fir_people import Accused
             
-            # Hotspot count based on recent active hotspot predictions associated with this dataset or ad-hoc
-            hotspot_count = self.db.query(Prediction).filter(
-                Prediction.prediction_type == "hotspot",
-                Prediction.confidence_score >= 0.70
-            ).count()
+            # Predictive hotspots count is 0 in fallback mode
+            hotspot_count = 0
 
             # Risk score summary statistics (No hardcoded targets generated here, query Accused metrics)
             avg_score = 5.0  # Default baseline risk score for visualization
             
             total_acc = self.db.query(Accused).join(CaseMaster).filter(CaseMaster.dataset_id == active_id).count()
-            high_risk_criminals = self.db.query(Prediction).filter(
-                Prediction.prediction_type == "repeat-offender",
-                Prediction.confidence_score >= 0.70
-            ).count()
-            if high_risk_criminals == 0:
-                high_risk_criminals = int(total_acc * 0.12)
-                
+            high_risk_criminals = int(total_acc * 0.12)
             total_criminals_tracked = total_acc
         else:
-            # Hotspot count based on recent active hotspot predictions associated with this dataset or ad-hoc
-            hotspot_count = self.db.query(Prediction).outerjoin(CrimeEvent).filter(
-                (CrimeEvent.dataset_id == active_id) | (Prediction.crime_event_id.is_(None)),
-                Prediction.prediction_type == "hotspot",
-                Prediction.confidence_score >= 0.70
-            ).count()
+            # Predictive hotspots count is 0 in fallback mode
+            hotspot_count = 0
 
             # Risk score summary statistics
             avg_score_raw = self.db.query(func.avg(Criminal.risk_score)).filter(Criminal.dataset_id == active_id).scalar()

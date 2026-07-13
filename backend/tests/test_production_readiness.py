@@ -62,8 +62,8 @@ def test_standard_response_wrapping(client):
     old_env = settings.ENVIRONMENT
     settings.ENVIRONMENT = "production"
     try:
-        # Hit /api/v1/predictions/health to test success wrapping
-        response = client.get("/api/v1/predictions/health")
+        # Hit /api/v1/crimes/ to test success wrapping
+        response = client.get("/api/v1/crimes/")
         assert response.status_code == 200
         data = response.json()
         assert "success" in data
@@ -72,8 +72,8 @@ def test_standard_response_wrapping(client):
         assert "meta" in data
         assert data["success"] is True
         
-        # Test error wrapping with an invalid payload
-        response = client.post("/api/v1/predictions/repeat-offender", json={"invalid": "payload"})
+        # Test error wrapping with an invalid payload type
+        response = client.get("/api/v1/crimes/not-an-integer")
         assert response.status_code == 422
         data = response.json()
         assert data["success"] is False

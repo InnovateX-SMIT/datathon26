@@ -6,7 +6,6 @@ from sqlalchemy.pool import StaticPool
 
 from backend.core.database import Base
 from backend.models.alert import Alert
-from backend.models.prediction import Prediction
 from backend.models.location import Location
 from backend.models.crime import CrimeEvent
 from backend.models.recommendation import Recommendation, ResourceAllocation
@@ -52,53 +51,7 @@ def test_alert_exists_deduplication(db_session):
     )
     assert exists is True
 
-def test_generate_predictive_hotspot_alerts(db_session):
-    # Seed location and crime event
-    loc = Location(district="Shivamogga", state="Karnataka", latitude=13.9299, longitude=75.5681)
-    db_session.add(loc)
-    db_session.commit()
-    db_session.refresh(loc)
 
-    crime = CrimeEvent(
-        crime_type="Theft",
-        crime_category="Property",
-        crime_date=datetime.date(2026, 6, 1),
-        location_id=loc.id
-    )
-    db_session.add(crime)
-    db_session.commit()
-    db_session.refresh(crime)
-
-    # Seed hotspot predictions
-    # 1. High probability (>=0.85 -> CRITICAL)
-    p1 = Prediction(
-        crime_event_id=crime.id,
-        prediction_type="hotspot",
-        prediction_value="Hotspot Prob: 0.90",
-        confidence_score=0.90
-    )
-    # 2. Low probability (<0.70 -> Should not trigger alert)
-    p2 = Prediction(
-        crime_event_id=crime.id,
-        prediction_type="hotspot",
-        prediction_value="Hotspot Prob: 0.50",
-        confidence_score=0.50
-    )
-    db_session.add_all([p1, p2])
-    db_session.commit()
-
-    service = AlertService(db_session)
-    new_alerts = service.generate_alerts_from_intelligence()
-    
-    # Verify one alert is generated (from p1)
-    assert len(new_alerts) == 1
-    assert new_alerts[0].severity == "CRITICAL"
-    assert "Shivamogga" in new_alerts[0].description
-    assert new_alerts[0].source == "prediction"
-
-    # Re-run and verify deduplication (should return 0 new alerts)
-    re_run = service.generate_alerts_from_intelligence()
-    assert len(re_run) == 0
 
 def test_generate_decision_support_alerts(db_session):
     # Seed high priority pending recommendation

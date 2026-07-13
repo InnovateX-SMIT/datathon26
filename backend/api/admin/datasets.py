@@ -2,7 +2,30 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import List, Optional, Union, Any
 from backend.core.database import get_db
-from backend.api.admin.database import require_admin, get_current_user_id
+from backend.models.user import UserRole
+from backend.api.auth.router import get_current_user
+
+def require_admin(current_user=Depends(get_current_user)):
+    role = None
+    if isinstance(current_user, dict):
+        role = current_user.get("role")
+    elif current_user:
+        role = getattr(current_user, "role", None)
+        if isinstance(role, UserRole):
+            role = role.value
+    
+    if not role or str(role) != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin access required."
+        )
+    return current_user
+
+def get_current_user_id(current_user=Depends(require_admin)) -> int:
+    if isinstance(current_user, dict):
+        return current_user.get("id", 0)
+    return current_user.id
+
 from backend.schemas.dataset import (
     DatasetResponse,
     DatasetSwitchRequest,

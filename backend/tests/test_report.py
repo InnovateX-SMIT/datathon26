@@ -10,7 +10,6 @@ from backend.api.auth.router import get_current_user
 from backend.models.crime import CrimeEvent
 from backend.models.criminal import Criminal
 from backend.models.location import Location
-from backend.models.prediction import Prediction
 from backend.models.user import User, UserRole
 from backend.app.main import app
 
@@ -76,12 +75,7 @@ def db_session():
         db.add_all(criminals)
         db.commit()
 
-        predictions = [
-            Prediction(prediction_type="hotspot", prediction_value="High (Prob: 0.85)", confidence_score=0.85, generated_at=datetime.utcnow()),
-            Prediction(prediction_type="repeat-offender", prediction_value="High Risk (Prob: 0.78)", confidence_score=0.78, generated_at=datetime.utcnow())
-        ]
-        db.add_all(predictions)
-        db.commit()
+
 
         yield db
     finally:
@@ -165,7 +159,7 @@ def test_generate_and_retrieve_report(client_superintendent):
 
     # Check predictions section
     preds = report_data["predictive_insights"]
-    assert preds["hotspot_count"] == 1
+    assert preds["hotspot_count"] == 0
     assert preds["risk_score_summary"]["high_risk_criminals_count"] == 1
     
     # 2. Get list of reports

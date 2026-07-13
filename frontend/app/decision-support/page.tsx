@@ -17,7 +17,7 @@ import { useDecisionSupport } from "@/hooks/useDecisionSupport";
 import ResourceOptimizer from "@/components/decision-support/resource-optimizer";
 import RecommendationList from "@/components/decision-support/recommendation-list";
 import MonitoringPanels from "@/components/decision-support/monitoring-panels";
-import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
+import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
 
 export default function DecisionSupportPage() {
   const {

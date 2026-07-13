@@ -93,7 +93,7 @@ class TestDatasetRegistryLoads:
 
     def test_registry_returns_datasets_on_first_call(self, client_as_admin):
         """Registry should start empty until the user uploads data."""
-        response = client_as_admin.get("/api/v1/admin/datasets/")
+        response = client_as_admin.get("/api/v1/datasets/")
         assert response.status_code == 200
         datasets = response.json()
         assert datasets == []
@@ -106,10 +106,10 @@ class TestDatasetRegistryLoads:
         )
         file_payload = {"file": ("registry_fields.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Registry Fields"}
-        upload_response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        upload_response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert upload_response.status_code == 200
 
-        response = client_as_admin.get("/api/v1/admin/datasets/")
+        response = client_as_admin.get("/api/v1/datasets/")
         assert response.status_code == 200
         datasets = response.json()
         assert len(datasets) == 1
@@ -133,10 +133,10 @@ class TestDatasetRegistryLoads:
         )
         file_payload = {"file": ("active_visible.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Active Visible"}
-        upload_response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        upload_response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert upload_response.status_code == 200
 
-        response = client_as_admin.get("/api/v1/admin/datasets/")
+        response = client_as_admin.get("/api/v1/datasets/")
         assert response.status_code == 200
         datasets = response.json()
         active = [d for d in datasets if d["is_active"]]
@@ -156,7 +156,7 @@ class TestImportHeaderNormalization:
         )
         file_payload = {"file": ("test.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Standard CSV"}
-        response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert response.status_code == 200
         ds = response.json()
         assert ds["row_count"] == 1
@@ -170,7 +170,7 @@ class TestImportHeaderNormalization:
         )
         file_payload = {"file": ("title_case.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Title Case CSV"}
-        response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert response.status_code == 200
         ds = response.json()
         assert ds["row_count"] == 1
@@ -183,7 +183,7 @@ class TestImportHeaderNormalization:
         )
         file_payload = {"file": ("upper.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Upper Case CSV"}
-        response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert response.status_code == 200
         ds = response.json()
         assert ds["row_count"] == 1
@@ -196,7 +196,7 @@ class TestImportHeaderNormalization:
         )
         file_payload = {"file": ("alias.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Alias CSV"}
-        response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert response.status_code == 200
         ds = response.json()
         assert ds["row_count"] == 1
@@ -209,7 +209,7 @@ class TestImportHeaderNormalization:
         )
         file_payload = {"file": ("whitespace.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Whitespace CSV"}
-        response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert response.status_code == 200
         ds = response.json()
         assert ds["row_count"] == 1
@@ -222,7 +222,7 @@ class TestImportHeaderNormalization:
         )
         file_payload = {"file": ("bad.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Bad CSV"}
-        response = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        response = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert response.status_code == 400
         detail = response.json().get("detail", "")
         assert "Missing required columns" in detail
@@ -243,7 +243,7 @@ class TestDatasetActivation:
         )
         file_payload = {"file": ("switch_base.csv", io.BytesIO(csv_content.encode("utf-8")), "text/csv")}
         form_data = {"display_name": "Switch Base"}
-        upload_resp = client_as_admin.post("/api/v1/admin/datasets/upload", data=form_data, files=file_payload)
+        upload_resp = client_as_admin.post("/api/v1/datasets/upload", data=form_data, files=file_payload)
         assert upload_resp.status_code == 200
 
         seed_id = upload_resp.json()["id"]
@@ -261,20 +261,20 @@ class TestDatasetActivation:
         db_session.commit()
 
         # Activate new dataset
-        activate_resp = client_as_admin.post("/api/v1/admin/datasets/activate", json={"dataset_id": target.id})
+        activate_resp = client_as_admin.post("/api/v1/datasets/activate", json={"dataset_id": target.id})
         assert activate_resp.status_code == 200
         activated = activate_resp.json()
         assert activated["is_active"] is True
 
         # Verify old dataset is deactivated
-        list_resp = client_as_admin.get("/api/v1/admin/datasets/")
+        list_resp = client_as_admin.get("/api/v1/datasets/")
         datasets = list_resp.json()
         active_count = sum(1 for d in datasets if d["is_active"])
         assert active_count == 1, "Only one dataset should be active"
 
     def test_active_badge_data_present(self, client_as_admin):
         """Every dataset response must include is_active field for UI badge."""
-        resp = client_as_admin.get("/api/v1/admin/datasets/")
+        resp = client_as_admin.get("/api/v1/datasets/")
         for ds in resp.json():
             assert "is_active" in ds
 

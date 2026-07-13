@@ -5,7 +5,6 @@ from backend.schemas.crime import CrimeEventBase, CrimeEventCreate, CrimeEventRe
 from backend.schemas.criminal import CriminalBase, CriminalCreate, CriminalResponse
 from backend.schemas.victim import VictimBase, VictimCreate, VictimResponse
 from backend.schemas.crime_participation import CrimeParticipationBase, CrimeParticipationCreate, CrimeParticipationResponse
-from backend.schemas.prediction import PredictionBase, PredictionCreate, PredictionResponse
 from backend.schemas.alert import AlertBase, AlertCreate, AlertResponse
 from backend.schemas.recommendation import RecommendationBase, RecommendationCreate, RecommendationResponse
 from backend.schemas.report import ReportBase, ReportCreate, ReportResponse
@@ -41,9 +40,6 @@ __all__ = [
     "CrimeParticipationBase",
     "CrimeParticipationCreate",
     "CrimeParticipationResponse",
-    "PredictionBase",
-    "PredictionCreate",
-    "PredictionResponse",
     "AlertBase",
     "AlertCreate",
     "AlertResponse",

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { AlertCircle, Map, RefreshCw, ShieldAlert } from "lucide-react";
 import GeoFilters from "@/features/geo/components/GeoFilters";
-import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
+import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
 import type { GeoFiltersState, DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster } from "@/features/geo/types/geo";
 import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 

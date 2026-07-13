@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FileText, Plus, ShieldAlert, RefreshCw } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
 import FirCaseList from "@/features/fir/components/FirCaseList";
-import { fetchDatasets, type DatasetInfo } from "@/features/admin/services/database-service";
+import { fetchDatasets, type DatasetInfo } from "@/services/dataset.service";
 
 export default function FirCasesPage() {
   const [activeDatasets, setActiveDatasets] = useState<DatasetInfo[]>([]);

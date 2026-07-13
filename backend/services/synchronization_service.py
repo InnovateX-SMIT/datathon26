@@ -6,8 +6,6 @@ from sqlalchemy import func
 from backend.core.logging import logger
 from backend.core.dataset_resolver import DatasetResolver
 from backend.models.dataset import Dataset
-from backend.models.ml_model import MLModel
-from backend.models.prediction import Prediction
 from backend.models.recommendation import RecommendationHistory, Recommendation
 from backend.models.alert import Alert
 from backend.models.location import Location
@@ -15,7 +13,6 @@ from backend.models.crime import CrimeEvent
 from backend.models.criminal import Criminal
 
 from backend.services.analytics_service import AnalyticsService
-from backend.services.prediction_service import PredictionService
 from backend.services.recommendation_service import RecommendationService
 from backend.services.alert_service import AlertService
 
@@ -40,10 +37,6 @@ class SynchronizationService:
         analytics_svc = AnalyticsService(self.db)
         analytics_svc.get_dashboard_summary()
 
-        # 2. Refreshes dataset predictions
-        prediction_svc = PredictionService(self.db)
-        self._refresh_dataset_predictions(prediction_svc, active_ids)
-
         # 3. Regenerates Recommendations
         recs_svc = RecommendationService(self.db)
         recs = recs_svc.generate_dynamic_recommendations()
@@ -52,11 +45,8 @@ class SynchronizationService:
         alert_svc = AlertService(self.db)
         alerts = alert_svc.generate_alerts_from_intelligence()
 
-        # 5. Get current active model info
-        latest_model = self.db.query(MLModel).filter(
-            MLModel.status == "Completed"
-        ).order_by(MLModel.created_at.desc()).first()
-        model_version = latest_model.version if latest_model else "Bundled Fallback"
+        # 5. Set default model version
+        model_version = "Bundled Fallback"
 
         # 6. Log history record
         history = RecommendationHistory(
@@ -79,95 +69,4 @@ class SynchronizationService:
             "history_id": history.id
         }
 
-    def _refresh_dataset_predictions(self, prediction_svc: PredictionService, active_ids: list[int]):
-        """
-        Runs batch inference across active dataset attributes to feed prediction tables.
-        """
-        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
 
-        if schema_type == "fir_normalized":
-            from backend.models.fir_geography import District
-            from backend.models.fir_organization import Unit
-            from backend.models.fir_case import CaseMaster
-            from backend.models.fir_people import Accused
-            
-            districts_counts = self.db.query(
-                District.name, func.count(CaseMaster.id)
-            ).select_from(CaseMaster).join(Unit, CaseMaster.PoliceStationID == Unit.id).join(District, Unit.DistrictID == District.id).filter(
-                CaseMaster.dataset_id.in_(active_ids)
-            ).group_by(District.name).order_by(func.count(CaseMaster.id).desc()).limit(5).all()
-
-            for dist, cnt in districts_counts:
-                try:
-                    # Predict Hotspot probability
-                    prediction_svc.predict_hotspot(
-                        district=dist,
-                        trend_metrics=float(cnt),
-                        historical_crime_growth=1.15
-                    )
-                    # Predict Crime Risk rating
-                    prediction_svc.predict_crime_risk(
-                        district=dist,
-                        crime_category="Property Crimes",
-                        historical_crime_count=int(cnt)
-                    )
-                except Exception as e:
-                    logger.error(f"Error refreshing predictions for district {dist}: {e}")
-
-            # Query top accused
-            criminals = self.db.query(Accused).join(CaseMaster).filter(
-                CaseMaster.dataset_id.in_(active_ids)
-            ).order_by(Accused.id.desc()).limit(5).all()
-
-            for crim in criminals:
-                try:
-                    prediction_svc.predict_repeat_offender(
-                        age=float(crim.AgeYear or 30),
-                        occupation="Unknown",
-                        caste="Unknown",
-                        district="Mysuru" # Default / fallback
-                    )
-                except Exception as e:
-                    logger.error(f"Error refreshing repeat offender prediction for accused {crim.id}: {e}")
-        else:
-            # Query top districts in active datasets
-            districts_counts = self.db.query(
-                Location.district, func.count(CrimeEvent.id)
-            ).join(
-                Location, CrimeEvent.location_id == Location.id
-            ).filter(
-                CrimeEvent.dataset_id.in_(active_ids)
-            ).group_by(Location.district).order_by(func.count(CrimeEvent.id).desc()).limit(5).all()
-
-            for dist, cnt in districts_counts:
-                try:
-                    # Predict Hotspot probability
-                    prediction_svc.predict_hotspot(
-                        district=dist,
-                        trend_metrics=float(cnt),
-                        historical_crime_growth=1.15
-                    )
-                    # Predict Crime Risk rating
-                    prediction_svc.predict_crime_risk(
-                        district=dist,
-                        crime_category="Property",
-                        historical_crime_count=int(cnt)
-                    )
-                except Exception as e:
-                    logger.error(f"Error refreshing predictions for district {dist}: {e}")
-
-            # Query top risk offenders
-            criminals = self.db.query(Criminal).filter(
-                Criminal.dataset_id.in_(active_ids)
-            ).order_by(Criminal.risk_score.desc()).limit(5).all()
-
-            for crim in criminals:
-                try:
-                    prediction_svc.predict_repeat_offender(
-                        age=float(crim.age or 30),
-                        occupation=crim.occupation or "Unknown",
-                        caste=crim.caste or "Unknown",
-                        district=districts_counts[0][0] if districts_counts else "Unknown"
-                    )
-                except Exception as e:
-                    logger.error(f"Error refreshing repeat offender prediction for criminal {crim.id}: {e}")

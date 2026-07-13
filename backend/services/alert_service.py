@@ -5,7 +5,6 @@ from datetime import date, timedelta
 from typing import List, Optional, Dict, Any
 
 from backend.models.alert import Alert
-from backend.models.prediction import Prediction
 from backend.models.recommendation import Recommendation, ResourceAllocation
 from backend.models.crime import CrimeEvent
 from backend.models.location import Location
@@ -25,6 +24,7 @@ class AlertService:
         """
         from backend.core.dataset_resolver import DatasetResolver
         active_id = DatasetResolver(self.db).get_active_dataset_id()
+        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
         
         alerts_to_create = []
         seen_identifiers = set()
@@ -52,67 +52,7 @@ class AlertService:
                 ))
 
         # ==========================================
-        # 1. PREDICTIVE ALERTS
-        # ==========================================
-        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
-        if schema_type == "fir_normalized":
-            preds = self.db.query(Prediction).order_by(Prediction.generated_at.desc()).limit(50).all()
-        else:
-            preds = self.db.query(Prediction).join(CrimeEvent).options(
-                joinedload(Prediction.crime_event).joinedload(CrimeEvent.location)
-            ).filter(
-                CrimeEvent.dataset_id == active_id
-            ).order_by(Prediction.generated_at.desc()).limit(50).all()
-
-        for p in preds:
-            # Hotspot prediction alerts
-            if p.prediction_type == "hotspot":
-                prob = p.confidence_score
-                district = "Unknown"
-                if p.crime_event and p.crime_event.location:
-                    district = p.crime_event.location.district
-                elif schema_type == "fir_normalized":
-                    district = "Mysuru"
-
-                if prob >= 0.70:
-                    severity = "CRITICAL" if prob >= 0.85 else "HIGH"
-                    stage_alert(
-                        title="Critical Hotspot Warning" if severity == "CRITICAL" else "Emerging Hotspot Alert",
-                        description=f"Emerging crime hotspot predicted in {district} with probability {prob * 100:.1f}%.",
-                        severity=severity,
-                        source="prediction",
-                        crime_event_id=p.crime_event_id,
-                        metadata={"probability": prob, "district": district}
-                    )
-
-            # Repeat offender recidivism alerts
-            elif p.prediction_type == "repeat-offender":
-                prob = p.confidence_score
-                if prob >= 0.70:
-                    stage_alert(
-                        title="High Recidivism Alert",
-                        description=f"High risk of offender recidivism flagged by predictions engine ({prob * 100:.1f}% probability).",
-                        severity="HIGH",
-                        source="prediction",
-                        crime_event_id=p.crime_event_id,
-                        metadata={"recidivism_probability": prob}
-                    )
-
-            # High crime risk score alerts
-            elif p.prediction_type == "crime-risk":
-                score = p.confidence_score  # score normalized from 0 to 1
-                if score >= 0.75:
-                    stage_alert(
-                        title="Elevated District Crime Risk",
-                        description=f"Predictions engine flags elevated crime risk index of {score * 100:.1f} in recent runs.",
-                        severity="HIGH",
-                        source="prediction",
-                        crime_event_id=p.crime_event_id,
-                        metadata={"risk_score": score}
-                    )
-
-        # ==========================================
-        # 2. NETWORK ALERTS
+        # 1. NETWORK ALERTS
         # ==========================================
         try:
             net_service = NetworkAnalyticsService(self.db)
