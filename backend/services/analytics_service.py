@@ -101,7 +101,11 @@ class AnalyticsService:
             ).distinct().count()
 
             total_criminals = total_accused
-            high_risk_criminals = int(total_accused * 0.12)
+            from backend.models.fir_lookup import GravityOffence
+            high_risk_criminals = self.db.query(func.count(Accused.id)).join(CaseMaster).join(GravityOffence).filter(
+                CaseMaster.dataset_id.in_(active_ids),
+                GravityOffence.name == "Heinous"
+            ).scalar() or 0
             crime_resolution_rate = (closed_cases / total_crimes * 100.0) if total_crimes > 0 else 0.0
         else:
             from backend.models.crime import CLOSED_CASE_STATUSES, ACTIVE_CASE_STATUSES

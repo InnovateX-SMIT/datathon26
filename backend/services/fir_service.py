@@ -230,6 +230,18 @@ class FIRService:
 
         # Reload with joins and validate response
         refreshed = self.repo.get_case_by_id(case_record.id)
+
+        # Update dataset row count and updated_at
+        if dataset_id:
+            from backend.models.dataset import Dataset
+            from datetime import datetime
+            ds = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+            if ds:
+                ds.updated_at = datetime.utcnow()
+                ds.row_count = (ds.row_count or 0) + 1
+                self.db.add(ds)
+                self.db.commit()
+
         return CaseMasterResponse.model_validate(refreshed)
 
     def get_case(self, case_id: int) -> Optional[CaseMasterResponse]:
@@ -436,6 +448,14 @@ class FIRService:
                 commit=False
             )
 
+        if case.dataset_id:
+            from backend.models.dataset import Dataset
+            from datetime import datetime
+            ds = self.db.query(Dataset).filter(Dataset.id == case.dataset_id).first()
+            if ds:
+                ds.updated_at = datetime.utcnow()
+                self.db.add(ds)
+
         self.db.commit()
         self.db.refresh(case)
 
@@ -447,5 +467,20 @@ class FIRService:
         """
         Deletes a case and returns True if successful, False otherwise.
         """
+        case = self.db.query(CaseMaster).filter(CaseMaster.id == case_id).first()
+        if not case:
+            return False
+        dataset_id = case.dataset_id
+
         repo = FIRRepository(self.db)
-        return repo.delete_case(case_id=case_id, performed_by_user_id=user_id)
+        success = repo.delete_case(case_id=case_id, performed_by_user_id=user_id)
+        if success and dataset_id:
+            from backend.models.dataset import Dataset
+            from datetime import datetime
+            ds = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+            if ds:
+                ds.updated_at = datetime.utcnow()
+                ds.row_count = max(0, (ds.row_count or 0) - 1)
+                self.db.add(ds)
+                self.db.commit()
+        return success

@@ -407,6 +407,7 @@ export default function FirCaseForm({ caseId }: { caseId?: number }) {
         result = await createCase(payload);
       }
       setCreatedCase(result);
+      window.dispatchEvent(new Event("activeDatasetChanged"));
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : "Failed to save case");
     } finally {
