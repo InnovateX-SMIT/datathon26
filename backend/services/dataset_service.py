@@ -318,9 +318,11 @@ class DatasetService:
             raise ValueError("File is empty. No data found.")
 
         # Create temporary storage path to preview or process
-        os.makedirs("datasets/uploaded", exist_ok=True)
+        from backend.core.config import ROOT_DIR
+        upload_dir = os.path.join(ROOT_DIR, "datasets", "uploaded")
+        os.makedirs(upload_dir, exist_ok=True)
         storage_filename = f"temp_preview_{int(datetime.utcnow().timestamp())}_{file_name}"
-        storage_path = os.path.join("datasets", "uploaded", storage_filename)
+        storage_path = os.path.join(upload_dir, storage_filename)
         
         # If preview mode, validate and return BulkUploadSummary without writing to DB or files permanently
         if preview:
@@ -377,7 +379,7 @@ class DatasetService:
         try:
             # Write file to storage
             real_storage_filename = f"{db_dataset.id}_{file_name}"
-            real_storage_path = os.path.join("datasets", "uploaded", real_storage_filename)
+            real_storage_path = os.path.join(upload_dir, real_storage_filename)
             
             if file_bytes is not None:
                 with open(real_storage_path, "wb") as f:
