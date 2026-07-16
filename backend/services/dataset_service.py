@@ -1176,13 +1176,11 @@ def run_dataset_import_bg(dataset_id: int, user_id: int, storage_path: str, sche
     from backend.core.database import SessionLocal
     from backend.services.dataset_service import DatasetService
     db = SessionLocal()
-    db_progress = SessionLocal()
     try:
         service = DatasetService(db)
-        service.execute_import(dataset_id, user_id, storage_path, schema_type, db, db_progress)
+        service.execute_import(dataset_id, user_id, storage_path, schema_type, db, db)
     except Exception as e:
         logger.error(f"Background dataset import failed for ID {dataset_id}: {e}", exc_info=True)
     finally:
         db.close()
-        db_progress.close()
 
