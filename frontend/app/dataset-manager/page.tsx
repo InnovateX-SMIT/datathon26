@@ -43,9 +43,7 @@ import {
   DatasetPreview,
   DatasetStatistics,
   DatasetConfig
-} from "@/features/admin/services/database-service";
-import { fetchDatasetStatus } from "@/features/admin/services/admin-service";
-import DatasetManagementPanel from "@/features/admin/components/dataset-management-panel";
+} from "@/services/dataset.service";
 
 type PreviewTabId = "data" | "schema" | "statistics";
 
@@ -58,32 +56,13 @@ const unwrapResponseData = <T,>(res: any): T => {
 
 export default function DatasetManagerPage() {
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
-  const [activeTab, setActiveTab] = useState<"datasets" | "operations">("datasets");
-  const [datasetStatus, setDatasetStatus] = useState<any>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
   const [config, setConfig] = useState<DatasetConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const loadDatasetStatus = async () => {
-    setStatusLoading(true);
-    try {
-      const data = await fetchDatasetStatus();
-      setDatasetStatus(data);
-    } catch (err: any) {
-      console.error("Failed to load database status", err);
-    } finally {
-      setStatusLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    if (activeTab === "operations") {
-      loadDatasetStatus();
-    }
-  }, [activeTab]);
 
   const handlePermanentDelete = async (ds: DatasetInfo) => {
     const confirmMsg = `Are you sure you want to PERMANENTLY delete "${ds.display_name}"? \nThis action is irreversible and will delete the file from disk along with all of its associated case, complainant, victim, accused, and event records.`;
@@ -541,32 +520,7 @@ export default function DatasetManagerPage() {
         </div>
       </div>
 
-      {/* Tab Selector */}
-      <div className="flex gap-1 bg-slate-900/60 p-1 border border-slate-800/80 rounded-2xl w-fit">
-        <button
-          onClick={() => setActiveTab("datasets")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "datasets"
-              ? "bg-violet-600 text-white shadow-md shadow-violet-600/10"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-            }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Datasets</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("operations")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "operations"
-              ? "bg-violet-600 text-white shadow-md shadow-violet-600/10"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-            }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>Operations</span>
-        </button>
-      </div>
 
-      {activeTab === "datasets" ? (
-        <>
 
           {/* Alerts */}
           {error && (
@@ -1024,16 +978,7 @@ export default function DatasetManagerPage() {
             </div>
           </div>
 
-        </>
-      ) : (
-        <div className="relative z-10">
-          <DatasetManagementPanel
-            datasetStatus={datasetStatus}
-            loading={statusLoading}
-            onRefresh={loadDatasetStatus}
-          />
-        </div>
-      )}
+
 
       {/* ── SETTINGS CONFIGURATION MODAL ── */}
       {settingsOpen && (

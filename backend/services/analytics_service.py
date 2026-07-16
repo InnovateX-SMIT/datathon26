@@ -67,7 +67,6 @@ class AnalyticsService:
             from backend.models.fir_lookup import CaseStatusMaster, GravityOffence
             from backend.models.fir_geography import District
             from backend.models.fir_organization import Unit
-            from backend.models.prediction import Prediction
             from backend.models.crime import CLOSED_CASE_STATUSES, ACTIVE_CASE_STATUSES
             from backend.core.severity import GRAVITY_SEVERITY_MAP, DEFAULT_SEVERITY
 
@@ -102,8 +101,11 @@ class AnalyticsService:
             ).distinct().count()
 
             total_criminals = total_accused
-            pred_count = self.db.query(Prediction).filter(Prediction.prediction_type == "repeat-offender").count()
-            high_risk_criminals = pred_count if pred_count > 0 else int(total_accused * 0.12)
+            from backend.models.fir_lookup import GravityOffence
+            high_risk_criminals = self.db.query(func.count(Accused.id)).join(CaseMaster).join(GravityOffence).filter(
+                CaseMaster.dataset_id.in_(active_ids),
+                GravityOffence.name == "Heinous"
+            ).scalar() or 0
             crime_resolution_rate = (closed_cases / total_crimes * 100.0) if total_crimes > 0 else 0.0
         else:
             from backend.models.crime import CLOSED_CASE_STATUSES, ACTIVE_CASE_STATUSES

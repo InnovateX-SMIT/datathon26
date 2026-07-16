@@ -51,6 +51,7 @@ export default function FirCaseDetail({ caseId }: FirCaseDetailProps) {
     setDeleting(true);
     try {
       await deleteCase(caseId);
+      window.dispatchEvent(new Event("activeDatasetChanged"));
       alert("Case deleted successfully.");
       window.location.href = "/fir/cases";
     } catch (err: unknown) {

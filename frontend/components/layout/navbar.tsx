@@ -9,14 +9,11 @@ const BREADCRUMBS: Record<string, string> = {
   "/dashboard": "Command Center",
   "/analytics": "Crime Analytics",
   "/geo": "Geo Intelligence",
-  "/prediction": "Predictive Intel",
   "/network": "Network Intel",
   "/dataset-manager": "Dataset Manager",
   "/decision-support": "Decision Support",
   "/alerts": "Alerts Panel",
   "/reports": "Executive Reports",
-  "/admin": "Admin Portal",
-  "/database-management": "Database Management",
   "/about": "About Us",
 };
 

@@ -9,7 +9,6 @@ from backend.core.validation import (
     validate_crime_no, validate_case_no, generate_crime_no, generate_case_no,
     validate_latitude, validate_longitude, validate_age
 )
-from backend.services.ml_compatibility_service import MLCompatibilityService
 from backend.services.fir_service import FIRService
 from backend.schemas.fir import (
     CaseMasterCreate, InvOccuranceTimeCreate, ComplainantDetailsCreate,
@@ -82,84 +81,7 @@ def test_centralized_validation_helpers():
     assert validate_age(-1) is False
     assert validate_age(130) is False
 
-def test_ml_compatibility_translation_layer(db_session):
-    # Setup master lookups
-    dist = District(name="Ballari", StateID=1)
-    occ = OccupationMaster(name="Farmer")
-    caste = CasteMaster(name="General")
-    cat = CaseCategory(name="FIR")
-    db_session.add_all([dist, occ, caste, cat])
-    db_session.commit()
 
-    ml_service = MLCompatibilityService(db_session)
-    
-    # 1. Translate repeat offender features
-    ro_features = ml_service.get_repeat_offender_features(
-        age=30,
-        occupation_id=occ.id,
-        caste_id=caste.id,
-        district_id=dist.id
-    )
-    assert ro_features == {
-        "age": 30.0,
-        "occupation": "Farmer",
-        "caste": "General",
-        "district": "Ballari"
-    }
-
-    # 2. Translate crime risk features
-    cr_features = ml_service.get_crime_risk_features(
-        district_id=dist.id,
-        category_id=cat.id,
-        historical_crime_count=42
-    )
-    assert cr_features == {
-        "district": "Ballari",
-        "crime_category": "FIR",
-        "historical_crime_count": 42
-    }
-
-    # 3. Translate crime type features
-    ct_features = ml_service.get_crime_type_features(
-        district_id=dist.id,
-        month=7,
-        hour=20,
-        day_of_week=2,
-        historical_crime_count=15
-    )
-    assert ct_features == {
-        "district": "Ballari",
-        "month": 7,
-        "hour": 20,
-        "day_of_week": 2,
-        "historical_crime_count": 15
-    }
-
-    # 4. Translate hotspot features
-    hs_features = ml_service.get_hotspot_features(
-        district_id=dist.id,
-        trend_metrics=0.85,
-        historical_crime_growth=1.25
-    )
-    assert hs_features == {
-        "district": "Ballari",
-        "trend_metrics": 0.85,
-        "historical_crime_growth": 1.25
-    }
-
-    # Test unknown fallbacks
-    unknown_ro = ml_service.get_repeat_offender_features(
-        age=None,
-        occupation_id=999,
-        caste_id=999,
-        district_id=999
-    )
-    assert unknown_ro == {
-        "age": 30.0,
-        "occupation": "Unknown",
-        "caste": "Unknown",
-        "district": "Unknown"
-    }
 
 def test_fir_service_crud_and_validations(db_session):
     # 1. Setup lookups

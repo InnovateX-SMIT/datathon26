@@ -50,3 +50,7 @@ export async function fetchHotspotClusters(filters: GeoFiltersState): Promise<Ho
 export async function fetchGeoIntelligence(filters: GeoFiltersState, signal?: AbortSignal): Promise<GeoIntelligenceResponse> {
   return apiGet<GeoIntelligenceResponse>(`/api/v1/geo/intelligence${buildQueryString(filters)}`, signal);
 }
+
+export async function fetchGeoLookupOptions(): Promise<{ districts: string[]; categories: string[] }> {
+  return apiGet<{ districts: string[]; categories: string[] }>("/api/v1/geo/lookup-options");
+}

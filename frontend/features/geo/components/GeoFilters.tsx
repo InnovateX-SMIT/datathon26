@@ -1,38 +1,34 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Filter, Calendar, MapPin, ShieldAlert } from "lucide-react";
 import type { GeoFiltersState } from "../types/geo";
+import { fetchGeoLookupOptions } from "../services/geoApi";
 
 interface GeoFiltersProps {
   filters: GeoFiltersState;
   onFiltersChange: (filters: GeoFiltersState) => void;
 }
 
-const DISTRICTS = [
-  "Ballari",
-  "Shivamogga",
-  "Mysuru",
-  "Kalaburagi",
-  "Tumakuru",
-  "Mangaluru",
-  "Bengaluru Urban",
-  "Bengaluru Rural",
-  "Belagavi",
-  "Hubballi"
-];
-
-const CRIME_TYPES = [
-  "Theft",
-  "Assault",
-  "Burglary",
-  "Robbery",
-  "Murder",
-  "Kidnapping",
-  "Fraud",
-  "Riot",
-  "Cybercrime"
-];
-
 export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps) {
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [crimeTypes, setCrimeTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchGeoLookupOptions()
+      .then((res) => {
+        if (active) {
+          setDistricts(res.districts);
+          setCrimeTypes(res.categories);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load backend geo lookups:", err);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onFiltersChange({ ...filters, district: e.target.value || undefined });
   };
@@ -79,10 +75,10 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             <select
               value={filters.district ?? ""}
               onChange={handleDistrictChange}
-              className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all appearance-none cursor-pointer"
+              className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all appearance-none cursor-pointer font-sans"
             >
               <option value="">All Districts</option>
-              {DISTRICTS.map((d) => (
+              {districts.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -101,10 +97,10 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             <select
               value={filters.crime_type ?? ""}
               onChange={handleCrimeTypeChange}
-              className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all appearance-none cursor-pointer"
+              className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all appearance-none cursor-pointer font-sans"
             >
               <option value="">All Categories</option>
-              {CRIME_TYPES.map((t) => (
+              {crimeTypes.map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -123,7 +119,7 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             type="date"
             value={filters.start_date ?? ""}
             onChange={handleStartDateChange}
-            className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all cursor-pointer"
+            className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all cursor-pointer font-sans"
           />
         </div>
 
@@ -137,7 +133,7 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             type="date"
             value={filters.end_date ?? ""}
             onChange={handleEndDateChange}
-            className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all cursor-pointer"
+            className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all cursor-pointer font-sans"
           />
         </div>
       </div>

@@ -240,7 +240,7 @@ export default function FirCaseForm({ caseId }: { caseId?: number }) {
   }, [caseId, loadCourts, loadEmployees, loadSections, loadCrimeSubHeads]);
 
   useEffect(() => {
-    import("@/features/admin/services/database-service").then((s) => {
+    import("@/services/dataset.service").then((s) => {
       s.fetchActiveDatasets()
         .then((activeList) => {
           if (activeList && activeList.length > 0) {
@@ -407,6 +407,7 @@ export default function FirCaseForm({ caseId }: { caseId?: number }) {
         result = await createCase(payload);
       }
       setCreatedCase(result);
+      window.dispatchEvent(new Event("activeDatasetChanged"));
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : "Failed to save case");
     } finally {

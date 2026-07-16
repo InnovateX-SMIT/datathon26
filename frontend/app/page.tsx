@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BarChart3,
   Bell,
-  BrainCircuit,
   Database,
   FileSpreadsheet,
   FileText,
@@ -45,13 +44,7 @@ const modules = [
     href: "/network",
     accent: "violet",
   },
-  {
-    icon: BrainCircuit,
-    label: "Predictive Intel",
-    desc: "ML-powered crime risk, hotspot, type, and repeat-offender forecasts.",
-    href: "/prediction",
-    accent: "indigo",
-  },
+
   {
     icon: Scale,
     label: "Decision Support",
@@ -143,8 +136,8 @@ export default function HomePage() {
           {/* Quick stats */}
           <div className="grid grid-cols-2 gap-3 lg:min-w-[260px]">
             {[
-              { label: "Modules", value: "10" },
-              { label: "ML Models", value: "4" },
+              { label: "Modules", value: "9" },
+              { label: "Active Datasets", value: "1+" },
               { label: "Map Layers", value: "4" },
               { label: "Report Types", value: "5+" },
             ].map(({ label, value }) => (

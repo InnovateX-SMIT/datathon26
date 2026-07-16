@@ -146,3 +146,15 @@ def get_hotspots(
     except Exception as e:
         logger.error(f"Error fetching hotspot clusters: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/lookup-options")
+def get_lookup_options(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = GeoService(db)
+        return service.get_lookup_options()
+    except Exception as e:
+        logger.error(f"Error fetching geo lookup options: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Unable to load lookup filters")

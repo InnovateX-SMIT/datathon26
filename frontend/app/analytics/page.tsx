@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { BarChart3, RefreshCw, AlertCircle, ShieldAlert } from "lucide-react";
 import { useAnalytics } from "@/features/analytics/hooks/useAnalytics";
-import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
+import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
 import AnalyticsOverviewCards from "@/features/analytics/components/AnalyticsOverviewCards";
 import TemporalTrendChart from "@/features/analytics/components/TemporalTrendChart";
 import CategoryDistributionChart from "@/features/analytics/components/CategoryDistributionChart";

@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   BarChart3,
   Map,
-  BrainCircuit,
   Network,
   Scale,
   Bell,
@@ -34,7 +33,7 @@ const menuItems = [
   { name: "Register FIR", href: "/fir/cases/new", icon: FilePlus, group: "Operations" },
   { name: "Crime Analytics", href: "/analytics", icon: BarChart3, group: "Intelligence" },
   { name: "Geo Intelligence", href: "/geo", icon: Map, group: "Intelligence" },
-  { name: "Predictive Intel", href: "/prediction", icon: BrainCircuit, group: "Intelligence" },
+
   { name: "Network Intel", href: "/network", icon: Network, group: "Intelligence" },
   { name: "Decision Support", href: "/decision-support", icon: Scale, group: "Intelligence" },
   { name: "Executive Reports", href: "/reports", icon: FileSpreadsheet, group: "Administration" },

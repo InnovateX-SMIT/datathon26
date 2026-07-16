@@ -33,7 +33,6 @@ class CrimeEvent(Base):
     
     victims = relationship("Victim", back_populates="crime_event")
     participations = relationship("CrimeParticipation", back_populates="crime_event")
-    predictions = relationship("Prediction", back_populates="crime_event")
     alerts = relationship("Alert", back_populates="crime_event")
     recommendations = relationship("Recommendation", back_populates="crime_event")
 

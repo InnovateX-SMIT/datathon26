@@ -1,6 +1,8 @@
 export interface DistrictCrime {
   district: string;
   crime_count: number;
+  latitude: number;
+  longitude: number;
 }
 
 export interface StationCrime {
@@ -23,6 +25,18 @@ export interface HotspotCluster {
   longitude: number;
 }
 
+export interface GeoMarker {
+  id: number;
+  crime_no: string;
+  crime_type: string;
+  police_station: string;
+  district: string;
+  crime_date: string;
+  status: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface GeoFiltersState {
   district?: string;
   crime_type?: string;
@@ -30,10 +44,10 @@ export interface GeoFiltersState {
   end_date?: string;
 }
 
-
 export interface GeoIntelligenceResponse {
   districts: DistrictCrime[];
   stations: StationCrime[];
   heatmap: HeatmapPoint[];
   hotspots: HotspotCluster[];
+  markers: GeoMarker[];
 }

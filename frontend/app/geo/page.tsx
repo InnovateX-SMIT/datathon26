@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { AlertCircle, Map, RefreshCw, ShieldAlert } from "lucide-react";
 import GeoFilters from "@/features/geo/components/GeoFilters";
-import { fetchDatasets, DatasetInfo } from "@/features/admin/services/database-service";
-import type { GeoFiltersState, DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster } from "@/features/geo/types/geo";
+import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
+import type { GeoFiltersState, DistrictCrime, HeatmapPoint, HotspotCluster, GeoMarker } from "@/features/geo/types/geo";
 import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 
 // Dynamically import maps with ssr: false to prevent Next.js build crash
@@ -14,9 +14,9 @@ const DistrictMap = dynamic(() => import("@/features/geo/components/DistrictMap"
   loading: () => <MapLoadingPlaceholder label="District Map" />
 });
 
-const StationMap = dynamic(() => import("@/features/geo/components/StationMap"), {
+const FirMarkerMap = dynamic(() => import("@/features/geo/components/FirMarkerMap"), {
   ssr: false,
-  loading: () => <MapLoadingPlaceholder label="Police Station Map" />
+  loading: () => <MapLoadingPlaceholder label="Operational Incident Marker Map" />
 });
 
 const CrimeHeatmap = dynamic(() => import("@/features/geo/components/CrimeHeatmap"), {
@@ -36,7 +36,7 @@ function MapLoadingPlaceholder({ label }: { label: string }) {
         <div className="w-1.5 h-5 bg-indigo-500 rounded" />
         <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">{label}</h3>
       </div>
-      <div className="flex-1 bg-slate-800/10 rounded-xl flex items-center justify-center text-slate-500 text-xs">
+      <div className="flex-1 bg-slate-800/10 rounded-xl flex items-center justify-center text-slate-500 text-xs font-sans">
         Initializing map layers...
       </div>
     </div>
@@ -47,7 +47,7 @@ export default function GeoPage() {
   const [filters, setFilters] = useState<GeoFiltersState>({});
   
   const [districtData, setDistrictData] = useState<DistrictCrime[]>([]);
-  const [stationData, setStationData] = useState<StationCrime[]>([]);
+  const [markerData, setMarkerData] = useState<GeoMarker[]>([]);
   const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>([]);
   const [hotspotData, setHotspotData] = useState<HotspotCluster[]>([]);
   
@@ -76,7 +76,7 @@ export default function GeoPage() {
     try {
       const intelligence = await fetchGeoIntelligence(activeFilters, signal);
       setDistrictData(intelligence.districts);
-      setStationData(intelligence.stations);
+      setMarkerData(intelligence.markers || []);
       setHeatmapData(intelligence.heatmap);
       setHotspotData(intelligence.hotspots);
     } catch (err: any) {
@@ -129,13 +129,13 @@ export default function GeoPage() {
       <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center text-slate-200">
         <div className="bg-slate-900/60 p-8 rounded-3xl border border-slate-800/80 max-w-md w-full backdrop-blur-md space-y-6">
           <ShieldAlert className="w-16 h-16 text-indigo-400 mx-auto animate-pulse" />
-          <h2 className="text-xl font-bold uppercase tracking-tight">No active dataset selected</h2>
-          <p className="text-sm text-slate-400 leading-relaxed">
+          <h2 className="text-xl font-bold uppercase tracking-tight font-sans">No active dataset selected</h2>
+          <p className="text-sm text-slate-400 leading-relaxed font-sans">
             CrimeNexus AI operations require at least one active database registry entry to query operational analytics, trend lines, and mapping clusters.
           </p>
           <a
             href="/dataset-manager"
-            className="block w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-555 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/10"
+            className="block w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/10 font-sans"
           >
             Go to Dataset Manager
           </a>
@@ -153,17 +153,17 @@ export default function GeoPage() {
             <Map className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full w-fit">
+            <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full w-fit font-sans">
               Geospatial Mapping Suite
             </div>
-            <h1 className="text-2xl font-black text-slate-100 uppercase tracking-tight mt-1.5">
+            <h1 className="text-2xl font-black text-slate-100 uppercase tracking-tight mt-1.5 font-sans">
               Geo Intelligence Engine
             </h1>
           </div>
         </div>
 
         {/* Right Info Panel */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40 w-full sm:w-auto font-sans">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Using Dataset:</span>
             {activeDatasets.length > 0 ? (
@@ -192,14 +192,14 @@ export default function GeoPage() {
 
       {/* Error State Banner */}
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-rose-400">
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-rose-400 font-sans">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
           <button
             onClick={handleRetry}
-            className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg text-[10px] uppercase font-bold transition-all cursor-pointer"
+            className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg text-[10px] uppercase font-bold transition-all cursor-pointer font-sans"
           >
             Retry Connection
           </button>
@@ -212,8 +212,8 @@ export default function GeoPage() {
         {/* District Crime Map */}
         <DistrictMap data={districtData} loading={loading} />
         
-        {/* Police Station Map */}
-        <StationMap data={stationData} loading={loading} />
+        {/* Incident Marker Map */}
+        <FirMarkerMap data={markerData} loading={loading} />
         
         {/* Crime Density Heatmap */}
         <CrimeHeatmap data={heatmapData} loading={loading} />
