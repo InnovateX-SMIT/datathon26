@@ -131,11 +131,22 @@ class NetworkService:
             })
             seen_nodes.add(c_node_id)
             
-            # Find cases involving this accused by name matching
-            cases_involved = self.db.query(CaseMaster).join(Accused).filter(
+            # Find cases involving this accused by matching name, age, and gender
+            filters = [
                 Accused.AccusedName == acc.AccusedName,
                 CaseMaster.dataset_id == active_id
-            ).all()
+            ]
+            if acc.AgeYear is not None:
+                filters.append(Accused.AgeYear == acc.AgeYear)
+            else:
+                filters.append(Accused.AgeYear.is_(None))
+                
+            if acc.GenderID is not None:
+                filters.append(Accused.GenderID == acc.GenderID)
+            else:
+                filters.append(Accused.GenderID.is_(None))
+                
+            cases_involved = self.db.query(CaseMaster).join(Accused).filter(*filters).all()
             
             for case in cases_involved:
                 crime_node_id = f"crime_{case.id}"
