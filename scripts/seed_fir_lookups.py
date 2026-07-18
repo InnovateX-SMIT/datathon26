@@ -113,8 +113,6 @@ def seed_fir_lookups(db):
     # ── State ──────────────────────────────────────────────────────────────────
     state_data = [
         ("Karnataka", "Indian"),
-        ("Maharashtra", "Indian"),
-        ("Tamil Nadu", "Indian"),
         ("Andhra Pradesh", "Indian"),
         ("Kerala", "Indian"),
         ("Goa", "Indian"),
@@ -173,12 +171,22 @@ def seed_fir_lookups(db):
         ("District Court, Belagavi", "Belagavi", "Karnataka"),
         ("High Court of Karnataka, Bengaluru", "Bengaluru Urban", "Karnataka"),
     ]
+    # Dynamically seed new general courts for each seeded district
+    for dist_name, _ in district_data:
+        court_data.append(("District Court", dist_name, "Karnataka"))
+        court_data.append(("Tribunal Court", dist_name, "Karnataka"))
+        court_data.append(("High Court", dist_name, "Karnataka"))
+
     for court_name, dist_name, state_name in court_data:
-        obj = db.query(Court).filter(Court.name == court_name).first()
-        if not obj:
-            d_id = district_ids.get(dist_name)
-            s_id = state_ids.get(state_name)
-            if d_id and s_id:
+        d_id = district_ids.get(dist_name)
+        s_id = state_ids.get(state_name)
+        if d_id and s_id:
+            obj = db.query(Court).filter(
+                Court.name == court_name,
+                Court.DistrictID == d_id,
+                Court.StateID == s_id
+            ).first()
+            if not obj:
                 obj = Court(name=court_name, DistrictID=d_id, StateID=s_id)
                 db.add(obj)
     db.flush()

@@ -12,9 +12,9 @@ class FIRSyntheticDataGenerator:
     """
     def __init__(self):
         # Seed lookups lists
-        self.states = ["Karnataka", "Maharashtra", "Tamil Nadu"]
+        self.states = ["Karnataka"]
         self.districts = ["Mysuru", "Ballari", "Bengaluru City", "Dharwad", "Belagavi"]
-        self.courts = ["JMFC I Court", "District Session Court", "High Court Bengaluru"]
+        self.courts = ["District Court", "Tribunal Court", "High Court"]
         self.unit_types = ["Police Station", "Circle Office", "District Office"]
         self.units = ["Devaraja PS", "Gandhinagar PS", "Town PS", "Cantonment PS", "Rural PS"]
         self.ranks = ["Constable", "Head Constable", "Sub-Inspector", "Inspector", "Deputy Superintendent"]
