@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/hero-home.png" alt="CrimeNexus AI — Home / Platform Overview" width="100%">
+  <img src="docs/screenshots/Banner.jpeg" alt="CrimeNexus AI — Home / Platform Overview" width="100%">
 </p>
 
 ---
@@ -227,13 +227,22 @@ flowchart LR
 The Command Center is the platform's operational home page — a single view of incident volume, active investigations, resolution rate, and severity, alongside temporal trend lines and a category breakdown of the active dataset.
 
 <p align="center">
-  <img src="docs/screenshots/command-center-1.png" alt="Command Center overview with KPI cards and category breakdown" width="100%">
+  <img src="docs/screenshots/command-center-1.jpeg" alt="Command Center overview with KPI cards and category breakdown" width="100%">
 </p>
 
 Scrolling further surfaces district-level ranking and a live feed of recent crime events, giving an investigator both the macro trend and the most recent ground truth in one screen.
 
 <p align="center">
-  <img src="docs/screenshots/command-center-2.png" alt="Command Center — top districts by crime volume and recent events feed" width="100%">
+  <img src="docs/screenshots/command-center-2.jpeg" alt="Command Center — top districts by crime volume and recent events feed" width="100%">
+</p>
+
+
+### 8.9 Dataset Manager
+
+The Dataset Manager governs which dataset is active across the entire platform. It supports multi-file CSV/XLSX upload with validation and preview, and enforces a configurable active-dataset limit so analytics always run against a known, consistent source.
+
+<p align="center">
+  <img src="docs/screenshots/Dataset-Manager.jpeg" alt="Dataset Manager upload portal and registry summary" width="100%">
 </p>
 
 ### 8.2 Crime Analytics
@@ -252,12 +261,6 @@ The Geo Intelligence Engine renders two synchronized map layers — a district-l
   <img src="docs/screenshots/geo-intelligence-1.png" alt="Geo Intelligence Engine with district crime map and incident marker map" width="100%">
 </p>
 
-The marker map supports full-screen inspection, allowing an investigator to drill into cluster density down to the station level.
-
-<p align="center">
-  <img src="docs/screenshots/geo-intelligence-2.png" alt="Full-screen incident marker map showing clustered crime counts by area" width="100%">
-</p>
-
 ### 8.4 Network Intelligence
 
 Network Intelligence maps relationships between offenders, crime events, and locations using NetworkX on the backend and React Flow on the frontend. An investigator can search a criminal ID, load its connection graph, and immediately see total nodes, edges, and entity-type breakdowns.
@@ -269,7 +272,7 @@ Network Intelligence maps relationships between offenders, crime events, and loc
 Loaded graphs render as connected cards — criminal, crime event, and location nodes — with typed relationship edges (`INVOLVED_IN`, `OCCURRED_AT`) and a risk indicator per offender.
 
 <p align="center">
-  <img src="docs/screenshots/network-intel-2.png" alt="Rendered criminal network graph showing offender, crime event, and location nodes" width="100%">
+  <img src="docs/screenshots/Network-intel.jpeg" alt="Rendered criminal network graph showing offender, crime event, and location nodes" width="100%">
 </p>
 
 ### 8.5 Decision Support
@@ -280,30 +283,12 @@ The Decision Support Center is the platform's most active analytical workspace, 
   <img src="docs/screenshots/decision-support-1.png" alt="Decision Support Center — Priority Actions tab with a ranked recommendation" width="100%">
 </p>
 
-**Resource Optimizer** takes officer-count inputs per rank (Assistant Sub-Inspectors, Head Constables, Police Constables) for a target district and distributes them across stations by normalized severity.
-
-<p align="center">
-  <img src="docs/screenshots/decision-support-2.png" alt="Resource Optimizer tab with officer allocation inputs and deployment map" width="100%">
-</p>
-
-**Target Monitoring** converts recommendations into supervision directives — hotspot patrol requirements and an active suspect monitoring roster with priority codes.
-
-<p align="center">
-  <img src="docs/screenshots/decision-support-3.png" alt="Target Monitoring tab showing active suspect supervision roster" width="100%">
-</p>
-
-**Sync History** maintains a full audit trail of every intelligence pipeline synchronization, including dataset version, model version, and alert/recommendation counts.
-
-<p align="center">
-  <img src="docs/screenshots/decision-support-4.png" alt="Sync History tab showing pipeline synchronization audit log" width="100%">
-</p>
-
 ### 8.6 Alerts
 
 The Operational Alerts Panel runs detection rules against the active dataset and triages results by severity — active, critical, resolved, and same-day counts — with a tactical dispatch view for unresolved items and a separate archive of historical alerts.
 
 <p align="center">
-  <img src="docs/screenshots/alerts-panel.png" alt="Operational Alerts Panel with tactical dispatch triage" width="100%">
+  <img src="docs/screenshots/Alert.jpeg" alt="Operational Alerts Panel with tactical dispatch triage" width="100%">
 </p>
 
 ### 8.7 Executive Reports
@@ -311,7 +296,7 @@ The Operational Alerts Panel runs detection rules against the active dataset and
 The Executive Dossier Briefings module generates structured, parameterized reports — selectable by report type and title — and maintains a registry of previously generated dossiers for later retrieval, backed by `report_service.py`.
 
 <p align="center">
-  <img src="docs/screenshots/executive-reports.png" alt="Executive Dossier Briefings module with dossier creation form" width="100%">
+  <img src="docs/screenshots/Executive-reports.jpeg" alt="Executive Dossier Briefings module with dossier creation form" width="100%">
 </p>
 
 ### 8.8 FIR Management
@@ -319,22 +304,14 @@ The Executive Dossier Briefings module generates structured, parameterized repor
 FIR Cases is the system of record for First Information Reports — searchable by crime or case number, filterable by district, status, and date range, with case status tracked through its full lifecycle (Under Investigation, Chargesheeted, B-Report, and beyond).
 
 <p align="center">
-  <img src="docs/screenshots/fir-cases.png" alt="FIR Cases registry with search and case status tracking" width="100%">
+  <img src="docs/screenshots/FIR.jpeg" alt="FIR Cases registry with search and case status tracking" width="100%">
 </p>
-
-### 8.9 Dataset Manager
-
-The Dataset Manager governs which dataset is active across the entire platform. It supports multi-file CSV/XLSX upload with validation and preview, and enforces a configurable active-dataset limit so analytics always run against a known, consistent source.
 
 <p align="center">
-  <img src="docs/screenshots/dataset-manager-1.png" alt="Dataset Manager upload portal and registry summary" width="100%">
+  <img src="docs/screenshots/Register-FIR.jpeg" alt="Register FIR Cases registry" width="100%">
 </p>
 
-The File Registry Directory lists every uploaded dataset with row/column counts, upload timestamps, and one-click activation — switching the active dataset re-runs analytics platform-wide.
 
-<p align="center">
-  <img src="docs/screenshots/dataset-manager-2.png" alt="Dataset Manager file registry with active dataset switching" width="100%">
-</p>
 
 ---
 
