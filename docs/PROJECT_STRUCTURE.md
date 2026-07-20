@@ -1,6 +1,6 @@
 # Project Folder Structure Definition
 
-This document details the file and folder layout of the **CrimeNexus AI** AI-Powered Crime Intelligence Platform. It outlines the separation of concerns and explains the role of each directory.
+This document details the file and folder layout of the **CrimeNexus** AI-Powered Crime Intelligence Platform. It outlines the separation of concerns and explains the role of each directory.
 
 ---
 

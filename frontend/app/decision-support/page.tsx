@@ -51,7 +51,7 @@ export default function DecisionSupportPage() {
   const [datasetsLoading, setDatasetsLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Decision Support | CrimeNexus AI";
+    document.title = "Decision Support | CrimeNexus";
     
     // Load dataset info
     const loadDatasets = async () => {

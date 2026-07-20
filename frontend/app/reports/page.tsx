@@ -163,7 +163,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="min-h-screen pb-12 space-y-8 animate-fade-in relative">
+    <div className="report-page-container min-h-screen pb-12 space-y-8 animate-fade-in relative">
       {/* Background glowing gradients */}
       <div className="absolute top-[10%] right-[10%] w-[400px] h-[400px] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[20%] left-[5%] w-[350px] h-[350px] rounded-full bg-violet-500/5 blur-[100px] pointer-events-none" />
@@ -283,46 +283,225 @@ export default function ReportsPage() {
       {/* Global CSS injection for printing */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          /* Hide sidebar/navigation and extra pages components */
-          body, html {
-            background: white !important;
-            color: black !important;
+          /* Reset root background, colors, and layout heights */
+          html, body, #__next,
+          div[class*="h-screen"],
+          div[class*="overflow-hidden"],
+          div[class*="overflow-y-auto"],
+          main {
+            background-color: #ffffff !important;
+            background-image: none !important;
+            color: #000000 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            position: static !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          header, footer, nav, button, .no-print, [role="navigation"], aside, form {
+
+          /* Define page margins and layout */
+          @page {
+            size: A4 portrait;
+            margin: 20mm;
+          }
+
+          /* Hide UI/navigation components, icons, and non-text visual wrappers */
+          .no-print,
+          aside,
+          nav,
+          header,
+          footer,
+          form,
+          button,
+          .sidebar-container,
+          .navbar-container,
+          svg,
+          i {
             display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
+
+          /* Remove sidebar padding offsets on the layout wrap */
+          .pl-64, .pl-\[4\.5rem\], .pl-18 {
+            padding-left: 0 !important;
+          }
+
+          /* Flatten the main columns grid */
+          .report-page-grid {
+            display: block !important;
+          }
+          
+          /* Force container to fill full A4 width */
           .print-container {
-            position: absolute;
-            left: 0;
-            top: 0;
+            display: block !important;
             width: 100% !important;
             max-width: 100% !important;
-            padding: 20px !important;
-            background: white !important;
-            color: black !important;
-            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            position: static !important;
+          }
+          
+          .lg\:col-span-3, .lg\:col-span-4 {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          /* Strip all boxes, borders, shadows, backgrounds, and roundings */
+          .glass-card,
+          .report-header-card,
+          .report-narrative-card,
+          div[class*="bg-slate-950"],
+          div[class*="bg-slate-900"],
+          div[class*="bg-indigo-950"],
+          div[class*="border-slate-800"],
+          div[class*="border-slate-900"],
+          div[class*="bg-indigo-500/10"],
+          div[class*="bg-pink-500/10"],
+          div[class*="bg-rose-500/10"],
+          div[class*="bg-cyan-500/10"],
+          div[class*="bg-red-500/10"],
+          div[class*="bg-amber-500/10"],
+          div[class*="bg-emerald-500/10"],
+          div[class*="bg-slate-950/40"],
+          div[class*="bg-slate-950/60"],
+          div[class*="bg-indigo-950/5"],
+          span[class*="bg-indigo-500/10"],
+          span[class*="bg-pink-500/10"],
+          span[class*="bg-rose-500/10"],
+          span[class*="bg-cyan-500/10"],
+          span[class*="bg-red-500/10"],
+          span[class*="bg-amber-500/10"],
+          span[class*="bg-emerald-500/10"],
+          div[class*="border-indigo-500/15"],
+          div[class*="border-slate-800/80"] {
+            background: transparent !important;
+            background-color: transparent !important;
             border: none !important;
-          }
-          .glass-card {
-            background: white !important;
-            color: black !important;
-            border: 1px solid #ccc !important;
+            border-radius: 0 !important;
             box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 0 16px 0 !important;
+            color: #000000 !important;
           }
-          .text-slate-100, .text-slate-250, .text-slate-200, .text-white, .text-indigo-400, .text-indigo-300, .text-slate-400, .text-slate-500, .text-slate-600 {
-            color: black !important;
+
+          /* Remove left accent line on executive briefing */
+          .report-narrative-card {
+            border-left: none !important;
+            padding-left: 0 !important;
           }
-          .bg-slate-950, .bg-slate-900, .bg-indigo-950/5 {
-            background: #f8f8f8 !important;
+
+          /* Section container styles - simple heading underlays */
+          .report-section-container {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-bottom: 24px !important;
           }
-          .border-slate-800, .border-slate-900, .border-indigo-500/15 {
-            border-color: #ddd !important;
+
+          .report-section-container h3 {
+            color: #000000 !important;
+            font-size: 12pt !important;
+            font-weight: 800 !important;
+            border-bottom: 1.5px solid #000000 !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 12px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+          }
+
+          /* Flatten sub-component grids during print to natural text flow */
+          .report-metrics-grid,
+          .report-trends-grid,
+          .report-network-grid,
+          .report-recommendations-grid {
+            display: block !important;
+          }
+
+          /* Sub-grid block items mapping */
+          .report-metrics-grid > div,
+          .report-trends-grid > div,
+          .report-network-grid > div,
+          .report-recommendations-grid > div {
+            margin-bottom: 16px !important;
+            padding-bottom: 8px !important;
+            border-bottom: 1px dashed #cccccc !important;
+          }
+
+          .report-metrics-grid > div:last-child,
+          .report-trends-grid > div:last-child,
+          .report-network-grid > div:last-child,
+          .report-recommendations-grid > div:last-child {
+            border-bottom: none !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+          }
+
+          /* Reduce spacing utility classes */
+          .space-y-8 > :not([hidden]) ~ :not([hidden]),
+          .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 12px !important;
+          }
+
+          /* Clean Document Table Formatting: simple lines, no background */
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 8px !important;
+            margin-bottom: 8px !important;
+          }
+          th {
+            background-color: transparent !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+            padding: 4px 8px !important;
+            border-bottom: 1.5px solid #000000 !important;
+            font-size: 9.5pt !important;
+            text-transform: uppercase !important;
+            text-align: left !important;
+          }
+          td {
+            padding: 4px 8px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            color: #000000 !important;
+            font-size: 9.5pt !important;
+          }
+          tr {
+            break-inside: avoid !important;
+          }
+
+          /* Set standard high-contrast document font */
+          * {
+            color: #000000 !important;
+            font-family: "Times New Roman", Times, Georgia, serif !important;
+            text-shadow: none !important;
+          }
+
+          body {
+            font-family: "Times New Roman", Times, Georgia, serif !important;
+            font-size: 11pt !important;
+            line-height: 1.4 !important;
+          }
+
+          /* Badges simplicity: text representation with brackets if needed */
+          span[class*="rounded"],
+          span[class*="bg-"] {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
           }
         }
       `}} />
 
       {/* Main Panel Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="report-page-grid grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Left Side: Past Dossiers List (Hidden on Print) */}
         <div className="lg:col-span-1 space-y-4 no-print">
           <div className="flex items-center justify-between border-b border-slate-900 pb-2">
@@ -377,7 +556,7 @@ export default function ReportsPage() {
           ) : (
             <div className="space-y-8 animate-fade-in">
               {/* Dossier Header Card */}
-              <div className="glass-card p-6 rounded-3xl border border-slate-800/80 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="report-header-card glass-card p-6 rounded-3xl border border-slate-800/80 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="absolute inset-0 opacity-5 bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -434,7 +613,7 @@ export default function ReportsPage() {
               </div>
 
               {/* Executive Summary */}
-              <div className="glass-card p-6 rounded-3xl border border-indigo-500/15 bg-indigo-950/5 relative overflow-hidden">
+              <div className="report-narrative-card glass-card p-6 rounded-3xl border border-indigo-500/15 bg-indigo-950/5 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="w-4 h-4 text-indigo-400" />
@@ -448,31 +627,31 @@ export default function ReportsPage() {
               </div>
 
               {/* Crime Overview Grid */}
-              <div className="space-y-3">
+              <div className="space-y-3 report-section-container">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">I. Crime Analytics Overview</h3>
                 <ReportMetricsGrid overview={selectedReport.crime_overview} />
               </div>
 
               {/* Predictive Intelligence */}
-              <div className="space-y-3">
+              <div className="space-y-3 report-section-container">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">II. Predictive Risk and Spot Forecasts</h3>
                 <ReportTrendsSection insights={selectedReport.predictive_insights} />
               </div>
 
               {/* Network Intelligence Summary */}
-              <div className="space-y-3">
+              <div className="space-y-3 report-section-container">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">III. Criminal Co-Offending Network Intelligence</h3>
                 <ReportNetworkSummary insights={selectedReport.network_insights} />
               </div>
 
               {/* Recommendations Section */}
-              <div className="space-y-3">
+              <div className="space-y-3 report-section-container">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">IV. Strategic Operational Recommendations</h3>
                 <ReportRecommendationsSection recommendations={selectedReport.recommendations} />
               </div>
 
               {/* Alerts Section */}
-              <div className="space-y-3">
+              <div className="space-y-3 report-section-container">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">V. System & Patrol Escalations</h3>
                 <ReportAlertsSection alerts={selectedReport.alerts} />
               </div>

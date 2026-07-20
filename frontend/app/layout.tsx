@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "CrimeNexus AI - Crime Intelligence & Decision Support Platform",
+  title: "CrimeNexus - Crime Intelligence & Decision Support Platform",
   description: "Connecting Crime Data into Actionable Intelligence | AI-Powered Law Enforcement Operations & Decision Support Platform, Datathon 2026",
 };
 

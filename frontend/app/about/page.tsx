@@ -14,7 +14,7 @@ import {
 
 const teamMembers = [
   { name: "Krish Anand", role: "Team Leader", initial: "K" },
-  { name: "Abhinav Puri", role: "Team Member", initial: "A" },
+  { name: "Abhinav Puri", role: "All ROUNDER", initial: "A" },
   { name: "Debojit Deb", role: "Team Member", initial: "D" },
   { name: "Dishaba Siddhrajsinh Zala", role: "Team Member", initial: "D" },
   { name: "Shreya Singh", role: "Team Member", initial: "S" },
@@ -87,7 +87,7 @@ export default function AboutPage() {
           <p className="text-sm leading-7 text-slate-400">
             Our project leverages Artificial Intelligence, Machine Learning, Data Analytics, Geospatial
             Intelligence, and Interactive Dashboards to transform fragmented crime data into actionable
-            intelligence — empowering law enforcement agencies with predictive analytics, hotspot detection,
+            intelligence empowering law enforcement agencies with predictive analytics, hotspot detection,
             criminal network intelligence, resource optimization, and data-driven decision support.
           </p>
         </div>
@@ -156,20 +156,6 @@ export default function AboutPage() {
           ))}
         </div>
       </section>
-
-      {/* ── Copyright Footer ─────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-800/60 bg-slate-950/40 px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <p className="text-[11px] text-slate-500 leading-relaxed">
-          Copyright ©️ 2026{" "}
-          <span className="font-bold text-slate-300">Team InnovateX</span>,{" "}
-          <span className="font-semibold text-slate-400">Sikkim Manipal Institute of Technology (SMIT)</span>.
-          All rights reserved.
-        </p>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-widest shrink-0">
-          <ExternalLink className="w-3 h-3" />
-          Datathon 2026
-        </span>
-      </div>
     </div>
   );
 }

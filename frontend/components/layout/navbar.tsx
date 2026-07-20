@@ -34,7 +34,7 @@ export default function Navbar() {
           </span>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
-          <span className="text-slate-600 hidden sm:inline">CrimeNexus AI</span>
+          <span className="text-slate-600 hidden sm:inline">CrimeNexus</span>
           <span className="text-slate-700 hidden sm:inline">/</span>
           <span className="font-semibold text-slate-300 truncate">{currentPage}</span>
         </div>

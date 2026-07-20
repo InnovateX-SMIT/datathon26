@@ -19,7 +19,7 @@ export default function ReportNetworkSummary({ insights }: Props) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in report-network-grid">
       {/* Network Stats Cards */}
       <div className="lg:col-span-1 flex flex-col gap-4">
         {/* Total Cluster count */}

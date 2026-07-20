@@ -44,7 +44,7 @@ export default function ReportRecommendationsSection({ recommendations }: Props)
           <p className="text-xs text-slate-500">No strategic recommendations aggregated for this dossier.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 report-recommendations-grid">
           {recommendations.map((rec, idx) => (
             <div
               key={idx}

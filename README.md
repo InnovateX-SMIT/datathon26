@@ -1,6 +1,6 @@
-# CrimeNexus AI
+# CrimeNexus
 
-**Unified operational intelligence for law enforcement — connecting structured crime records into real-time dashboards, geospatial maps, network graphs, and executive reports.**
+**Unified operational intelligence for law enforcement connecting structured crime records into real-time dashboards, geospatial maps, network graphs, and executive reports.**
 
 <p>
   <img alt="Status" src="https://img.shields.io/badge/status-active--development-blue">
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/Banner.jpeg" alt="CrimeNexus AI — Home / Platform Overview" width="100%">
+  <img src="docs/screenshots/datathon26_banner-final.png" alt="CrimeNexus — Home / Platform Overview" width="100%">
 </p>
 
 ---
@@ -23,7 +23,7 @@
 
 1. [Overview](#1-overview)
 2. [Problem Statement](#2-problem-statement)
-3. [Why CrimeNexus AI](#3-why-crimenexus-ai)
+3. [Why CrimeNexus](#3-why-crimenexus-ai)
 4. [Platform at a Glance](#4-platform-at-a-glance)
 5. [Architecture](#5-architecture)
 6. [Workflow](#6-workflow)
@@ -46,11 +46,11 @@
 
 ## 1. Overview
 
-CrimeNexus AI is an intelligence and decision-support platform built for law enforcement agencies. It aggregates First Information Report (FIR) data, incident histories, and offender records into a single operational surface — turning rows in a CSV into district-level insight an officer can act on within minutes rather than days.
+CrimeNexus is an intelligence and decision-support platform built for law enforcement agencies. It aggregates First Information Report (FIR) data, incident histories, and offender records into a single operational surface — turning rows in a CSV into district-level insight an officer can act on within minutes rather than days.
 
 The platform is organized around a clean separation of concerns: a Next.js presentation layer, a FastAPI service layer, a dedicated analytics layer built on Pandas and NumPy, and an experimental machine learning layer. Every module — crime analytics, geospatial mapping, network intelligence, decision support, alerting, and reporting — is backed by real, queryable data rather than static mockups.
 
-CrimeNexus AI was built by **Team InnovateX** from **Sikkim Manipal Institute of Technology (SMIT)** for **Datathon 2026**.
+CrimeNexus was built by **Team InnovateX** from **Sikkim Manipal Institute of Technology (SMIT)** for **Datathon 2026**.
 
 ---
 
@@ -68,9 +68,9 @@ The result is a reactive posture: departments respond to crime after it has occu
 
 ---
 
-## 3. Why CrimeNexus AI
+## 3. Why CrimeNexus
 
-CrimeNexus AI is built around a simple premise: **structured data should produce structured decisions.** Instead of a static reporting tool, it is a workspace that keeps analytics, geography, relationships, and resourcing in the same operational context.
+CrimeNexus is built around a simple premise: **structured data should produce structured decisions.** Instead of a static reporting tool, it is a workspace that keeps analytics, geography, relationships, and resourcing in the same operational context.
 
 | Principle | What it means in practice |
 | :--- | :--- |
@@ -99,7 +99,7 @@ CrimeNexus AI is built around a simple premise: **structured data should produce
 
 ## 5. Architecture
 
-CrimeNexus AI follows a modular client-server architecture deployed as a serverless-friendly monorepo. The presentation layer, API layer, statistical/analytics layer, and ML layer are kept independent so each can evolve — or be replaced — without destabilizing the others.
+CrimeNexus follows a modular client-server architecture deployed as a serverless-friendly monorepo. The presentation layer, API layer, statistical/analytics layer, and ML layer are kept independent so each can evolve — or be replaced — without destabilizing the others.
 
 ```mermaid
 flowchart TB
@@ -379,7 +379,7 @@ location, police_station, mixins)]
 
 ## 10. Database Overview
 
-CrimeNexus AI's schema is designed around two anchors: a general-purpose crime/alert/reporting core, and a deep First Information Report (FIR) subsystem that models the structure of Indian criminal procedure.
+CrimeNexus's schema is designed around two anchors: a general-purpose crime/alert/reporting core, and a deep First Information Report (FIR) subsystem that models the structure of Indian criminal procedure.
 
 ```mermaid
 erDiagram
@@ -510,7 +510,7 @@ sequenceDiagram
 
 ## 13. Algorithms
 
-CrimeNexus AI is explicit about which analytical components are live and which are configured but not yet operational. This distinction matters for anyone evaluating the platform's real capabilities.
+CrimeNexus is explicit about which analytical components are live and which are configured but not yet operational. This distinction matters for anyone evaluating the platform's real capabilities.
 
 | Algorithm | Purpose | Status |
 | :--- | :--- | :--- |
@@ -583,7 +583,7 @@ Upload the generated CSV through the **Dataset Manager** UI, or via the `admin/d
 
 ## 15. Docker
 
-CrimeNexus AI ships with a multi-container `docker-compose.yml` covering the database, backend, and frontend.
+CrimeNexus ships with a multi-container `docker-compose.yml` covering the database, backend, and frontend.
 
 | Service | Image / Build | Port | Description |
 | :--- | :--- | :--- | :--- |
@@ -640,7 +640,7 @@ Environment variables are split between the backend and frontend, and additional
 
 ### Zoho Catalyst (primary target)
 
-CrimeNexus AI is configured for deployment on **Zoho Catalyst**, using:
+CrimeNexus is configured for deployment on **Zoho Catalyst**, using:
 
 - **AppSail** — hosts the FastAPI backend as a containerized application service.
 - **Web Client Hosting** — serves the built Next.js frontend as static/SSR assets.
@@ -698,5 +698,5 @@ This project is released under the **MIT License**. See [`LICENSE`](./LICENSE) f
 ---
 
 <p align="center">
-  <sub>CrimeNexus AI — built for Datathon 2026 by Team InnovateX, SMIT.</sub>
+  <sub>CrimeNexus — built for Datathon 2026 by Team InnovateX, SMIT.</sub>
 </p>

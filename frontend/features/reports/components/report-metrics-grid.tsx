@@ -30,7 +30,7 @@ export default function ReportMetricsGrid({ overview }: Props) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in report-metrics-grid">
       {/* Total Crimes Card */}
       <div className="glass-card p-6 rounded-2xl border border-slate-800/80 shadow-md flex items-center gap-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />

@@ -1,6 +1,6 @@
 # Development Setup Guide
 
-Follow this guide to set up the **CrimeNexus AI** local development sandbox.
+Follow this guide to set up the **CrimeNexus** local development sandbox.
 
 ---
 

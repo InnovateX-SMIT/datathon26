@@ -109,10 +109,10 @@ export default function HomePage() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-              CrimeNexus <span className="text-indigo-400">AI</span>
+              CrimeNexus 
             </h1>
             <p className="mt-4 text-sm leading-7 text-slate-400 max-w-xl">
-              Unified operational intelligence for law enforcement — connecting structured crime records into real-time dashboards, geospatial maps, network graphs, ML predictions, and executive dossiers.
+              Unified operational intelligence for law enforcement connecting structured crime records into real-time dashboards, geospatial maps, network graphs, ML predictions, and executive dossiers.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">

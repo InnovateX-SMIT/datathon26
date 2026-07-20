@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  ShieldAlert,
   LayoutDashboard,
   BarChart3,
   Map,
@@ -67,8 +66,12 @@ export default function Sidebar({ onPinnedChange }: SidebarProps) {
     >
       <div className={`border-b border-[#1e293b]/50 flex items-center gap-3 ${isOpen ? "p-5 justify-between" : "px-3 py-5 justify-center"}`}>
         <div className="flex items-center gap-3 min-w-0">
-          <div className="bg-indigo-600/20 p-2 rounded-lg border border-indigo-500/30 shrink-0">
-            <ShieldAlert className="w-6 h-6 text-indigo-400" />
+          <div className="shrink-0 flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="CrimeNexus Logo" 
+              className="w-10 h-10 object-contain rounded-lg" 
+            />
           </div>
           {isOpen && (
             <div className="min-w-0">
@@ -125,13 +128,8 @@ export default function Sidebar({ onPinnedChange }: SidebarProps) {
         })}
       </nav>
 
-      <div className={`border-t border-slate-800/60 ${isOpen ? "p-4" : "p-3"}`}>
-        {isOpen ? (
-          <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2">
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Public Deployment</p>
-            <p className="text-xs text-slate-300 font-semibold mt-0.5">No login required</p>
-          </div>
-        ) : (
+      {!isOpen && (
+        <div className="border-t border-slate-800/60 p-3">
           <button
             type="button"
             onClick={() => setPinnedPreference(!isPinned)}
@@ -141,8 +139,8 @@ export default function Sidebar({ onPinnedChange }: SidebarProps) {
           >
             {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </aside>
   );
 }

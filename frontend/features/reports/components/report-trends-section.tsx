@@ -30,7 +30,7 @@ export default function ReportTrendsSection({ insights }: Props) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in report-trends-grid">
       {/* High Risk Locations Table */}
       <div className="glass-card p-6 rounded-2xl border border-slate-800/60 flex flex-col justify-between">
         <div>
