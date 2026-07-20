@@ -237,7 +237,7 @@ Scrolling further surfaces district-level ranking and a live feed of recent crim
 </p>
 
 
-### 8.9 Dataset Manager
+### 8.2 Dataset Manager
 
 The Dataset Manager governs which dataset is active across the entire platform. It supports multi-file CSV/XLSX upload with validation and preview, and enforces a configurable active-dataset limit so analytics always run against a known, consistent source.
 
@@ -245,7 +245,7 @@ The Dataset Manager governs which dataset is active across the entire platform. 
   <img src="docs/screenshots/Dataset-Manager.jpeg" alt="Dataset Manager upload portal and registry summary" width="100%">
 </p>
 
-### 8.2 Crime Analytics
+### 8.3 Crime Analytics
 
 The Crime Analytics module aggregates incident, victim, and accused counts across the active dataset and exposes temporal analytics with daily, weekly, monthly, and yearly granularity — backed by `analytics_service.py`.
 
@@ -253,7 +253,19 @@ The Crime Analytics module aggregates incident, victim, and accused counts acros
   <img src="docs/screenshots/crime-analytics.png" alt="Crime Analytics dashboard with temporal analytics chart" width="100%">
 </p>
 
-### 8.3 Geo Intelligence
+### 8.4 FIR Management
+
+FIR Cases is the system of record for First Information Reports — searchable by crime or case number, filterable by district, status, and date range, with case status tracked through its full lifecycle (Under Investigation, Chargesheeted, B-Report, and beyond).
+
+<p align="center">
+  <img src="docs/screenshots/FIR.jpeg" alt="FIR Cases registry with search and case status tracking" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/Register-FIR.jpeg" alt="Register FIR Cases registry" width="100%">
+</p>
+
+### 8.5 Geo Intelligence
 
 The Geo Intelligence Engine renders two synchronized map layers — a district-level choropleth overlay and an operational GIS marker map with incident-density clustering — filterable by district, crime category, and date range.
 
@@ -261,7 +273,7 @@ The Geo Intelligence Engine renders two synchronized map layers — a district-l
   <img src="docs/screenshots/geo-intelligence-1.png" alt="Geo Intelligence Engine with district crime map and incident marker map" width="100%">
 </p>
 
-### 8.4 Network Intelligence
+### 8.6 Network Intelligence
 
 Network Intelligence maps relationships between offenders, crime events, and locations using NetworkX on the backend and React Flow on the frontend. An investigator can search a criminal ID, load its connection graph, and immediately see total nodes, edges, and entity-type breakdowns.
 
@@ -275,7 +287,7 @@ Loaded graphs render as connected cards — criminal, crime event, and location 
   <img src="docs/screenshots/Network-intel.jpeg" alt="Rendered criminal network graph showing offender, crime event, and location nodes" width="100%">
 </p>
 
-### 8.5 Decision Support
+### 8.7 Decision Support
 
 The Decision Support Center is the platform's most active analytical workspace, spanning four tabs. **Priority Actions** surfaces ranked, confidence-scored recommendations generated from the current dataset.
 
@@ -283,7 +295,7 @@ The Decision Support Center is the platform's most active analytical workspace, 
   <img src="docs/screenshots/decision-support-1.png" alt="Decision Support Center — Priority Actions tab with a ranked recommendation" width="100%">
 </p>
 
-### 8.6 Alerts
+### 8.8 Alerts
 
 The Operational Alerts Panel runs detection rules against the active dataset and triages results by severity — active, critical, resolved, and same-day counts — with a tactical dispatch view for unresolved items and a separate archive of historical alerts.
 
@@ -291,27 +303,13 @@ The Operational Alerts Panel runs detection rules against the active dataset and
   <img src="docs/screenshots/Alert.jpeg" alt="Operational Alerts Panel with tactical dispatch triage" width="100%">
 </p>
 
-### 8.7 Executive Reports
+### 8.9 Executive Reports
 
 The Executive Dossier Briefings module generates structured, parameterized reports — selectable by report type and title — and maintains a registry of previously generated dossiers for later retrieval, backed by `report_service.py`.
 
 <p align="center">
   <img src="docs/screenshots/Executive-reports.jpeg" alt="Executive Dossier Briefings module with dossier creation form" width="100%">
 </p>
-
-### 8.8 FIR Management
-
-FIR Cases is the system of record for First Information Reports — searchable by crime or case number, filterable by district, status, and date range, with case status tracked through its full lifecycle (Under Investigation, Chargesheeted, B-Report, and beyond).
-
-<p align="center">
-  <img src="docs/screenshots/FIR.jpeg" alt="FIR Cases registry with search and case status tracking" width="100%">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/Register-FIR.jpeg" alt="Register FIR Cases registry" width="100%">
-</p>
-
-
 
 ---
 
