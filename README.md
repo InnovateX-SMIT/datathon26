@@ -681,10 +681,6 @@ A GitHub Actions workflow directory (`.github/`) is present in the repository. P
 
 **Team InnovateX** — Sikkim Manipal Institute of Technology (SMIT) — Datathon 2026
 
-<p align="center">
-  <img src="docs/screenshots/about-us.png" alt="About Us — Team InnovateX, SMIT, Datathon 2026" width="100%">
-</p>
-
 | Name | Role |
 | :--- | :--- |
 | Krish Anand | Team Leader |
