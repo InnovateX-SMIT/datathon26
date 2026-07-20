@@ -1,20 +1,16 @@
 {
-  "frontend": {
-    "targets": [
-      {
-        "name": "crime-analytics-client",
-        "type": "web",
-        "path": "frontend"
-      }
-    ]
+  "client": {
+    "source": "frontend/out"
   },
-  "backend": {
-    "targets": [
-      {
-        "name": "crime-analytics-server",
-        "type": "appsail",
-        "path": "backend"
-      }
-    ]
-  }
+  "appsail": [
+    {
+      "name": "crime-analytics-server",
+      "source": "backend",
+      "ignore": [
+        "**/__pycache__",
+        "tests",
+        "tests/**/*"
+      ]
+    }
+  ]
 }

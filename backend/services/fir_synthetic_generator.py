@@ -52,12 +52,17 @@ class FIRSyntheticDataGenerator:
         
         # Load Karnataka state boundary geometry
         import os
-        import geopandas as gpd
-        geojson_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "karnataka_boundary.geojson")
-        if os.path.exists(geojson_path):
-            gdf = gpd.read_file(geojson_path)
-            self.karnataka_geom = gdf.geometry.iloc[0]
-        else:
+        try:
+            import geopandas as gpd
+            geojson_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "karnataka_boundary.geojson")
+            if os.path.exists(geojson_path):
+                gdf = gpd.read_file(geojson_path)
+                self.karnataka_geom = gdf.geometry.iloc[0]
+            else:
+                self.karnataka_geom = None
+        except ImportError:
+            import logging
+            logging.warning("geopandas is not installed. Skipping Karnataka boundary geometry loading.")
             self.karnataka_geom = None
 
     def generate(self, num_records: int = 100) -> list[dict]:

@@ -225,7 +225,10 @@ def _warmup_network_cache():
 async def lifespan(app: FastAPI):
     # Only pre-warm on non-test environments
     if settings.ENVIRONMENT != "test":
-        thread = threading.Thread(target=_warmup_network_cache, daemon=True)
+        def delayed_warmup():
+            time.sleep(10)  # Wait for AppSail port binding and health check to pass
+            _warmup_network_cache()
+        thread = threading.Thread(target=delayed_warmup, daemon=True)
         thread.start()
     yield
 
@@ -238,9 +241,14 @@ app = FastAPI(
 )
 
 # CORS middleware
+allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+if allowed_origins_env:
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

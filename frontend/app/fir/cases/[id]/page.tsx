@@ -1,13 +1,18 @@
-"use client";
-
 import React from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import FirCaseDetail from "@/features/fir/components/FirCaseDetail";
 
-export default function FirCaseDetailPage() {
-  const params = useParams();
-  const caseId = Number(params.id);
+export async function generateStaticParams() {
+  return [{ id: "1" }];
+}
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function FirCaseDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const caseId = Number(id);
 
   if (isNaN(caseId) || caseId <= 0) {
     return (

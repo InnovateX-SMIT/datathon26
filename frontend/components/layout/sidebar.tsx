@@ -19,6 +19,7 @@ import {
   FilePlus,
   Users
 } from "lucide-react";
+import logoImg from "../../public/logo.png";
 
 interface SidebarProps {
   onPinnedChange?: (pinned: boolean) => void;
@@ -68,7 +69,7 @@ export default function Sidebar({ onPinnedChange }: SidebarProps) {
         <div className="flex items-center gap-3 min-w-0">
           <div className="shrink-0 flex items-center justify-center">
             <img 
-              src="/logo.png" 
+              src={logoImg.src} 
               alt="CrimeNexus Logo" 
               className="w-10 h-10 object-contain rounded-lg" 
             />

@@ -1,15 +1,18 @@
-"use client";
-
 import React from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
-import { FileText } from "lucide-react";
-import PageHeader from "@/components/layout/page-header";
-import FirCaseForm from "@/features/fir/components/FirCaseForm";
+import FirCaseEditClient from "./edit-client";
 
-export default function FirCaseEditPage() {
-  const params = useParams();
-  const caseId = Number(params.id);
+export async function generateStaticParams() {
+  return [{ id: "1" }];
+}
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function FirCaseEditPage({ params }: PageProps) {
+  const { id } = await params;
+  const caseId = Number(id);
 
   if (isNaN(caseId) || caseId <= 0) {
     return (
@@ -28,20 +31,5 @@ export default function FirCaseEditPage() {
     );
   }
 
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <PageHeader
-        icon={FileText}
-        iconColor="text-indigo-400"
-        iconBg="bg-indigo-500/10 border border-indigo-500/20"
-        badge="Modify Details"
-        badgeColor="text-indigo-400 bg-indigo-500/10 border border-indigo-500/20"
-        title="Edit FIR Case"
-        subtitle="Modify First Information Report Details"
-        description="Update the sections below to modify the FIR case details. Original CrimeNo and CaseNo will be preserved."
-      />
-
-      <FirCaseForm caseId={caseId} />
-    </div>
-  );
+  return <FirCaseEditClient caseId={caseId} />;
 }
