@@ -1,0 +1,6 @@
+station_name,district,beat,officer_count,vehicle_count,equipment_count,capacity,availability
+Devaraja PS,Mysuru,Beat 1,15,3,5,20,Available
+Gandhinagar PS,Bengaluru City,Beat 2,25,5,10,35,Available
+Town PS,Ballari,Beat 3,12,2,4,15,Available
+Cantonment PS,Belagavi,Beat 4,18,4,6,22,Available
+Rural PS,Dharwad,Beat 5,10,2,3,12,Available
