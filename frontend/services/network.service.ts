@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { NetworkCriminalSamplesResponse, NetworkGraphResponse } from "@/types/network";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://crimenexus-backend.onrender.com";
 
 function getAuthHeaders() {
   return { "Content-Type": "application/json" };

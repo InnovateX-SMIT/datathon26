@@ -29,7 +29,7 @@ import type {
   CrimeSubHeadDTO,
 } from "../types/fir";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://crimenexus-backend.onrender.com";
 const FIR_PREFIX = "/api/v1/fir";
 
 function getAuthHeaders(): HeadersInit {

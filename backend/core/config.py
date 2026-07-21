@@ -2,15 +2,10 @@ import os
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
-# Calculate root database path dynamically so it is not relative to the starting directory
-PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-ROOT_DIR = PARENT_DIR
-
-if os.path.exists(os.path.join(PARENT_DIR, 'crime_intel.db')):
-    DEFAULT_DB_URL = f"sqlite:///{os.path.join(PARENT_DIR, 'crime_intel.db')}"
-else:
-    DEFAULT_DB_URL = f"sqlite:///{os.path.join(APP_DIR, 'crime_intel.db')}"
+# Calculate root database path dynamically so it is relative to the backend root directory
+BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT_DIR = BACKEND_ROOT
+DEFAULT_DB_URL = f"sqlite:///{os.path.join(BACKEND_ROOT, 'crime_intel.db')}"
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AI-Powered Crime Intelligence Platform"

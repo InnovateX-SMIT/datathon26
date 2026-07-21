@@ -1,11 +1,20 @@
 import os
 import sys
 
-# Ensure backend package can be imported from parent directory if run from inside backend
+# Ensure backend package can be imported
+import types
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(os.path.dirname(current_dir))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+backend_root = os.path.dirname(current_dir)
+parent_dir = os.path.dirname(backend_root)
+
+if os.path.basename(backend_root) == "backend" and os.path.exists(os.path.join(parent_dir, "backend")):
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+else:
+    if "backend" not in sys.modules:
+        backend_mod = types.ModuleType("backend")
+        backend_mod.__path__ = [backend_root]
+        sys.modules["backend"] = backend_mod
 
 import time
 import threading
@@ -572,4 +581,10 @@ app.include_router(alerts_router, prefix=f"{settings.API_V1_STR}/alerts", tags=[
 app.include_router(reports_router, prefix=f"{settings.API_V1_STR}/reports", tags=["Executive Reports"])
 app.include_router(datasets_router, prefix=f"{settings.API_V1_STR}/datasets", tags=["Dataset Manager"])
 app.include_router(fir_router, prefix=f"{settings.API_V1_STR}/fir", tags=["FIR System"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
 

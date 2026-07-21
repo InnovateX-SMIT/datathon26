@@ -5,7 +5,7 @@ import type {
   ComparisonResponse,
 } from "../types/analytics";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://crimenexus-backend.onrender.com";
 
 function getAuthHeaders(): HeadersInit {
   return { "Content-Type": "application/json" };
