@@ -5,6 +5,7 @@ from pydantic import Field
 # Calculate root database path dynamically so it is not relative to the starting directory
 PARENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT_DIR = PARENT_DIR
 
 if os.path.exists(os.path.join(PARENT_DIR, 'crime_intel.db')):
     DEFAULT_DB_URL = f"sqlite:///{os.path.join(PARENT_DIR, 'crime_intel.db')}"
