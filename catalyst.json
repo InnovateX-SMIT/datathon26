@@ -2,9 +2,7 @@
   "client": {
     "source": "frontend/out",
     "scripts": {
-      "build": "npm install --prefix frontend && npm run build --prefix frontend",
-      "preserve": "catalyst run client:build",
-      "predeploy": "catalyst run client:build"
+      "build": "cd frontend && npm install && npm run build && cp client-package.json out/"
     }
   },
   "appsail": [
