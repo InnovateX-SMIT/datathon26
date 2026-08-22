@@ -950,27 +950,14 @@ export default function DatasetManagerPage() {
                               </button>
                             )}
 
-                            {/* Delete/Archive button */}
-                            {ds.status !== "Archived" && (
-                              <button
-                                onClick={() => setDeleteConfirmDataset(ds)}
-                                className="p-1.5 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-400 rounded-lg cursor-pointer transition-all"
-                                title="Delete dataset"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
                             {/* Permanent Delete button */}
-                            {ds.status === "Archived" && (
-                              <button
-                                onClick={() => handlePermanentDelete(ds)}
-                                className="p-1.5 bg-red-600/20 hover:bg-red-600/35 border border-red-500/30 text-red-400 rounded-lg cursor-pointer transition-all"
-                                title="Permanently delete from database & disk"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-red-500 font-bold" />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handlePermanentDelete(ds)}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg cursor-pointer transition-all"
+                              title="Permanently delete dataset from server & database"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-400 font-bold" />
+                            </button>
                           </div>
                         </td>
                       </tr>
