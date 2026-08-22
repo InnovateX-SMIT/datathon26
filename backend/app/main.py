@@ -8,7 +8,7 @@ backend_root = os.path.dirname(current_dir)
 parent_dir = os.path.dirname(backend_root)
 
 vendor_dir = os.path.join(backend_root, "vendor")
-if os.path.exists(vendor_dir) and vendor_dir not in sys.path:
+if sys.platform.startswith("linux") and os.path.exists(vendor_dir) and vendor_dir not in sys.path:
     sys.path.insert(0, vendor_dir)
 
 if os.path.basename(backend_root) == "backend" and os.path.exists(os.path.join(parent_dir, "backend")):
@@ -249,7 +249,8 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False
 )
 
 
