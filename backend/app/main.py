@@ -253,15 +253,22 @@ app = FastAPI(
 )
 
 # CORS middleware
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://crimenexus2v.onslate.in"
+]
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
 if allowed_origins_env:
-    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+    for origin in allowed_origins_env.split(","):
+        o = origin.strip()
+        if o and o not in allowed_origins:
+            allowed_origins.append(o)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*",
+    allow_origin_regex=r"https://.*\.onslate\.in|https://.*\.catalystappsail\.in|https://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
