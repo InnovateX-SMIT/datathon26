@@ -10,11 +10,11 @@
   "projects": [
     {
       "idx": 1,
-      "id": "47004000000077023",
-      "name": "CrimeNexus",
+      "id": "47004000000181026",
+      "name": "CrimeNexus2V",
       "domain": {
-        "id": "50044225254",
-        "name": "crimenexus-60073631382.development"
+        "id": "50045204017",
+        "name": "crimenexus2v-60073631382.development"
       },
       "timezone": "Asia/Kolkata",
       "env": [

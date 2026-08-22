@@ -1,11 +1,15 @@
 import os
 import sys
 
-# Ensure backend package can be imported
+# Ensure backend package and vendor packages can be imported
 import types
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_root = os.path.dirname(current_dir)
 parent_dir = os.path.dirname(backend_root)
+
+vendor_dir = os.path.join(backend_root, "vendor")
+if os.path.exists(vendor_dir) and vendor_dir not in sys.path:
+    sys.path.insert(0, vendor_dir)
 
 if os.path.basename(backend_root) == "backend" and os.path.exists(os.path.join(parent_dir, "backend")):
     if parent_dir not in sys.path:
@@ -200,11 +204,10 @@ def migrate_database_schema(db_engine):
     except Exception as e:
         logger.error(f"Error during dynamic alerts table migration: {e}")
 
-# Create tables and run schema migrations
-if settings.ENVIRONMENT in ["development", "test"]:
-    logger.info(f"Recreating database tables and migrating schema in {settings.ENVIRONMENT} environment...")
-    Base.metadata.create_all(bind=engine)
-    migrate_database_schema(engine)
+# Create tables and run schema migrations unconditionally
+logger.info(f"Ensuring database tables and schema migrations in {settings.ENVIRONMENT} environment...")
+Base.metadata.create_all(bind=engine)
+migrate_database_schema(engine)
     
 
 def _warmup_network_cache():
@@ -586,6 +589,6 @@ app.include_router(fir_router, prefix=f"{settings.API_V1_STR}/fir", tags=["FIR S
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT", 8000))
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
+    port = int(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT") or os.getenv("PORT") or 8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 

@@ -6,7 +6,7 @@ import type {
   ResourceAllocation,
 } from "@/types/recommendation";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://crimenexus-backend.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function getAuthHeaders() {
   return { "Content-Type": "application/json" };

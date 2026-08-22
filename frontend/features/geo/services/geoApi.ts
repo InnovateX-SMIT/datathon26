@@ -1,6 +1,6 @@
 import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState, GeoIntelligenceResponse } from "../types/geo";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://crimenexus-backend.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function getAuthHeaders(): HeadersInit {
   return { "Content-Type": "application/json" };

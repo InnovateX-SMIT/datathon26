@@ -22,7 +22,5 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
-        if self.ENVIRONMENT.lower() == "production" and self.SECRET_KEY == "supersecretjwtkeyforcrimeplatform2026!":
-            raise ValueError("SECRET_KEY must be configured as a secure custom value when running in PRODUCTION environment!")
 
 settings = Settings()

@@ -1,0 +1,23 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environments
+.env
+.env.local
+.venv
+venv/
+ENV/
+
+# Pytest / Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+vendor/

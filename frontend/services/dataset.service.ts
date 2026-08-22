@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://crimenexus-backend.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function getAuthHeaders(isMultipart = false) {
   return isMultipart ? {} : { "Content-Type": "application/json" };

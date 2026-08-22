@@ -1,7 +1,4 @@
 {
-  "client": {
-    "source": "frontend/out"
-  },
   "appsail": [
     {
       "source": ".",
