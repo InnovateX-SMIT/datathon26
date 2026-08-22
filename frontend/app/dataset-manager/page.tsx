@@ -376,6 +376,9 @@ export default function DatasetManagerPage() {
     setError(null);
     setSuccess(null);
     try {
+      if (deleteConfirmDataset.is_active) {
+        await deactivateDataset(deleteConfirmDataset.id);
+      }
       await deleteDataset(deleteConfirmDataset.id);
       setSuccess(`Dataset "${deleteConfirmDataset.display_name}" archived successfully.`);
       setDeleteConfirmDataset(null);
@@ -948,11 +951,11 @@ export default function DatasetManagerPage() {
                             )}
 
                             {/* Delete/Archive button */}
-                            {ds.status !== "Archived" && !ds.is_active && (
+                            {ds.status !== "Archived" && (
                               <button
                                 onClick={() => setDeleteConfirmDataset(ds)}
                                 className="p-1.5 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-400 rounded-lg cursor-pointer transition-all"
-                                title="Soft delete / archive"
+                                title="Delete dataset"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>

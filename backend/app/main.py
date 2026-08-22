@@ -252,27 +252,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-allowed_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://crimenexus2v.onslate.in"
-]
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
-if allowed_origins_env:
-    for origin in allowed_origins_env.split(","):
-        o = origin.strip()
-        if o and o not in allowed_origins:
-            allowed_origins.append(o)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.onslate\.in|https://.*\.catalystappsail\.in|https://.*",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
@@ -332,8 +312,8 @@ import json
 
 @app.middleware("http")
 async def standard_response_middleware(request: Request, call_next):
-    # Only process routes under /api
-    if not request.url.path.startswith("/api"):
+    # Only process routes under /api and bypass OPTIONS preflight requests
+    if not request.url.path.startswith("/api") or request.method == "OPTIONS":
         return await call_next(request)
 
     response = await call_next(request)
@@ -426,6 +406,27 @@ async def input_sanitization_middleware(request: Request, call_next):
         except Exception:
             pass
     return await call_next(request)
+
+# CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://crimenexus2v.onslate.in"
+]
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+if allowed_origins_env:
+    for origin in allowed_origins_env.split(","):
+        o = origin.strip()
+        if o and o not in allowed_origins:
+            allowed_origins.append(o)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Custom Exception Handler
 from backend.core.exceptions import NoActiveDatasetException
