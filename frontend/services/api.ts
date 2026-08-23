@@ -4,7 +4,7 @@ import axios from "axios";
  * Central API Base URL Configuration.
  * Automatically resolves from process.env.NEXT_PUBLIC_API_URL set in .env.local or deployment env vars.
  */
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/backend";
 
 /**
  * Helper to produce standard headers for HTTP requests.

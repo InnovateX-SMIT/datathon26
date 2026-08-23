@@ -14,11 +14,13 @@ const nextConfig: NextConfig = {
 
   // External proxy rewrites for Zoho Catalyst Slate deployment
   async rewrites() {
+    const isDev = process.env.NODE_ENV === "development";
     return [
       {
         source: "/backend/:path*",
-        destination:
-          "https://crimenexus-backend-50045204017.development.catalystappsail.in/:path*",
+        destination: isDev
+          ? "http://127.0.0.1:8000/:path*"
+          : "https://crimenexus-backend-50045204017.development.catalystappsail.in/:path*",
       },
     ];
   },
