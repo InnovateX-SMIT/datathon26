@@ -5,12 +5,7 @@ import type {
   AllocationResponse,
   ResourceAllocation,
 } from "@/types/recommendation";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-function getAuthHeaders() {
-  return { "Content-Type": "application/json" };
-}
+import { API_BASE, getAuthHeaders } from "@/services/api";
 
 export async function fetchRecommendations(status?: string, priority?: string): Promise<Recommendation[]> {
   const params: Record<string, string> = {};
@@ -20,7 +15,6 @@ export async function fetchRecommendations(status?: string, priority?: string): 
   const res = await axios.get<Recommendation[]>(
     `${API_BASE}/api/v1/recommendations/`,
     {
-      headers: getAuthHeaders(),
       params,
     }
   );
@@ -56,8 +50,7 @@ export async function solveResourceAllocation(payload: AllocationPayload): Promi
 
 export async function fetchResourceAllocationHistory(): Promise<ResourceAllocation[]> {
   const res = await axios.get<ResourceAllocation[]>(
-    `${API_BASE}/api/v1/recommendations/resource-allocation`,
-    { headers: getAuthHeaders() }
+    `${API_BASE}/api/v1/recommendations/resource-allocation`
   );
   return res.data;
 }
@@ -74,8 +67,7 @@ export interface RecommendationHistoryItem {
 
 export async function fetchRecommendationHistory(): Promise<RecommendationHistoryItem[]> {
   const res = await axios.get<RecommendationHistoryItem[]>(
-    `${API_BASE}/api/v1/recommendations/history`,
-    { headers: getAuthHeaders() }
+    `${API_BASE}/api/v1/recommendations/history`
   );
   return res.data;
 }

@@ -3,6 +3,7 @@
 // Pattern follows features/analytics/services/analyticsService.ts
 // ══════════════════════════════════════════════════════════════════════════════
 
+import { API_BASE, getAuthHeaders } from "@/services/api";
 import type {
   CaseMasterCreate,
   CaseMasterResponse,
@@ -29,17 +30,11 @@ import type {
   CrimeSubHeadDTO,
 } from "../types/fir";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 const FIR_PREFIX = "/api/v1/fir";
-
-function getAuthHeaders(): HeadersInit {
-  return { "Content-Type": "application/json" };
-}
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: getAuthHeaders(),
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));

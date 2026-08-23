@@ -6,17 +6,11 @@ import type {
   RecentCrimeItem,
   SystemStatus,
 } from "@/types/dashboard";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-function getAuthHeaders(): HeadersInit {
-  return { "Content-Type": "application/json" };
-}
+import { API_BASE } from "@/services/api";
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: getAuthHeaders(),
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));

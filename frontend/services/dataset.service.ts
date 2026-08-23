@@ -1,10 +1,5 @@
 import axios from "axios";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-function getAuthHeaders(isMultipart = false) {
-  return isMultipart ? {} : { "Content-Type": "application/json" };
-}
+import { API_BASE, getAuthHeaders } from "@/services/api";
 
 export interface DatasetInfo {
   id: number;
@@ -62,9 +57,7 @@ export interface DatasetConfig {
 }
 
 export async function fetchDatasets(): Promise<DatasetInfo[]> {
-  const res = await axios.get<DatasetInfo[]>(`${API_BASE}/api/v1/datasets/`, {
-    headers: getAuthHeaders(),
-  });
+  const res = await axios.get<DatasetInfo[]>(`${API_BASE}/api/v1/datasets/`);
   return res.data;
 }
 
@@ -172,40 +165,28 @@ export async function deleteDatasetPermanent(datasetId: number): Promise<any> {
 
 export async function fetchDatasetSummary(datasetId: number): Promise<DatasetSummary> {
   const res = await axios.get<DatasetSummary>(
-    `${API_BASE}/api/v1/datasets/${datasetId}/summary`,
-    {
-      headers: getAuthHeaders(),
-    }
+    `${API_BASE}/api/v1/datasets/${datasetId}/summary`
   );
   return res.data;
 }
 
 export async function fetchDatasetPreview(datasetId: number): Promise<DatasetPreview> {
   const res = await axios.get<DatasetPreview>(
-    `${API_BASE}/api/v1/datasets/${datasetId}/preview`,
-    {
-      headers: getAuthHeaders(),
-    }
+    `${API_BASE}/api/v1/datasets/${datasetId}/preview`
   );
   return res.data;
 }
 
 export async function fetchDatasetStatistics(datasetId: number): Promise<DatasetStatistics> {
   const res = await axios.get<DatasetStatistics>(
-    `${API_BASE}/api/v1/datasets/${datasetId}/statistics`,
-    {
-      headers: getAuthHeaders(),
-    }
+    `${API_BASE}/api/v1/datasets/${datasetId}/statistics`
   );
   return res.data;
 }
 
 export async function fetchDatasetConfig(): Promise<DatasetConfig> {
   const res = await axios.get<DatasetConfig>(
-    `${API_BASE}/api/v1/datasets/config`,
-    {
-      headers: getAuthHeaders(),
-    }
+    `${API_BASE}/api/v1/datasets/config`
   );
   return res.data;
 }
@@ -223,10 +204,7 @@ export async function updateDatasetConfig(maxActive: string): Promise<DatasetCon
 
 export async function fetchActiveDatasets(): Promise<DatasetInfo[]> {
   const res = await axios.get<DatasetInfo[]>(
-    `${API_BASE}/api/v1/datasets/active`,
-    {
-      headers: getAuthHeaders(),
-    }
+    `${API_BASE}/api/v1/datasets/active`
   );
   return res.data;
 }

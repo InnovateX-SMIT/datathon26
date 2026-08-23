@@ -1,11 +1,6 @@
 import axios from "axios";
 import type { NetworkCriminalSamplesResponse, NetworkGraphResponse } from "@/types/network";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-function getAuthHeaders() {
-  return { "Content-Type": "application/json" };
-}
+import { API_BASE } from "@/services/api";
 
 /**
  * Fetch the network graph for a given criminal ID.
@@ -14,7 +9,7 @@ function getAuthHeaders() {
 export async function fetchNetworkGraph(criminalId: number): Promise<NetworkGraphResponse> {
   const res = await axios.get<NetworkGraphResponse>(
     `${API_BASE}/api/v1/network/criminal/${criminalId}`,
-    { headers: getAuthHeaders() }
+    {}
   );
   return res.data;
 }
@@ -23,7 +18,7 @@ export async function fetchNetworkGraph(criminalId: number): Promise<NetworkGrap
 export async function fetchSampleCriminals(limit = 10): Promise<NetworkCriminalSamplesResponse> {
   const res = await axios.get<NetworkCriminalSamplesResponse>(
     `${API_BASE}/api/v1/network/criminals/sample`,
-    { headers: getAuthHeaders(), params: { limit } }
+    { params: { limit } }
   );
   return res.data;
 }

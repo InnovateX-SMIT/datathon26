@@ -1,15 +1,9 @@
 import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState, GeoIntelligenceResponse } from "../types/geo";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-function getAuthHeaders(): HeadersInit {
-  return { "Content-Type": "application/json" };
-}
+import { API_BASE } from "@/services/api";
 
 async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: getAuthHeaders(),
     signal,
   });
   if (!res.ok) {

@@ -1,11 +1,6 @@
 import axios from "axios";
 import type { Alert, AlertSummary } from "@/types/alert";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-function getAuthHeaders() {
-  return { "Content-Type": "application/json" };
-}
+import { API_BASE, getAuthHeaders } from "@/services/api";
 
 export async function fetchAlerts(
   status?: string,
@@ -18,7 +13,6 @@ export async function fetchAlerts(
   if (source) params.source = source;
 
   const res = await axios.get<Alert[]>(`${API_BASE}/api/v1/alerts/`, {
-    headers: getAuthHeaders(),
     params,
     timeout: 20000,
   });
@@ -27,7 +21,6 @@ export async function fetchAlerts(
 
 export async function fetchAlertSummary(): Promise<AlertSummary> {
   const res = await axios.get<AlertSummary>(`${API_BASE}/api/v1/alerts/summary`, {
-    headers: getAuthHeaders(),
     timeout: 20000,
   });
   return res.data;
@@ -35,7 +28,6 @@ export async function fetchAlertSummary(): Promise<AlertSummary> {
 
 export async function fetchAlertById(id: number): Promise<Alert> {
   const res = await axios.get<Alert>(`${API_BASE}/api/v1/alerts/${id}`, {
-    headers: getAuthHeaders(),
     timeout: 20000,
   });
   return res.data;

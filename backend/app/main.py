@@ -409,15 +409,16 @@ async def input_sanitization_middleware(request: Request, call_next):
     return await call_next(request)
 
 # CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
+# Explicit origins only: allow_credentials=True is incompatible with allow_origins=["*"]
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://crimenexus2v.onslate.in"
+    "https://crimenexus.onslate.in",
 ]
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
 if allowed_origins_env:
     for origin in allowed_origins_env.split(","):
-        o = origin.strip()
+        o = origin.strip().rstrip("/")
         if o and o not in allowed_origins:
             allowed_origins.append(o)
 
