@@ -14,6 +14,7 @@ from backend.services.alert_service import AlertService
 
 router = APIRouter()
 
+@router.get("", response_model=List[AlertResponse])
 @router.get("/", response_model=List[AlertResponse])
 def get_alerts(
     severity: Optional[str] = Query(None, description="Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)"),

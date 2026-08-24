@@ -5,7 +5,7 @@
 	"env_variables": {
 		"ENVIRONMENT": "production",
 		"SECRET_KEY": "supersecretjwtkeyforcrimeplatform2026!",
-		"ALLOWED_ORIGINS": "https://crimenexus.onslate.in"
+		"ALLOWED_ORIGINS": "https://crimenexus2v.onslate.in"
 	},
 	"memory": 2048,
 	"disk": 1024,

@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 
 router = APIRouter()
 
+@router.get("")
 @router.get("/")
 def get_crimes() -> List[Dict[str, Any]]:
     return [

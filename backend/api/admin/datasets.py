@@ -74,6 +74,7 @@ async def detect_dataset_schema(
             detail=str(e)
         )
 
+@router.get("", response_model=List[DatasetResponse])
 @router.get("/", response_model=List[DatasetResponse])
 def get_datasets(
     db: Session = Depends(get_db),

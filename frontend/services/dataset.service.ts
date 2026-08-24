@@ -65,7 +65,8 @@ export async function uploadDatasets(
   displayName: string | null,
   description: string | null,
   files: File[],
-  preview: boolean = false
+  preview: boolean = false,
+  onProgress?: (progress: number) => void
 ): Promise<any> {
   const formData = new FormData();
   if (displayName) formData.append("display_name", displayName);
@@ -84,7 +85,13 @@ export async function uploadDatasets(
     formData,
     {
       headers: getAuthHeaders(true),
-      params: { preview }
+      params: { preview },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percent = Math.round((progressEvent.loaded * 90) / progressEvent.total);
+          onProgress(percent);
+        }
+      }
     }
   );
   return res.data;
@@ -107,7 +114,8 @@ export async function importFIRDataset(
   displayName: string | null,
   description: string | null,
   file: File,
-  preview: boolean = false
+  preview: boolean = false,
+  onProgress?: (progress: number) => void
 ): Promise<any> {
   const formData = new FormData();
   if (displayName) formData.append("display_name", displayName);
@@ -119,7 +127,13 @@ export async function importFIRDataset(
     formData,
     {
       headers: getAuthHeaders(true),
-      params: { preview }
+      params: { preview },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percent = Math.round((progressEvent.loaded * 90) / progressEvent.total);
+          onProgress(percent);
+        }
+      }
     }
   );
   return res.data;

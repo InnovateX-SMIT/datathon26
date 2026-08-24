@@ -58,27 +58,21 @@ def test_rate_limiting(client):
         backend.app.main.RATE_LIMIT_MAX_REQUESTS = original_max
 
 def test_standard_response_wrapping(client):
-    # Temporarily override settings.ENVIRONMENT to non-test so the middleware wraps the response
+    # Verify that in production environment, endpoints return direct schema responses
     old_env = settings.ENVIRONMENT
     settings.ENVIRONMENT = "production"
     try:
-        # Hit /api/v1/crimes/ to test success wrapping
         response = client.get("/api/v1/crimes/")
         assert response.status_code == 200
         data = response.json()
-        assert "success" in data
-        assert "message" in data
-        assert "data" in data
-        assert "meta" in data
-        assert data["success"] is True
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert "crime_type" in data[0]
         
-        # Test error wrapping with an invalid payload type
+        # Test error response with an invalid payload type
         response = client.get("/api/v1/crimes/not-an-integer")
         assert response.status_code == 422
-        data = response.json()
-        assert data["success"] is False
-        assert "message" in data
-        assert "errors" in data
     finally:
         settings.ENVIRONMENT = old_env
+
 

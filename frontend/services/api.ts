@@ -14,14 +14,14 @@ export const PRODUCTION_API_URL =
  */
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === "production" ? PRODUCTION_API_URL : "");
+  (process.env.NODE_ENV === "production" ? PRODUCTION_API_URL : "http://localhost:8000");
 
 /**
  * JSON Content-Type for requests that actually send a JSON body.
  * Do not attach this to GET/HEAD — application/json is not CORS-safelisted
  * and forces a preflight that Catalyst's edge currently answers without CORS headers.
  */
-export function getAuthHeaders(isMultipart = false): HeadersInit {
+export function getAuthHeaders(isMultipart = false): Record<string, string> {
   return isMultipart ? {} : { "Content-Type": "application/json" };
 }
 

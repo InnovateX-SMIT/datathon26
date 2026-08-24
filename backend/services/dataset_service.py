@@ -206,6 +206,7 @@ class DatasetService:
         logger.info(f"Dataset ID {dataset_id} soft-deleted/archived successfully.")
         return True
 
+
     def delete_dataset_permanent(self, dataset_id: int) -> bool:
         """
         Hard-deletes the dataset and all its associated child rows from the database.

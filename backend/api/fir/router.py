@@ -102,6 +102,7 @@ def get_crime_sub_heads_endpoint(crime_head_id: Optional[int] = Query(None), db:
 
 # ── Case List Endpoint (static path, MUST be before /{case_id}) ──────────────
 
+@router.get("", response_model=dict)
 @router.get("/", response_model=dict)
 def list_cases_endpoint(
     page: int = Query(1, ge=1),
@@ -194,6 +195,7 @@ async def import_fir_dataset_endpoint(
 
 # ── Case Create Endpoint ──────────────────────────────────────────────────────
 
+@router.post("", response_model=CaseMasterResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=CaseMasterResponse, status_code=status.HTTP_201_CREATED)
 def create_case_endpoint(
     case_dto: CaseMasterCreate,

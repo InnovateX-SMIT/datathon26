@@ -308,87 +308,10 @@ async def rate_limiting_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# Standard Response Wrapper Middleware
-import json
-
+# Standard Response Wrapper Middleware - pass-through to ensure direct schema compatibility
 @app.middleware("http")
 async def standard_response_middleware(request: Request, call_next):
-    # Only process routes under /api and bypass OPTIONS preflight requests
-    if not request.url.path.startswith("/api") or request.method == "OPTIONS":
-        return await call_next(request)
-
-    response = await call_next(request)
-
-    # In testing environment, bypass standard wrapping to keep existing assertions green
-    if settings.ENVIRONMENT == "test":
-        return response
-
-    content_type = response.headers.get("content-type", "")
-    if "application/json" in content_type:
-        body = b""
-        async for chunk in response.body_iterator:
-            body += chunk
-
-        try:
-            data = json.loads(body.decode("utf-8"))
-        except Exception:
-            return Response(
-                content=body,
-                status_code=response.status_code,
-                headers=dict(response.headers)
-            )
-
-        # Standard Failure response
-        if response.status_code >= 400:
-            message = "An error occurred"
-            errors = []
-            if isinstance(data, dict):
-                if "detail" in data:
-                    if isinstance(data["detail"], str):
-                        message = data["detail"]
-                        errors = [data["detail"]]
-                    elif isinstance(data["detail"], list):
-                        message = "Validation error"
-                        errors = data["detail"]
-                elif "message" in data:
-                    message = data["message"]
-                if "errors" in data and isinstance(data["errors"], list):
-                    errors = data["errors"]
-            
-            wrapped = {
-                "success": False,
-                "message": message,
-                "errors": errors
-            }
-        else:
-            # Standard Success response
-            if isinstance(data, dict) and "success" in data and ("data" in data or "errors" in data):
-                wrapped = {
-                    "success": data.get("success", True),
-                    "message": data.get("message", "Success"),
-                    "data": data.get("data", {}),
-                    "meta": data.get("meta", {})
-                }
-            else:
-                wrapped = {
-                    "success": True,
-                    "message": "Success",
-                    "data": data,
-                    "meta": {}
-                }
-
-        wrapped_json = json.dumps(wrapped)
-        new_headers = dict(response.headers)
-        new_headers["content-length"] = str(len(wrapped_json))
-
-        return Response(
-            content=wrapped_json,
-            status_code=response.status_code,
-            media_type="application/json",
-            headers=new_headers
-        )
-
-    return response
+    return await call_next(request)
 
 
 # XSS / Script Injection Sanitization Middleware
@@ -409,13 +332,16 @@ async def input_sanitization_middleware(request: Request, call_next):
     return await call_next(request)
 
 # CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
-# Explicit origins only: allow_credentials=True is incompatible with allow_origins=["*"]
+# Explicit origins and dynamic regex support for all HTTP/HTTPS origins
 allowed_origins = [
+    "https://crimenexus2v.onslate.in",
+    "https://crimenexus-backend-50045204017.development.catalystappsail.in",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://crimenexus.onslate.in",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("ALLOWED_CORS_ORIGINS")
 if allowed_origins_env:
     for origin in allowed_origins_env.split(","):
         o = origin.strip().rstrip("/")
@@ -425,6 +351,7 @@ if allowed_origins_env:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"^https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -600,5 +527,5 @@ app.include_router(fir_router, prefix=f"{settings.API_V1_STR}/fir", tags=["FIR S
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT") or os.getenv("PORT") or 8000)
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=port)
 

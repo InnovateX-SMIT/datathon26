@@ -46,6 +46,7 @@ def get_report_types(
             detail="Failed to retrieve report types."
         )
 
+@router.get("", response_model=List[ReportSummaryResponse])
 @router.get("/", response_model=List[ReportSummaryResponse])
 def get_reports(
     db: Session = Depends(get_db),

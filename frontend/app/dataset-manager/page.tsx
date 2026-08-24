@@ -65,18 +65,25 @@ export default function DatasetManagerPage() {
 
 
   const handlePermanentDelete = async (ds: DatasetInfo) => {
-    const confirmMsg = `Are you sure you want to PERMANENTLY delete "${ds.display_name}"? \nThis action is irreversible and will delete the file from disk along with all of its associated case, complainant, victim, accused, and event records.`;
+    const confirmMsg = `Are you sure you want to delete "${ds.display_name}"? \nThis action will immediately and permanently delete this dataset and all associated crime records from the server.`;
     if (!confirm(confirmMsg)) return;
 
+    // Optimistic UI update for instant feedback
+    setDatasets(prev => prev.filter(d => d.id !== ds.id));
     setActionLoading(true);
     setError(null);
     setSuccess(null);
     try {
       await deleteDatasetPermanent(ds.id);
-      setSuccess("Dataset permanently deleted.");
-      await loadDatasets();
+      setSuccess(`Dataset "${ds.display_name}" permanently deleted.`);
+      await loadDatasets(true);
+      await loadConfig();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("activeDatasetChanged"));
+      }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to permanently delete dataset.");
+      setError(err.response?.data?.detail || "Failed to delete dataset.");
+      await loadDatasets(true);
     } finally {
       setActionLoading(false);
     }
@@ -272,20 +279,19 @@ export default function DatasetManagerPage() {
     }
 
     setUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(5);
     setError(null);
     setSuccess(null);
 
-    // Simulate progress increments
+    // Smooth ticker for server-side dataset processing
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
+        if (prev >= 98) {
+          return 98;
         }
-        return prev + 10;
+        return prev + 1;
       });
-    }, 400);
+    }, 250);
 
     try {
       if (previewSchemaType === "fir_normalized") {
@@ -293,17 +299,20 @@ export default function DatasetManagerPage() {
           displayNameInput.trim() !== "" ? displayNameInput : null,
           descriptionInput.trim() !== "" ? descriptionInput : null,
           uploadFiles[0],
-          false
+          false,
+          (pct) => setUploadProgress(pct)
         );
       } else {
         await uploadDatasets(
           displayNameInput.trim() !== "" ? displayNameInput : null,
           descriptionInput.trim() !== "" ? descriptionInput : null,
           uploadFiles,
-          false
+          false,
+          (pct) => setUploadProgress(pct)
         );
       }
 
+      clearInterval(progressInterval);
       setUploadProgress(100);
       setTimeout(() => {
         setSuccess(`Successfully uploaded and validated ${uploadFiles.length} dataset(s).`);
@@ -318,7 +327,7 @@ export default function DatasetManagerPage() {
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("activeDatasetChanged"));
         }
-      }, 400);
+      }, 300);
     } catch (err: any) {
       clearInterval(progressInterval);
       setError(err.response?.data?.detail || "Dataset validation or upload failed.");
@@ -327,6 +336,20 @@ export default function DatasetManagerPage() {
   };
 
   const handleToggleActive = async (ds: DatasetInfo) => {
+    // Optimistic UI update for instant feedback
+    const willBeActive = !ds.is_active;
+    const maxActive = config?.max_active_datasets || "1";
+    
+    setDatasets(prev => prev.map(d => {
+      if (d.id === ds.id) {
+        return { ...d, is_active: willBeActive };
+      }
+      if (willBeActive && maxActive === "1") {
+        return { ...d, is_active: false };
+      }
+      return d;
+    }));
+
     setActionLoading(true);
     setError(null);
     setSuccess(null);
@@ -338,12 +361,14 @@ export default function DatasetManagerPage() {
         await activateDataset(ds.id);
         setSuccess(`Dataset "${ds.display_name}" activated successfully.`);
       }
-      await loadDatasets();
+      await loadDatasets(true);
+      await loadConfig();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("activeDatasetChanged"));
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to switch active status.");
+      await loadDatasets(true);
     } finally {
       setActionLoading(false);
     }
@@ -749,9 +774,6 @@ export default function DatasetManagerPage() {
                 <h3 className="text-sm font-black text-slate-300 uppercase tracking-wider">
                   Registry Summary
                 </h3>
-                <p className="text-[11px] text-slate-555 mt-1">
-                  Active configuration controls for data switching.
-                </p>
               </div>
 
               <div className="space-y-4">

@@ -70,6 +70,7 @@ def get_resource_allocations_history(
             detail="Error occurred while retrieving resource allocation logs"
         )
 
+@router.get("", response_model=List[RecommendationResponse])
 @router.get("/", response_model=List[RecommendationResponse])
 def get_recommendations(
     status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (pending, resolved, dismissed)"),
