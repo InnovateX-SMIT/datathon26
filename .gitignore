@@ -72,3 +72,7 @@ backend/datasets/models/
 
 # Test Scratch files
 backend/tests/scratch*
+
+# Catalyst Vendor directory
+vendor/
+backend/vendor/
