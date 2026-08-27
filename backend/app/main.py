@@ -333,29 +333,29 @@ async def input_sanitization_middleware(request: Request, call_next):
 
 # CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
 # Explicit origins and dynamic regex support for all HTTP/HTTPS origins
-allowed_origins = [
-    "https://crimenexus.onslate.in",
-    "https://crimenexus-backend-50045204017.development.catalystappsail.in",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("ALLOWED_CORS_ORIGINS")
-if allowed_origins_env:
-    for origin in allowed_origins_env.split(","):
-        o = origin.strip().rstrip("/")
-        if o and o not in allowed_origins:
-            allowed_origins.append(o)
+# allowed_origins = [
+#     "https://crimenexus.onslate.in",
+#     "https://crimenexus-backend-50045204017.development.catalystappsail.in",
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+# ]
+# allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("ALLOWED_CORS_ORIGINS")
+# if allowed_origins_env:
+#     for origin in allowed_origins_env.split(","):
+#         o = origin.strip().rstrip("/")
+#         if o and o not in allowed_origins:
+#             allowed_origins.append(o)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://.*",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=allowed_origins,
+#     allow_origin_regex=r"^https?://.*",
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 # Custom Exception Handler
 from backend.core.exceptions import NoActiveDatasetException
