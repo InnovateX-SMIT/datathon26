@@ -334,7 +334,7 @@ async def input_sanitization_middleware(request: Request, call_next):
 # CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
 # Explicit origins and dynamic regex support for all HTTP/HTTPS origins
 allowed_origins = [
-    "https://crimenexus2v.onslate.in",
+    "https://crimenexus.onslate.in",
     "https://crimenexus-backend-50045204017.development.catalystappsail.in",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
