@@ -1201,7 +1201,7 @@ class DatasetService:
             # row_count stores the raw CSV input rows so the dataset manager
             # shows how many CSV rows the user uploaded (not how many DB cases
             # were created after denormalization grouping).
-            db_dataset_progress.row_count = total_rows
+            db_dataset_progress.row_count = (summary.get("cases_inserted") or total_rows) if schema_type == "fir_normalized" else total_rows
             db_dataset_progress.import_summary = json.dumps(summary)
             db_progress.commit()
             
