@@ -75,12 +75,9 @@ export interface GeoFiltersState {
   crime_type?: string;
   start_date?: string;
   end_date?: string;
-<<<<<<< Updated upstream
-=======
   time_period?: string;
   /** Minimum crime count per hotspot cluster (controls DBSCAN min_samples sensitivity) */
   min_crime_count?: number;
->>>>>>> Stashed changes
 }
 
 export interface GeoLookupOptions {

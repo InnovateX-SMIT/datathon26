@@ -71,22 +71,6 @@ export default function StationMap({ data, loading, selectedStation, onSelectSta
         }
 
         return (
-<<<<<<< Updated upstream
-          <div className="flex-1 rounded-xl overflow-hidden border border-slate-800/80 z-0 relative h-full min-h-[300px]">
-            <MapContainer center={mapCenter} zoom={defaultZoom} style={{ height: "100%", width: "100%", background: "#0c1020" }} zoomControl>
-              <LeafletMapResizer resizeKey={fullscreen ? "station-full" : "station-inline"} />
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' />
-              {data.map((station, idx) => {
-                if (!station.latitude || !station.longitude) return null;
-                return (
-                  <Marker key={`${station.station}-${idx}`} position={[station.latitude, station.longitude]} icon={stationIcon || undefined}>
-                    <Popup>
-                      <div className="p-2 text-slate-200 font-sans text-xs min-w-[120px]">
-                        <h4 className="font-bold text-blue-400 text-sm border-b border-slate-800 pb-1 mb-1">{station.station}</h4>
-                        <div className="space-y-0.5 mt-1.5">
-                          <p>Total Crimes: <span className="font-bold text-slate-100">{station.crime_count.toLocaleString()}</span></p>
-                          <p className="text-[10px] text-slate-400">Coord: {station.latitude.toFixed(4)}, {station.longitude.toFixed(4)}</p>
-=======
           <div className="flex-1 flex flex-col h-full min-h-[340px]">
             {selectedStation && (
               <div className="mb-2 px-3 py-1.5 bg-blue-950/40 border border-blue-500/30 rounded-lg flex items-center justify-between text-xs text-blue-300 font-sans">
@@ -157,7 +141,6 @@ export default function StationMap({ data, loading, selectedStation, onSelectSta
                               </button>
                             )}
                           </div>
->>>>>>> Stashed changes
                         </div>
                       </Popup>
                     </Marker>

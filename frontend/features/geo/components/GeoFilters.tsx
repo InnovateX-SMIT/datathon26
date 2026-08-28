@@ -1,20 +1,16 @@
-<<<<<<< Updated upstream
-import React, { useEffect, useState } from "react";
-import { Filter, Calendar, MapPin, ShieldAlert } from "lucide-react";
-import type { GeoFiltersState } from "../types/geo";
-=======
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Filter, Calendar, MapPin, Building2, ShieldAlert, Crosshair, Clock } from "lucide-react";
 import type { GeoFiltersState, GeoLookupOptions } from "../types/geo";
->>>>>>> Stashed changes
 import { fetchGeoLookupOptions } from "../services/geoApi";
 
 interface GeoFiltersProps {
   filters: GeoFiltersState;
   onFiltersChange: (filters: GeoFiltersState) => void;
 }
+
+const DEFAULT_MIN_CRIME_COUNT = 3;
 
 export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps) {
   const [lookups, setLookups] = useState<GeoLookupOptions>({
@@ -76,8 +72,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     onFiltersChange({ ...filters, end_date: e.target.value || undefined });
   };
 
-<<<<<<< Updated upstream
-=======
   const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onFiltersChange({ ...filters, time_period: e.target.value || undefined });
   };
@@ -92,13 +86,10 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     }
   };
 
->>>>>>> Stashed changes
   const resetFilters = () => {
     onFiltersChange({});
   };
 
-<<<<<<< Updated upstream
-=======
   const activeFilterCount = [
     filters.district,
     filters.police_station,
@@ -109,21 +100,17 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     filters.min_crime_count !== undefined ? String(filters.min_crime_count) : undefined,
   ].filter(Boolean).length;
 
->>>>>>> Stashed changes
   return (
     <div className="glass-card p-6 rounded-2xl border border-slate-800/60 mb-6 bg-slate-900/20 backdrop-blur-md">
       <div className="flex items-center justify-between mb-4 border-b border-slate-800/40 pb-3">
         <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm uppercase tracking-wider font-sans">
           <Filter className="w-4 h-4" />
           <span>Geo Intelligence Query Filters</span>
-<<<<<<< Updated upstream
-=======
           {activeFilterCount > 0 && (
             <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[9px] font-black font-mono">
               {activeFilterCount} Active
             </span>
           )}
->>>>>>> Stashed changes
         </div>
         <button
           onClick={resetFilters}
@@ -133,11 +120,7 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
         </button>
       </div>
 
-<<<<<<< Updated upstream
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-=======
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
->>>>>>> Stashed changes
         {/* District Dropdown */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1 font-sans">
@@ -244,8 +227,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all cursor-pointer font-sans"
           />
         </div>
-<<<<<<< Updated upstream
-=======
       </div>
 
       {/* Auxiliary Settings Bar: Hotspot Sensitivity */}
@@ -291,7 +272,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             )}
           </div>
         )}
->>>>>>> Stashed changes
       </div>
     </div>
   );

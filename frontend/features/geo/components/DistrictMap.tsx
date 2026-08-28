@@ -39,21 +39,11 @@ export default function DistrictMap({
   }, []);
 
   const defaultZoom = 7;
-  const defaultCenter: [number, number] = [15.3173, 75.7139]; // Centered on Karnataka State
+  const defaultCenter: [number, number] = [15.3173, 75.7139];
 
   const maxCrime = useMemo(() => {
     if (!data || data.length === 0) return 1;
     return Math.max(...data.map((d) => d.crime_count), 1);
-  }, [data]);
-
-  const districtMapLookup = useMemo(() => {
-    const map = new Map<string, DistrictCrime>();
-    data.forEach((d) => {
-      if (d.district) {
-        map.set(d.district.toLowerCase().trim(), d);
-      }
-    });
-    return map;
   }, [data]);
 
   const getDistrictColor = (crimeCount: number) => {
@@ -98,26 +88,7 @@ export default function DistrictMap({
         }
 
         return (
-<<<<<<< Updated upstream
-          <div className="flex-1 rounded-xl overflow-hidden border border-slate-800/80 z-0 relative h-full min-h-[300px]">
-            <MapContainer center={mapCenter} zoom={defaultZoom} style={{ height: "100%", width: "100%", background: "#0c1020" }} zoomControl>
-              <LeafletMapResizer resizeKey={fullscreen ? "district-full" : "district-inline"} />
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' />
-              {data.map((item) => {
-                if (!item.latitude || !item.longitude) return null;
-                const boundary = generateDistrictPolygon(item.latitude, item.longitude);
-                return (
-                  <Polygon
-                    key={item.district}
-                    positions={boundary}
-                    pathOptions={{ fillColor: getDistrictColor(item.crime_count), fillOpacity: 0.65, color: "#1e1b4b", weight: 1.5, dashArray: "3" }}
-                    eventHandlers={{
-                      mouseover: (e) => e.target.setStyle({ fillOpacity: 0.85, weight: 2, color: "#6366f1" }),
-                      mouseout: (e) => e.target.setStyle({ fillOpacity: 0.65, weight: 1.5, color: "#1e1b4b" }),
-                    }}
-=======
           <div className="flex-1 flex flex-col h-full min-h-[340px]">
-            {/* Quick Drill-down Action Toolbar */}
             {selectedDistrict && (
               <div className="mb-2 px-3 py-1.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg flex items-center justify-between text-xs text-indigo-300 font-sans">
                 <span>
@@ -127,7 +98,6 @@ export default function DistrictMap({
                   <button
                     onClick={() => onSelectDistrict("")}
                     className="text-[10px] uppercase font-bold text-indigo-400 hover:text-indigo-200 underline cursor-pointer"
->>>>>>> Stashed changes
                   >
                     View All Districts
                   </button>
@@ -149,7 +119,6 @@ export default function DistrictMap({
                   maxZoom={18}
                 />
 
-                {/* Real Karnataka State & District Boundary GeoJSON */}
                 {geoJsonData && (
                   <GeoJSON
                     data={geoJsonData}
@@ -163,7 +132,6 @@ export default function DistrictMap({
                   />
                 )}
 
-                {/* District Data Centroid Overlays & Interaction Points */}
                 {data.map((item) => {
                   if (!item.latitude || !item.longitude) return null;
                   const isSelected = selectedDistrict && selectedDistrict.toLowerCase() === item.district.toLowerCase();

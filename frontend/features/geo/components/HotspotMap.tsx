@@ -68,25 +68,6 @@ export default function HotspotMap({ data, loading }: HotspotMapProps) {
         }
 
         return (
-<<<<<<< Updated upstream
-          <div className="flex-1 rounded-xl overflow-hidden border border-slate-800/80 z-0 relative h-full min-h-[300px]">
-            <MapContainer center={mapCenter} zoom={defaultZoom} style={{ height: "100%", width: "100%", background: "#0c1020" }} zoomControl>
-              <LeafletMapResizer resizeKey={fullscreen ? "hotspot-full" : "hotspot-inline"} />
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' />
-              {data.map((cluster) => {
-                const icon = createHotspotIcon(cluster.cluster_id);
-                return (
-                  <React.Fragment key={`hotspot-${cluster.cluster_id}`}>
-                    <Circle center={[cluster.latitude, cluster.longitude]} radius={2000} pathOptions={{ fillColor: "#ef4444", fillOpacity: 0.12, color: "#ef4444", weight: 1, dashArray: "4 4" }} />
-                    <Marker position={[cluster.latitude, cluster.longitude]} icon={icon || undefined}>
-                      <Popup>
-                        <div className="p-2 text-slate-200 font-sans text-xs min-w-[140px]">
-                          <h4 className="font-bold text-[#ef4444] text-sm border-b border-slate-800 pb-1 mb-1">Hotspot Zone H{cluster.cluster_id}</h4>
-                          <div className="space-y-1 mt-2">
-                            <p>Incident Density: <span className="font-bold text-slate-100">{cluster.crime_count.toLocaleString()}</span></p>
-                            <p className="text-[10px] text-slate-400">Centroid: {cluster.latitude.toFixed(4)}, {cluster.longitude.toFixed(4)}</p>
-                            <div className="py-1 px-2 bg-rose-500/10 border border-rose-500/20 text-[#ef4444] text-[9px] uppercase tracking-wider rounded font-bold mt-1 text-center">High Density Risk Area</div>
-=======
           <div className="flex-1 flex flex-col h-full min-h-[340px]">
             {/* Descriptive Context Banner */}
             <div className="mb-2 px-3 py-1 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between text-[10px] text-slate-400 font-sans">
@@ -152,7 +133,6 @@ export default function HotspotMap({ data, loading }: HotspotMapProps) {
                                 High Density Cluster (Historical)
                               </div>
                             </div>
->>>>>>> Stashed changes
                           </div>
                         </Popup>
                       </Marker>

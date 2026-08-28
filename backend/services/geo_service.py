@@ -3,12 +3,7 @@ import json
 import datetime
 from typing import Any, Optional, Dict, List
 from sqlalchemy.orm import Session
-<<<<<<< Updated upstream
-from sqlalchemy import func
-from typing import Any
-=======
 from sqlalchemy import func, extract
->>>>>>> Stashed changes
 from backend.models.crime import CrimeEvent
 from backend.models.location import Location
 from backend.models.police_station import PoliceStation
@@ -23,18 +18,13 @@ class GeoService:
 
     def _get_active_ids(self) -> list[int]:
         from backend.core.dataset_resolver import DatasetResolver
-<<<<<<< Updated upstream
         active_ids = DatasetResolver(self.db).get_active_dataset_ids()
-        # Data compatibility validation
-=======
-        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids()
->>>>>>> Stashed changes
         from backend.models.dataset import Dataset
         for aid in active_ids:
             if aid is None:
                 continue
             ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
-            if not ds or ds.status != "Ready":
+            if ds and ds.status in ["Uploading", "Processing", "Failed", "Archived"]:
                 raise ValueError("One or more active datasets are not ready or are incompatible.")
         return active_ids
 
@@ -344,17 +334,13 @@ class GeoService:
         crime_type: str = None,
         start_date: datetime.date = None,
         end_date: datetime.date = None,
-        dataset_id: int = None
+        dataset_id: int = None,
+        min_crime_count: int = None
     ) -> list[dict]:
         active_ids = [dataset_id] if dataset_id else self._get_active_ids()
-<<<<<<< Updated upstream
-
-        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
-=======
         effective_min_samples = max(1, int(min_crime_count)) if min_crime_count is not None else 3
 
         args_tuple = (district, police_station, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, effective_min_samples)
->>>>>>> Stashed changes
         is_cached, val, full_key = self._check_cache("get_hotspot_clusters", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -445,7 +431,7 @@ class GeoService:
                         "date": first_d
                     })
         
-        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
+        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=effective_min_samples)
         self._set_cache("get_hotspot_clusters", full_key, result)
         return result
 
@@ -805,15 +791,12 @@ class GeoService:
         police_station: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        min_crime_count: int = None
     ) -> dict:
         active_ids = self._get_active_ids()
         
-<<<<<<< Updated upstream
-        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
-=======
         args_tuple = (district, police_station, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, min_crime_count)
->>>>>>> Stashed changes
         is_cached, val, full_key = self._check_cache("get_geo_intelligence", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -830,7 +813,7 @@ class GeoService:
             "districts": self.get_district_crime_distribution(**common_filters),
             "stations": self.get_station_crime_distribution(**common_filters),
             "heatmap": self.get_heatmap_points(**common_filters),
-            "hotspots": self.get_hotspot_clusters(**common_filters),
+            "hotspots": self.get_hotspot_clusters(**common_filters, min_crime_count=min_crime_count),
             "markers": self.get_geo_markers(**common_filters),
             "time_of_day": self.get_time_of_day_distribution(**common_filters),
         }
