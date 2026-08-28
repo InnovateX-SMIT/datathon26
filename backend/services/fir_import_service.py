@@ -694,12 +694,21 @@ class FIRImportService:
         
         legacy_criminal_cache = {}
 
-        # Bulk query existing crime numbers to avoid N+1 queries
+        # Bulk query existing crime numbers for this dataset context to avoid N+1 queries
         incoming_crime_nos = list(grouped_cases.keys())
         existing_crime_nos = set()
         for idx in range(0, len(incoming_crime_nos), 5000):
             batch = incoming_crime_nos[idx:idx+5000]
-            existing = self.db.query(CaseMaster.CrimeNo).filter(CaseMaster.CrimeNo.in_(batch)).all()
+            if dataset_id is not None:
+                existing = self.db.query(CaseMaster.CrimeNo).filter(
+                    CaseMaster.CrimeNo.in_(batch),
+                    CaseMaster.dataset_id == dataset_id
+                ).all()
+            else:
+                existing = self.db.query(CaseMaster.CrimeNo).filter(
+                    CaseMaster.CrimeNo.in_(batch),
+                    CaseMaster.dataset_id.is_(None)
+                ).all()
             for (c_no,) in existing:
                 existing_crime_nos.add(c_no)
 
