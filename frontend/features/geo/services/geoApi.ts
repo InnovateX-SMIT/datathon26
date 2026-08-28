@@ -19,6 +19,7 @@ function buildQueryString(filters: GeoFiltersState): string {
   if (filters.crime_type) params.append("crime_type", filters.crime_type);
   if (filters.start_date) params.append("start_date", filters.start_date);
   if (filters.end_date) params.append("end_date", filters.end_date);
+  if (filters.min_crime_count !== undefined) params.append("min_crime_count", String(filters.min_crime_count));
   
   const query = params.toString();
   return query ? `?${query}` : "";

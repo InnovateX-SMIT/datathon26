@@ -865,7 +865,7 @@ export default function DatasetManagerPage() {
                     <th className="px-6 py-3.5 text-left">Dataset Name</th>
                     <th className="px-6 py-3.5 text-left">File Info</th>
                     <th className="px-6 py-3.5 text-left">Status</th>
-                    <th className="px-6 py-3.5 text-right">Row Count</th>
+                    <th className="px-6 py-3.5 text-right">CSV Rows</th>
                     <th className="px-6 py-3.5 text-right">Col Count</th>
                     <th className="px-6 py-3.5 text-left">Upload Time</th>
                     <th className="px-6 py-3.5 text-center">Active Status</th>
@@ -922,7 +922,28 @@ export default function DatasetManagerPage() {
                           {getStatusBadge(ds)}
                         </td>
                         <td className="px-6 py-4 text-right font-bold text-slate-200">
-                          {ds.status === "Ready" ? ds.row_count.toLocaleString() : "-"}
+                          {ds.status === "Ready" ? (
+                            <div>
+                              <div>{ds.row_count.toLocaleString()}</div>
+                              {(() => {
+                                if (ds.schema_type === "fir_normalized" && ds.import_summary) {
+                                  try {
+                                    const s = JSON.parse(ds.import_summary);
+                                    if (s.cases_inserted !== undefined) {
+                                      return (
+                                        <div className="text-[10px] text-violet-400 font-normal mt-0.5 font-sans">
+                                          {s.cases_inserted.toLocaleString()} cases
+                                        </div>
+                                      );
+                                    }
+                                  } catch {
+                                    return null;
+                                  }
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          ) : "-"}
                         </td>
                         <td className="px-6 py-4 text-right text-slate-400">
                           {ds.status === "Ready" ? (ds.column_count ?? 0) : "-"}

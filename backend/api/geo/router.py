@@ -28,6 +28,7 @@ def get_geo_intelligence(
     crime_type: Optional[str] = Query(None, description="Filter by crime category/type"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    min_crime_count: Optional[int] = Query(None, ge=1, description="Minimum crime count per hotspot cluster (controls DBSCAN sensitivity)"),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -39,7 +40,8 @@ def get_geo_intelligence(
             district=district,
             crime_type=crime_type,
             start_date=parsed_start,
-            end_date=parsed_end
+            end_date=parsed_end,
+            min_crime_count=min_crime_count
         )
     except HTTPException as he:
         raise he
@@ -128,6 +130,7 @@ def get_hotspots(
     crime_type: Optional[str] = Query(None, description="Filter by crime category/type"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    min_crime_count: Optional[int] = Query(None, ge=1, description="Minimum crime count per hotspot cluster (controls DBSCAN min_samples sensitivity). Lower values detect more clusters in sparse/filtered data."),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -139,7 +142,8 @@ def get_hotspots(
             district=district,
             crime_type=crime_type,
             start_date=parsed_start,
-            end_date=parsed_end
+            end_date=parsed_end,
+            min_crime_count=min_crime_count
         )
     except HTTPException as he:
         raise he

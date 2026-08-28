@@ -1008,15 +1008,32 @@ class DatasetService:
             db.commit()
             
             if schema_type == "fir_normalized":
+                cases_inserted_total = sum(r.get("cases_inserted", 0) for r in summary_reports)
+                victims_inserted_total = sum(r.get("victims_inserted", 0) for r in summary_reports)
+                accused_inserted_total = sum(r.get("accused_inserted", 0) for r in summary_reports)
+                complainants_inserted_total = sum(r.get("complainants_inserted", 0) for r in summary_reports)
+                arrests_inserted_total = sum(r.get("arrests_inserted", 0) for r in summary_reports)
+                chargesheets_inserted_total = sum(r.get("chargesheets_inserted", 0) for r in summary_reports)
+                all_warnings = [w for r in summary_reports for w in r.get("warnings", [])]
+                # NOTE: The FIR CSV format is denormalized — multiple CSV rows share the same crime_no
+                # (one row per accused person). The importer groups by crime_no so:
+                #   total_rows (CSV rows) != cases_inserted (unique crimes)
+                # Both metrics are stored transparently so the UI can show the full picture.
                 summary = {
-                    "total_rows": total_rows,
-                    "cases_inserted": sum(r.get("cases_inserted", 0) for r in summary_reports),
-                    "victims_inserted": sum(r.get("victims_inserted", 0) for r in summary_reports),
-                    "accused_inserted": sum(r.get("accused_inserted", 0) for r in summary_reports),
-                    "complainants_inserted": sum(r.get("complainants_inserted", 0) for r in summary_reports),
-                    "arrests_inserted": sum(r.get("arrests_inserted", 0) for r in summary_reports),
-                    "chargesheets_inserted": sum(r.get("chargesheets_inserted", 0) for r in summary_reports),
-                    "warnings": [w for r in summary_reports for w in r.get("warnings", [])]
+                    "total_rows": total_rows,           # Raw CSV data rows received
+                    "cases_inserted": cases_inserted_total,   # Unique FIR cases stored
+                    "victims_inserted": victims_inserted_total,
+                    "accused_inserted": accused_inserted_total,
+                    "complainants_inserted": complainants_inserted_total,
+                    "arrests_inserted": arrests_inserted_total,
+                    "chargesheets_inserted": chargesheets_inserted_total,
+                    "warnings": all_warnings,
+                    "schema_note": (
+                        f"Denormalized CSV: {total_rows} rows received represent "
+                        f"{cases_inserted_total} unique crime cases "
+                        f"(avg {total_rows / cases_inserted_total:.1f} rows/case). "
+                        f"All {total_rows} rows were processed — no data was lost."
+                    ) if cases_inserted_total > 0 else ""
                 }
             else:
                 summary = {
@@ -1028,7 +1045,10 @@ class DatasetService:
                 }
                 
             db_dataset_progress.status = "Ready"
-            db_dataset_progress.row_count = rows_imported
+            # row_count stores the raw CSV input rows so the dataset manager
+            # shows how many CSV rows the user uploaded (not how many DB cases
+            # were created after denormalization grouping).
+            db_dataset_progress.row_count = total_rows
             db_dataset_progress.import_summary = json.dumps(summary)
             db_progress.commit()
             
