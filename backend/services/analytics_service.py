@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 import numpy as np
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
