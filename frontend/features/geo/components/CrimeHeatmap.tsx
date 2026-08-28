@@ -57,7 +57,11 @@ export default function CrimeHeatmap({ data, loading }: CrimeHeatmapProps) {
           <div className="flex-1 rounded-xl overflow-hidden border border-slate-800/80 z-0 relative h-full min-h-[300px]">
             <MapContainer center={mapCenter} zoom={defaultZoom} style={{ height: "100%", width: "100%", background: "#0c1020" }} zoomControl>
               <LeafletMapResizer resizeKey={fullscreen ? "heatmap-full" : "heatmap-inline"} />
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' />
+              <TileLayer
+                url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+                maxZoom={20}
+              />
               {data.map((point, idx) => {
                 const fillColor = getHeatColor(point.weight);
                 const radius = getRadiusMeters(point.weight);

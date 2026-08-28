@@ -315,11 +315,18 @@ class GeoService:
         crime_type: str = None,
         start_date: datetime.date = None,
         end_date: datetime.date = None,
-        dataset_id: int = None
+        dataset_id: int = None,
+        min_crime_count: int = None
     ) -> list[dict]:
         active_ids = [dataset_id] if dataset_id else self._get_active_ids()
 
-        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        # Determine effective min_samples for DBSCAN:
+        # - User-supplied min_crime_count takes priority (allows fine-grained control when filtering).
+        # - Default is 3 (lower than the previous hardcoded 5) so district/crime/date filters
+        #   that reduce the point set still find real spatial clusters.
+        effective_min_samples = max(1, int(min_crime_count)) if min_crime_count is not None else 3
+
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, effective_min_samples)
         is_cached, val, full_key = self._check_cache("get_hotspot_clusters", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -380,7 +387,7 @@ class GeoService:
             results = query.group_by(Location.latitude, Location.longitude).all()
             coords = [(r[0], r[1], r[2]) for r in results if r[0] is not None and r[1] is not None]
         
-        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
+        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=effective_min_samples)
         self._set_cache("get_hotspot_clusters", full_key, result)
         return result
 
@@ -533,11 +540,12 @@ class GeoService:
         district: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        min_crime_count: int = None
     ) -> dict:
         active_ids = self._get_active_ids()
         
-        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, min_crime_count)
         is_cached, val, full_key = self._check_cache("get_geo_intelligence", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -553,7 +561,7 @@ class GeoService:
             "districts": self.get_district_crime_distribution(**common_filters),
             "stations": self.get_station_crime_distribution(**common_filters),
             "heatmap": self.get_heatmap_points(**common_filters),
-            "hotspots": self.get_hotspot_clusters(**common_filters),
+            "hotspots": self.get_hotspot_clusters(**common_filters, min_crime_count=min_crime_count),
             "markers": self.get_geo_markers(**common_filters),
         }
         self._set_cache("get_geo_intelligence", full_key, result)
