@@ -17,8 +17,9 @@ from backend.services.recommendation_service import RecommendationService
 from backend.services.alert_service import AlertService
 
 class SynchronizationService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
 
     def synchronize_pipeline(self) -> dict:
         """
@@ -29,20 +30,20 @@ class SynchronizationService:
         4. Dynamically processes live alerts.
         5. Logs the run details to recommendation_history.
         """
-        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids_optional()
         if not active_ids:
             return {"status": "skipped", "reason": "No active dataset is selected."}
 
         # 1. Warm Analytics Cache
-        analytics_svc = AnalyticsService(self.db)
+        analytics_svc = AnalyticsService(self.db, session_id=self.session_id)
         analytics_svc.get_dashboard_summary()
 
         # 3. Regenerates Recommendations
-        recs_svc = RecommendationService(self.db)
+        recs_svc = RecommendationService(self.db, session_id=self.session_id)
         recs = recs_svc.generate_dynamic_recommendations()
 
         # 4. Dynamically processes live Alerts
-        alert_svc = AlertService(self.db)
+        alert_svc = AlertService(self.db, session_id=self.session_id)
         alerts = alert_svc.generate_alerts_from_intelligence()
 
         # 5. Set default model version

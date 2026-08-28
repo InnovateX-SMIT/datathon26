@@ -1,9 +1,10 @@
 import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState, GeoIntelligenceResponse } from "../types/geo";
-import { API_BASE } from "@/services/api";
+import { API_BASE, getAuthHeaders } from "@/services/api";
 
 async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
+    headers: getAuthHeaders(true),
     signal,
   });
   if (!res.ok) {

@@ -13,8 +13,9 @@ from backend.schemas.alert import AlertCreate
 from backend.services.network_analytics_service import NetworkAnalyticsService
 
 class AlertService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
         self.repo = AlertRepository(db)
 
     def generate_alerts_from_intelligence(self) -> List[Alert]:
@@ -23,8 +24,8 @@ class AlertService:
         geo-stats, and pending recommendations into real-time alerts.
         """
         from backend.core.dataset_resolver import DatasetResolver
-        active_id = DatasetResolver(self.db).get_active_dataset_id()
-        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
+        active_id = DatasetResolver(self.db, self.session_id).get_active_dataset_id()
+        schema_type = DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
         
         alerts_to_create = []
         seen_identifiers = set()

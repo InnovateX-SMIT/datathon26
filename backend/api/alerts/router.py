@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 from backend.schemas.alert import (
     AlertResponse,
     AlertStatusUpdate,
@@ -23,13 +24,14 @@ def get_alerts(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Retrieves operational alerts based on status, severity, or source filters.
     """
     try:
-        service = AlertService(db)
+        service = AlertService(db, session_id=session_id)
         return service.get_alerts(
             severity=severity,
             status=status_filter,
@@ -50,13 +52,14 @@ def get_alerts(
 @router.get("/summary", response_model=AlertSummaryResponse)
 def get_alerts_summary(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Aggregates stats for the alert metrics panel.
     """
     try:
-        service = AlertService(db)
+        service = AlertService(db, session_id=session_id)
         return service.get_summary()
     except Exception as e:
         logger.error(f"Error in get_alerts_summary: {str(e)}", exc_info=True)
@@ -69,13 +72,14 @@ def get_alerts_summary(
 def get_alert_by_id(
     id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Retrieves a single alert's details.
     """
     try:
-        service = AlertService(db)
+        service = AlertService(db, session_id=session_id)
         alert = service.get_alert_by_id(alert_id=id)
         if not alert:
             raise HTTPException(
@@ -95,13 +99,14 @@ def get_alert_by_id(
 @router.post("/generate", response_model=List[AlertResponse])
 def generate_alerts(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Triggers the rules engine to check for new alerts across predictions and network models.
     """
     try:
-        service = AlertService(db)
+        service = AlertService(db, session_id=session_id)
         alerts = service.generate_alerts_from_intelligence()
         
         from backend.repositories.admin_repository import AdminRepository
@@ -124,13 +129,14 @@ def update_alert_status(
     id: int,
     payload: AlertStatusUpdate,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Updates the lifecycle status of an alert. Sets assigned user ID if status is set to IN_PROGRESS.
     """
     try:
-        service = AlertService(db)
+        service = AlertService(db, session_id=session_id)
         
         # Determine current user ID securely (handles dictionary mocks and SQLAlchemy User ORMs)
         user_id = None

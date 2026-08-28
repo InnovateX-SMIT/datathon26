@@ -4,6 +4,7 @@ from typing import List, Optional, Union, Any
 from backend.core.database import get_db
 from backend.models.user import UserRole
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 
 def require_admin(current_user=Depends(get_current_user)):
     role = None
@@ -78,13 +79,14 @@ async def detect_dataset_schema(
 @router.get("/", response_model=List[DatasetResponse])
 def get_datasets(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
-    Lists all registered datasets in the Dataset Registry.
+    Lists all registered datasets in the Dataset Registry for the current session.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.list_datasets()
     except Exception as e:
         logger.error(f"Error listing datasets: {e}", exc_info=True)
@@ -96,13 +98,14 @@ def get_datasets(
 @router.get("/active", response_model=List[DatasetResponse])
 def get_active_datasets_endpoint(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
-    Retrieves all currently active datasets.
+    Retrieves all currently active datasets for the current session.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.get_active_datasets()
     except Exception as e:
         logger.error(f"Error fetching active datasets: {e}", exc_info=True)
@@ -115,13 +118,14 @@ def get_active_datasets_endpoint(
 def deactivate_dataset_endpoint(
     payload: DatasetSwitchRequest,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
     Deactivates a specific dataset by setting is_active to False.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         dataset = service.deactivate_dataset(payload.dataset_id)
         # Audit Log deactivation
         try:
@@ -153,13 +157,14 @@ def deactivate_dataset_endpoint(
 @router.get("/config", response_model=DatasetConfigResponse)
 def get_dataset_config_endpoint(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
     Retrieves the dataset selection configuration (Maximum Active Datasets setting).
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.get_dataset_config()
     except Exception as e:
         logger.error(f"Error fetching dataset config: {e}", exc_info=True)
@@ -172,13 +177,14 @@ def get_dataset_config_endpoint(
 def update_dataset_config_endpoint(
     payload: DatasetConfigRequest,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
     Updates the dataset selection configuration (Maximum Active Datasets setting).
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.update_dataset_config(payload.max_active_datasets)
     except ValueError as ve:
         raise HTTPException(
@@ -200,6 +206,7 @@ async def upload_dataset_file(
     files: Optional[List[UploadFile]] = File(None),
     preview: bool = Query(False),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
@@ -249,7 +256,7 @@ async def upload_dataset_file(
         f.filename = os.path.basename(f.filename).replace("..", "").replace("/", "").replace("\\", "")
 
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         admin_id = get_current_user_id(current_user)
         results = []
 
@@ -271,6 +278,7 @@ async def upload_dataset_file(
                 file_name=f.filename,
                 file_obj=f.file,
                 user_id=admin_id,
+                session_id=session_id,
                 preview=preview
             )
             results.append(db_dataset)
@@ -292,7 +300,8 @@ async def upload_dataset_file(
                     
                     existing_matching = db.query(Dataset).filter(
                         Dataset.display_name == res.display_name,
-                        Dataset.id != res.id
+                        Dataset.id != res.id,
+                        Dataset.session_id == session_id
                     ).first()
                     action = "DATASET_REPLACED" if existing_matching else "DATASET_IMPORTED"
                     
@@ -330,18 +339,19 @@ async def upload_dataset_file(
 def activate_dataset(
     payload: DatasetSwitchRequest,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
-    Switches the active dataset of the platform.
+    Switches the active dataset of the platform for the current session.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         from backend.services.network_analytics_service import NetworkAnalyticsService
         dataset = service.activate_dataset(payload.dataset_id)
         
         NetworkAnalyticsService._cached_graph = None
-        NetworkAnalyticsService._cached_dataset_id = None
+        NetworkAnalyticsService._cached_key = None
         NetworkAnalyticsService._cached_centrality = None
         NetworkAnalyticsService._cached_clusters = None
         NetworkAnalyticsService._cached_associations = None
@@ -379,15 +389,21 @@ def activate_dataset(
 def delete_dataset_record(
     dataset_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
-    Deletes the dataset and all associated records (crimes, criminals, victims, participations) via cascade deletion.
+    Deletes the dataset and all associated records via cascade deletion for the current session.
     """
     try:
-        service = DatasetService(db)
-        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-        ds_name = dataset.display_name if dataset else f"ID {dataset_id}"
+        service = DatasetService(db, session_id=session_id)
+        dataset = service._scope_query(db.query(Dataset).filter(Dataset.id == dataset_id)).first()
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found or does not belong to session."
+            )
+        ds_name = dataset.display_name
         service.delete_dataset(dataset_id)
         # Audit Log Deletion
         try:
@@ -404,6 +420,8 @@ def delete_dataset_record(
         except Exception as ae:
             logger.error(f"Failed to log dataset deletion audit: {ae}")
         return {"detail": "Dataset deleted successfully."}
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -420,13 +438,14 @@ def delete_dataset_record(
 def get_dataset_summary_metrics(
     dataset_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
     Exposes statistical summary metrics of a dataset for administration overview.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.get_dataset_summary(dataset_id)
     except ValueError as ve:
         raise HTTPException(
@@ -444,18 +463,20 @@ def get_dataset_summary_metrics(
 def get_dataset_details(
     dataset_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
-    Retrieves the metadata details of a specific dataset by ID.
+    Retrieves the metadata details of a specific dataset by ID for the current session.
     """
     try:
-        service = DatasetService(db)
-        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        service = DatasetService(db, session_id=session_id)
+        query = db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = service._scope_query(query).first()
         if not dataset:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset with ID {dataset_id} not found."
+                detail=f"Dataset with ID {dataset_id} not found or does not belong to session."
             )
         return dataset
     except HTTPException:
@@ -471,17 +492,18 @@ def get_dataset_details(
 def get_dataset_preview(
     dataset_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
     Retrieves a preview of the dataset including columns, datatypes, and first 20 rows.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.get_dataset_preview(dataset_id)
     except ValueError as ve:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(ve)
         )
     except Exception as e:
@@ -495,17 +517,18 @@ def get_dataset_preview(
 def get_dataset_statistics(
     dataset_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
     Computes statistical analysis metrics on the dataset's file.
     """
     try:
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         return service.get_dataset_statistics(dataset_id)
     except ValueError as ve:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(ve)
         )
     except Exception as e:
@@ -519,15 +542,21 @@ def get_dataset_statistics(
 def delete_dataset_permanent_endpoint(
     dataset_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(require_admin)
 ):
     """
-    Hard-deletes the dataset and all associated records (cascade delete on table records & file deletion on disk).
+    Hard-deletes the dataset and all associated records for the current session.
     """
     try:
-        service = DatasetService(db)
-        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-        ds_name = dataset.display_name if dataset else f"ID {dataset_id}"
+        service = DatasetService(db, session_id=session_id)
+        dataset = service._scope_query(db.query(Dataset).filter(Dataset.id == dataset_id)).first()
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with ID {dataset_id} not found or does not belong to session."
+            )
+        ds_name = dataset.display_name
         service.delete_dataset_permanent(dataset_id)
         # Audit Log Permanent Deletion
         try:
@@ -544,6 +573,8 @@ def delete_dataset_permanent_endpoint(
         except Exception as ae:
             logger.error(f"Failed to log dataset permanent deletion audit: {ae}")
         return {"detail": "Dataset and all associated records permanently deleted."}
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

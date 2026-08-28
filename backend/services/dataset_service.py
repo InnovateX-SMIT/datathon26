@@ -12,15 +12,32 @@ from backend.core.exceptions import NoActiveDatasetException
 from backend.core.logging import logger
 
 class DatasetService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
+
+    def _scope_query(self, query):
+        if self.session_id is not None:
+            return query.filter((Dataset.session_id == self.session_id) | (Dataset.session_id == None))
+        return query
 
     def get_active_dataset_id(self) -> Optional[int]:
         """
-        Resolves the currently active dataset ID.
+        Resolves the currently active dataset ID strictly for the requesting session.
+        Prioritizes session active dataset, then global active dataset (session_id is None).
+        Never returns another session's uploaded dataset.
         """
-        active_row = self.db.query(Dataset.id).filter(Dataset.is_active == True).first()
-        return active_row[0] if active_row else None
+        query = self.db.query(Dataset.id).filter(Dataset.is_active == True)
+        if self.session_id:
+            row = query.filter(Dataset.session_id == self.session_id).first()
+            if row:
+                return row[0]
+            row = query.filter(Dataset.session_id == None).first()
+            if row:
+                return row[0]
+            return None
+        row = query.first()
+        return row[0] if row else None
 
     def get_active_dataset_id_or_raise(self) -> int:
         """
@@ -33,15 +50,28 @@ class DatasetService:
 
     def get_active_dataset(self) -> Optional[Dataset]:
         """
-        Gets the currently active Dataset object.
+        Gets the currently active Dataset object strictly for the requesting session.
+        Prioritizes session active dataset, then global active dataset (session_id is None).
+        Never returns another session's uploaded dataset.
         """
-        return self.db.query(Dataset).filter(Dataset.is_active == True).first()
+        query = self.db.query(Dataset).filter(Dataset.is_active == True)
+        if self.session_id:
+            ds = query.filter(Dataset.session_id == self.session_id).first()
+            if ds:
+                return ds
+            ds = query.filter(Dataset.session_id == None).first()
+            if ds:
+                return ds
+            return None
+        return query.first()
 
     def list_datasets(self) -> List[Dataset]:
         """
-        Lists all datasets in the registry sorted by creation time.
+        Lists all datasets in the registry for the requesting session sorted by creation time.
         """
-        return self.db.query(Dataset).order_by(Dataset.created_at.desc()).all()
+        query = self.db.query(Dataset).filter(Dataset.status != "Archived")
+        query = self._scope_query(query)
+        return query.order_by(Dataset.created_at.desc()).all()
 
     def activate_dataset(self, dataset_id: int) -> Dataset:
         """
@@ -51,9 +81,10 @@ class DatasetService:
         from backend.models.dataset import DatasetConfig
         from datetime import datetime
 
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         if dataset.status == "Archived":
             raise ValueError("Cannot activate an archived dataset.")
@@ -70,17 +101,15 @@ class DatasetService:
 
         if max_active != "All":
             limit = int(max_active)
-            # Find currently active datasets ordered by upload_time ascending (oldest first)
-            active_datasets = self.db.query(Dataset).filter(Dataset.is_active == True).order_by(Dataset.upload_time.asc()).all()
+            active_query = self.db.query(Dataset).filter(Dataset.is_active == True)
+            active_datasets = self._scope_query(active_query).order_by(Dataset.upload_time.asc()).all()
             if len(active_datasets) >= limit:
-                # Deactivate oldest active datasets to make space
                 num_to_deactivate = len(active_datasets) - limit + 1
                 for i in range(num_to_deactivate):
                     old_ds = active_datasets[i]
                     old_ds.is_active = False
                     logger.info(f"[Dataset Activation Change] Dataset ID: {old_ds.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
 
-        # Activate this dataset
         dataset.is_active = True
         logger.info(f"[Dataset Activation Change] Dataset ID: {dataset.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Inactive, New Status: Active")
 
@@ -92,14 +121,14 @@ class DatasetService:
         Sets the specified dataset as inactive.
         """
         from datetime import datetime
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         if not dataset.is_active:
             return dataset
 
-        # Deactivate
         dataset.is_active = False
         logger.info(f"[Dataset Activation Change] Dataset ID: {dataset.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
         self.db.commit()
@@ -107,15 +136,17 @@ class DatasetService:
 
     def get_active_datasets(self) -> List[Dataset]:
         """
-        Gets all currently active Dataset objects.
+        Gets all currently active Dataset objects for the requesting session.
         """
-        return self.db.query(Dataset).filter(Dataset.is_active == True).all()
+        query = self.db.query(Dataset).filter(Dataset.is_active == True)
+        return self._scope_query(query).all()
 
     def get_active_dataset_ids(self) -> List[int]:
         """
-        Gets the IDs of all currently active datasets.
+        Gets the IDs of all currently active datasets for the requesting session.
         """
-        active_ids = self.db.query(Dataset.id).filter(Dataset.is_active == True).all()
+        query = self.db.query(Dataset.id).filter(Dataset.is_active == True)
+        active_ids = self._scope_query(query).all()
         return [row[0] for row in active_ids]
 
     def get_active_datasets_metadata(self) -> List[dict]:
@@ -184,16 +215,18 @@ class DatasetService:
         Soft-deletes (archives) the dataset from the registry. Sets status to 'Archived'
         and is_active to False.
         """
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
-        # If active, automatically fallback to another ready dataset
+        # If active, automatically fallback to another ready dataset for this session
         if dataset.is_active:
-            fallback_ds = self.db.query(Dataset).filter(
+            fallback_query = self.db.query(Dataset).filter(
                 Dataset.id != dataset_id,
                 Dataset.status == "Ready"
-            ).first()
+            )
+            fallback_ds = self._scope_query(fallback_query).first()
             if fallback_ds:
                 fallback_ds.is_active = True
                 logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being archived.")
@@ -213,16 +246,18 @@ class DatasetService:
         Also deletes the underlying uploaded file from disk.
         """
         import os
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
-        # If active, automatically fallback to another ready dataset
+        # If active, automatically fallback to another ready dataset for this session
         if dataset.is_active:
-            fallback_ds = self.db.query(Dataset).filter(
+            fallback_query = self.db.query(Dataset).filter(
                 Dataset.id != dataset_id,
                 Dataset.status == "Ready"
-            ).first()
+            )
+            fallback_ds = self._scope_query(fallback_query).first()
             if fallback_ds:
                 fallback_ds.is_active = True
                 logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being permanently deleted.")
@@ -296,6 +331,7 @@ class DatasetService:
         file_bytes: Optional[bytes] = None,
         file_obj: Optional[Union[bytes, Any]] = None,
         user_id: int = 0,
+        session_id: Optional[str] = None,
         preview: bool = False,
         background: Optional[bool] = None
     ) -> Union[Dataset, dict]:
@@ -304,6 +340,8 @@ class DatasetService:
         and inserts CrimeEvent, Criminal, Victim, and CrimeParticipation records in transactional batches under 'Importing'.
         If any validation fails, rolls back completely and marks dataset as 'Failed'.
         """
+        eff_session_id = session_id or self.session_id
+
         # Validate File Extension
         if not (file_name.lower().endswith(".csv") or file_name.lower().endswith(".xlsx") or file_name.lower().endswith(".xls")):
             raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx, .xls) files are supported.")
@@ -349,14 +387,24 @@ class DatasetService:
                     except Exception:
                         pass
 
-        # Validate Duplicate Filename (excluding failed and archived ones)
-        duplicate_check = self.db.query(Dataset).filter(
+        # Validate Duplicate Filename for this session (excluding failed and archived ones)
+        dup_query = self.db.query(Dataset).filter(
             Dataset.original_filename == file_name,
             Dataset.status != "Failed",
             Dataset.status != "Archived"
-        ).first()
+        )
+        if eff_session_id:
+            dup_query = dup_query.filter(Dataset.session_id == eff_session_id)
+        duplicate_check = dup_query.first()
         if duplicate_check:
             raise ValueError(f"A dataset with filename '{file_name}' has already been uploaded.")
+
+        # Deactivate existing active datasets for this session context so the new dataset will be active
+        active_query = self.db.query(Dataset).filter(Dataset.is_active == True)
+        if eff_session_id:
+            active_query = active_query.filter(Dataset.session_id == eff_session_id)
+        for old_ds in active_query.all():
+            old_ds.is_active = False
 
         # 1. Create dataset record under 'Uploading' status
         db_dataset = Dataset(
@@ -371,7 +419,8 @@ class DatasetService:
             status="Uploading",
             upload_status="Uploading",
             storage_path=None,
-            is_active=False
+            is_active=True,
+            session_id=eff_session_id
         )
         self.db.add(db_dataset)
         self.db.commit()
@@ -1061,9 +1110,10 @@ class DatasetService:
         from backend.models.location import Location
         from sqlalchemy import func
 
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         total_crimes = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == dataset_id).count()
         criminals = self.db.query(Criminal).filter(Criminal.dataset_id == dataset_id).count()
@@ -1098,9 +1148,10 @@ class DatasetService:
         """
         Reads the first 20 rows and column metadata from the stored dataset file.
         """
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         # Resolve path
         path = dataset.storage_path
@@ -1142,9 +1193,10 @@ class DatasetService:
         """
         Computes row/column count, missing values, duplicates, and numeric/categorical columns.
         """
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         # Resolve path
         path = dataset.storage_path

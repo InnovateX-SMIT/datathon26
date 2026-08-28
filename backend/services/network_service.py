@@ -4,8 +4,9 @@ from backend.repositories.network_repository import NetworkRepository
 from sqlalchemy import func
 
 class NetworkService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
         self.repo = NetworkRepository(db)
 
     def _serialize_criminal(self, criminal) -> Dict[str, Any]:
@@ -53,11 +54,11 @@ class NetworkService:
 
     def _get_active_id(self) -> int:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_id()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_id()
 
     def _get_schema_type(self) -> str:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_schema_type()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
 
     def get_sample_criminals(self, limit: int = 10) -> Dict[str, Any]:
         active_id = self._get_active_id()

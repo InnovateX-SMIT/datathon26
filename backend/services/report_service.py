@@ -43,17 +43,18 @@ REPORT_TYPES = {
 }
 
 class ReportService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
         self.repo = ReportRepository(db)
-        self.analytics_service = AnalyticsService(db)
-        self.network_analytics_service = NetworkAnalyticsService(db)
-        self.recommendation_service = RecommendationService(db)
-        self.alert_service = AlertService(db)
+        self.analytics_service = AnalyticsService(db, session_id=session_id)
+        self.network_analytics_service = NetworkAnalyticsService(db, session_id=session_id)
+        self.recommendation_service = RecommendationService(db, session_id=session_id)
+        self.alert_service = AlertService(db, session_id=session_id)
 
     def _get_active_id(self) -> int:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_id()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_id()
 
     def get_supported_types(self) -> List[Dict[str, str]]:
         return list(REPORT_TYPES.values())
@@ -167,7 +168,7 @@ class ReportService:
 
     def _get_schema_type(self) -> str:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_schema_type()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
 
     def _get_crime_overview(self) -> Dict[str, Any]:
         active_id = self._get_active_id()

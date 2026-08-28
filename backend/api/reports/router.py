@@ -6,6 +6,7 @@ from typing import List, Any
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 from backend.models.user import User, UserRole
 
 from backend.schemas.report import (
@@ -29,6 +30,7 @@ def check_executive_clearance(user: User):
 @router.get("/types", response_model=ReportTypeResponse)
 def get_report_types(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user: User = Depends(get_current_user)
 ) -> ReportTypeResponse:
     """
@@ -36,7 +38,7 @@ def get_report_types(
     """
     check_executive_clearance(current_user)
     try:
-        service = ReportService(db)
+        service = ReportService(db, session_id=session_id)
         types_list = service.get_supported_types()
         return ReportTypeResponse(types=[ReportTypeInfo(**t) for t in types_list])
     except Exception as e:
@@ -50,6 +52,7 @@ def get_report_types(
 @router.get("/", response_model=List[ReportSummaryResponse])
 def get_reports(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user: User = Depends(get_current_user)
 ) -> List[ReportSummaryResponse]:
     """
@@ -57,7 +60,7 @@ def get_reports(
     """
     check_executive_clearance(current_user)
     try:
-        service = ReportService(db)
+        service = ReportService(db, session_id=session_id)
         reports = service.retrieve_generated_reports()
         
         # Map database objects to summaries
@@ -83,6 +86,7 @@ def get_reports(
 def get_report_by_id(
     report_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user: User = Depends(get_current_user)
 ) -> ReportResponse:
     """
@@ -90,7 +94,7 @@ def get_report_by_id(
     """
     check_executive_clearance(current_user)
     try:
-        service = ReportService(db)
+        service = ReportService(db, session_id=session_id)
         report_data = service.get_report_by_id(report_id)
         if not report_data:
             raise HTTPException(
@@ -111,6 +115,7 @@ def get_report_by_id(
 def generate_report(
     payload: GenerateReportRequest,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user: User = Depends(get_current_user)
 ) -> ReportResponse:
     """
@@ -118,7 +123,7 @@ def generate_report(
     """
     check_executive_clearance(current_user)
     try:
-        service = ReportService(db)
+        service = ReportService(db, session_id=session_id)
         report_data = service.trigger_report_generation(
             title=payload.title,
             report_type=payload.report_type
@@ -151,6 +156,7 @@ def generate_report(
 def download_report_csv(
     report_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
@@ -160,7 +166,7 @@ def download_report_csv(
     import csv
     check_executive_clearance(current_user)
     try:
-        service = ReportService(db)
+        service = ReportService(db, session_id=session_id)
         report_data = service.get_report_by_id(report_id)
         if not report_data:
             raise HTTPException(

@@ -7,6 +7,7 @@ import json
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 from backend.schemas.fir import (
     CaseMasterCreate, CaseMasterResponse,
     StateDTO, DistrictDTO, CourtDTO, UnitDTO, RankDTO, DesignationDTO, EmployeeDTO,
@@ -113,12 +114,13 @@ def list_cases_endpoint(
     end_date: Optional[date] = Query(None),
     q: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
         service = FIRService(db)
         from backend.core.dataset_resolver import DatasetResolver
-        resolver = DatasetResolver(db)
+        resolver = DatasetResolver(db, session_id=session_id)
         active_dataset_id = resolver.get_active_dataset_id_optional()
 
         cases, count = service.list_cases(
@@ -143,6 +145,8 @@ def list_cases_endpoint(
 
 # ── File Import Endpoint (static path, MUST be before /{case_id}) ────────────
 
+from backend.api.deps import get_session_id
+
 @router.post("/import", response_model=dict)
 async def import_fir_dataset_endpoint(
     display_name: Optional[str] = Form(None),
@@ -150,6 +154,7 @@ async def import_fir_dataset_endpoint(
     file: UploadFile = File(...),
     preview: bool = Query(False),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
@@ -158,7 +163,7 @@ async def import_fir_dataset_endpoint(
         if not (filename.lower().endswith(".csv") or filename.lower().endswith(".xlsx") or filename.lower().endswith(".xls")):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported file format.")
 
-        service = DatasetService(db)
+        service = DatasetService(db, session_id=session_id)
         user_id = getattr(current_user, "id", 0)
 
         res = service.import_dataset(
@@ -167,6 +172,7 @@ async def import_fir_dataset_endpoint(
             file_name=filename,
             file_obj=file.file,
             user_id=user_id,
+            session_id=session_id,
             preview=preview
         )
 
@@ -200,6 +206,7 @@ async def import_fir_dataset_endpoint(
 def create_case_endpoint(
     case_dto: CaseMasterCreate,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
@@ -207,7 +214,7 @@ def create_case_endpoint(
         user_id = getattr(current_user, "id", 0)
 
         from backend.core.dataset_resolver import DatasetResolver
-        resolver = DatasetResolver(db)
+        resolver = DatasetResolver(db, session_id=session_id)
         dataset_id = resolver.get_active_dataset_id_optional()
 
         return service.create_case(case_dto, dataset_id=dataset_id, user_id=user_id)
@@ -223,11 +230,16 @@ def create_case_endpoint(
 def get_case_endpoint(
     case_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     service = FIRService(db)
+    from backend.core.dataset_resolver import DatasetResolver
+    resolver = DatasetResolver(db, session_id=session_id)
+    active_dataset_ids = resolver.get_active_dataset_ids_optional()
+    
     case = service.get_case(case_id)
-    if not case:
+    if not case or (case.dataset_id and active_dataset_ids and case.dataset_id not in active_dataset_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Case with ID {case_id} not found.")
     
     # Audit log view

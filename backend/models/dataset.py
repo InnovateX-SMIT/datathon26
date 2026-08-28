@@ -22,6 +22,7 @@ class Dataset(Base):
     import_summary = Column(Text, nullable=True) # JSON field as string
     schema_type = Column(String(50), nullable=False, default="legacy_crime_intel")
     
+    session_id = Column(String(100), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
