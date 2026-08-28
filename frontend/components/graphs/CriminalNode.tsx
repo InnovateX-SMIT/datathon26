@@ -22,24 +22,6 @@ export default function CriminalNode({ id, data }: CriminalNodeProps) {
   const name = data.label || "Unknown Criminal";
   const displayId = id.startsWith("criminal_") ? id.substring(9) : id;
   const metadata = data.metadata || {};
-  const rawRiskScore = metadata.risk_score;
-
-  // Normalize risk score to 0.0 – 1.0 range regardless of backend scale (0-1, 0-10, or 0-100)
-  const normalizedRiskScore = React.useMemo(() => {
-    if (rawRiskScore === undefined || rawRiskScore === null || isNaN(Number(rawRiskScore))) return undefined;
-    const num = Number(rawRiskScore);
-    if (num > 10.0) return Math.min(1.0, Math.max(0.0, num / 100.0));
-    if (num > 1.0) return Math.min(1.0, Math.max(0.0, num / 10.0));
-    return Math.min(1.0, Math.max(0.0, num));
-  }, [rawRiskScore]);
-
-  // Color logic for risk score badge
-  const getRiskBadgeStyles = (score?: number) => {
-    if (score === undefined) return "bg-slate-800 text-slate-400 border-slate-700";
-    if (score >= 0.7) return "bg-red-500/10 text-red-400 border-red-500/20";
-    if (score >= 0.4) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  };
 
   return (
     <div className="glass-card bg-slate-950/90 border border-blue-500/30 hover:border-blue-500 shadow-[0_4px_20px_rgba(59,130,246,0.1)] hover:shadow-[0_4px_30px_rgba(59,130,246,0.2)] rounded-2xl p-4 min-w-[240px] text-slate-100 transition-all duration-300 relative group">
@@ -55,21 +37,11 @@ export default function CriminalNode({ id, data }: CriminalNodeProps) {
             <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">
               Criminal ID #{displayId}
             </span>
-            <h4 className="font-bold text-slate-200 text-sm tracking-tight truncate max-w-[140px] mt-0.5">
+            <h4 className="font-bold text-slate-200 text-sm tracking-tight truncate max-w-[160px] mt-0.5">
               {name}
             </h4>
           </div>
         </div>
-
-        {/* Risk Score Badge */}
-        {normalizedRiskScore !== undefined && (
-          <div className={`flex flex-col items-center border rounded-xl px-2.5 py-1 ${getRiskBadgeStyles(normalizedRiskScore)}`}>
-            <span className="text-[8px] font-bold uppercase tracking-wider block">Risk</span>
-            <span className="text-xs font-black tracking-tight font-mono">
-              {Math.round(normalizedRiskScore * 100)}%
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Profile Details */}
