@@ -2,16 +2,30 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle, Map, RefreshCw, ShieldAlert } from "lucide-react";
+import { AlertCircle, ChevronRight, Compass, Map, RefreshCw, ShieldAlert, X } from "lucide-react";
 import GeoFilters from "@/features/geo/components/GeoFilters";
+import TimeOfDayAnalysis from "@/features/geo/components/TimeOfDayAnalysis";
 import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
-import type { GeoFiltersState, DistrictCrime, HeatmapPoint, HotspotCluster, GeoMarker } from "@/features/geo/types/geo";
+import type {
+  GeoFiltersState,
+  DistrictCrime,
+  StationCrime,
+  HeatmapPoint,
+  HotspotCluster,
+  GeoMarker,
+  TimeOfDayResponse
+} from "@/features/geo/types/geo";
 import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 
-// Dynamically import maps with ssr: false to prevent Next.js build crash
+// Dynamically import Leaflet maps with ssr: false to prevent Next.js SSR build crashes
 const DistrictMap = dynamic(() => import("@/features/geo/components/DistrictMap"), {
   ssr: false,
-  loading: () => <MapLoadingPlaceholder label="District Map" />
+  loading: () => <MapLoadingPlaceholder label="District Crime Map (Real Boundary Overlay)" />
+});
+
+const StationMap = dynamic(() => import("@/features/geo/components/StationMap"), {
+  ssr: false,
+  loading: () => <MapLoadingPlaceholder label="Police Station Map (Precinct Distribution)" />
 });
 
 const FirMarkerMap = dynamic(() => import("@/features/geo/components/FirMarkerMap"), {
@@ -26,7 +40,7 @@ const CrimeHeatmap = dynamic(() => import("@/features/geo/components/CrimeHeatma
 
 const HotspotMap = dynamic(() => import("@/features/geo/components/HotspotMap"), {
   ssr: false,
-  loading: () => <MapLoadingPlaceholder label="Hotspot Map" />
+  loading: () => <MapLoadingPlaceholder label="Historical Crime Hotspots (Spatiotemporal DBSCAN)" />
 });
 
 function MapLoadingPlaceholder({ label }: { label: string }) {
@@ -34,7 +48,7 @@ function MapLoadingPlaceholder({ label }: { label: string }) {
     <div className="glass-card p-6 rounded-2xl border border-slate-800/60 h-[450px] flex flex-col mb-6 animate-pulse">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-1.5 h-5 bg-indigo-500 rounded" />
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">{label}</h3>
+        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider font-sans">{label}</h3>
       </div>
       <div className="flex-1 bg-slate-800/10 rounded-xl flex items-center justify-center text-slate-500 text-xs font-sans">
         Initializing map layers...
@@ -47,9 +61,11 @@ export default function GeoPage() {
   const [filters, setFilters] = useState<GeoFiltersState>({});
   
   const [districtData, setDistrictData] = useState<DistrictCrime[]>([]);
+  const [stationData, setStationData] = useState<StationCrime[]>([]);
   const [markerData, setMarkerData] = useState<GeoMarker[]>([]);
   const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>([]);
   const [hotspotData, setHotspotData] = useState<HotspotCluster[]>([]);
+  const [timeOfDayData, setTimeOfDayData] = useState<TimeOfDayResponse | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +91,12 @@ export default function GeoPage() {
     setError(null);
     try {
       const intelligence = await fetchGeoIntelligence(activeFilters, signal);
-      setDistrictData(intelligence.districts);
+      setDistrictData(intelligence.districts || []);
+      setStationData(intelligence.stations || []);
       setMarkerData(intelligence.markers || []);
-      setHeatmapData(intelligence.heatmap);
-      setHotspotData(intelligence.hotspots);
+      setHeatmapData(intelligence.heatmap || []);
+      setHotspotData(intelligence.hotspots || []);
+      setTimeOfDayData(intelligence.time_of_day || null);
     } catch (err: any) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err.message || "Unable to load geospatial intelligence for the active dataset. Verify the API server and dataset status.");
@@ -116,6 +134,30 @@ export default function GeoPage() {
   const handleRetry = () => {
     loadActiveDatasets();
     loadData(filters);
+  };
+
+  // Drill-down callbacks
+  const handleSelectDistrict = (districtName: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      district: districtName || undefined,
+      police_station: undefined, // Reset station when district changes
+    }));
+  };
+
+  const handleSelectStation = (stationName: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      police_station: stationName || undefined,
+    }));
+  };
+
+  const handleClearDrillDown = () => {
+    setFilters((prev) => ({
+      ...prev,
+      district: undefined,
+      police_station: undefined,
+    }));
   };
 
   // ── EMPTY STATE RENDERING ──
@@ -187,6 +229,65 @@ export default function GeoPage() {
         </div>
       </div>
 
+      {/* Hierarchical Drill-Down Breadcrumb Bar */}
+      <div className="glass-card p-3.5 rounded-xl border border-slate-800/60 bg-slate-900/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-sans">
+        <div className="flex flex-wrap items-center gap-2 text-slate-300">
+          <div className="flex items-center gap-1 text-slate-400 font-semibold">
+            <Compass className="w-4 h-4 text-indigo-400" />
+            <span>Hierarchy:</span>
+          </div>
+
+          {/* Root Level: Karnataka */}
+          <button
+            onClick={handleClearDrillDown}
+            className={`px-2 py-1 rounded-md transition-all font-bold cursor-pointer ${
+              !filters.district
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                : "text-slate-400 hover:text-white bg-slate-800/40 hover:bg-slate-800"
+            }`}
+          >
+            Karnataka (State Overview)
+          </button>
+
+          {/* District Level */}
+          {filters.district && (
+            <>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+              <button
+                onClick={() => handleSelectDistrict(filters.district!)}
+                className={`px-2 py-1 rounded-md transition-all font-bold cursor-pointer uppercase ${
+                  !filters.police_station
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                    : "text-slate-400 hover:text-white bg-slate-800/40 hover:bg-slate-800"
+                }`}
+              >
+                District: {filters.district}
+              </button>
+            </>
+          )}
+
+          {/* Police Station Level */}
+          {filters.police_station && (
+            <>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+              <span className="px-2 py-1 rounded-md bg-blue-600 text-white font-bold uppercase shadow-md shadow-blue-600/20">
+                Station: {filters.police_station}
+              </span>
+            </>
+          )}
+        </div>
+
+        {(filters.district || filters.police_station) && (
+          <button
+            onClick={handleClearDrillDown}
+            className="flex items-center gap-1 text-[11px] font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-2.5 py-1 rounded-lg transition-all cursor-pointer font-sans"
+          >
+            <X className="w-3 h-3" />
+            <span>Reset Drill-Down</span>
+          </button>
+        )}
+      </div>
+
       {/* Query Filters */}
       <GeoFilters filters={filters} onFiltersChange={setFilters} />
 
@@ -206,11 +307,24 @@ export default function GeoPage() {
         </div>
       )}
 
-      {/* Main Grid Layout for Maps */}
+      {/* Maps Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* District Crime Map */}
-        <DistrictMap data={districtData} loading={loading} />
+        {/* District Crime Map with Real Boundaries */}
+        <DistrictMap
+          data={districtData}
+          loading={loading}
+          selectedDistrict={filters.district}
+          onSelectDistrict={handleSelectDistrict}
+        />
+        
+        {/* Police Station Map (Connected & Drilldown enabled) */}
+        <StationMap
+          data={stationData}
+          loading={loading}
+          selectedStation={filters.police_station}
+          onSelectStation={handleSelectStation}
+        />
         
         {/* Incident Marker Map */}
         <FirMarkerMap data={markerData} loading={loading} />
@@ -218,10 +332,15 @@ export default function GeoPage() {
         {/* Crime Density Heatmap */}
         <CrimeHeatmap data={heatmapData} loading={loading} />
         
-        {/* Crime Hotspots */}
-        <HotspotMap data={hotspotData} loading={loading} />
-        
+        {/* Historical Spatiotemporal DBSCAN Hotspots */}
+        <div className="lg:col-span-2">
+          <HotspotMap data={hotspotData} loading={loading} />
+        </div>
       </div>
+
+      {/* Time-of-Day Analysis Component */}
+      <TimeOfDayAnalysis data={timeOfDayData} loading={loading} />
+
     </div>
   );
 }

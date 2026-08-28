@@ -1,5 +1,19 @@
+<<<<<<< Updated upstream
 import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState, GeoIntelligenceResponse } from "../types/geo";
 import { API_BASE } from "@/services/api";
+=======
+import type {
+  DistrictCrime,
+  StationCrime,
+  HeatmapPoint,
+  HotspotCluster,
+  GeoFiltersState,
+  GeoIntelligenceResponse,
+  TimeOfDayResponse,
+  GeoLookupOptions
+} from "../types/geo";
+import { API_BASE, getAuthHeaders } from "@/services/api";
+>>>>>>> Stashed changes
 
 async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -16,9 +30,15 @@ async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
 function buildQueryString(filters: GeoFiltersState): string {
   const params = new URLSearchParams();
   if (filters.district) params.append("district", filters.district);
+  if (filters.police_station) params.append("police_station", filters.police_station);
   if (filters.crime_type) params.append("crime_type", filters.crime_type);
   if (filters.start_date) params.append("start_date", filters.start_date);
   if (filters.end_date) params.append("end_date", filters.end_date);
+<<<<<<< Updated upstream
+=======
+  if (filters.time_period) params.append("time_period", filters.time_period);
+  if (filters.min_crime_count !== undefined) params.append("min_crime_count", String(filters.min_crime_count));
+>>>>>>> Stashed changes
   
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -40,11 +60,26 @@ export async function fetchHotspotClusters(filters: GeoFiltersState): Promise<Ho
   return apiGet<HotspotCluster[]>(`/api/v1/geo/hotspots${buildQueryString(filters)}`);
 }
 
+export async function fetchTimeOfDayAnalysis(filters: GeoFiltersState): Promise<TimeOfDayResponse> {
+  return apiGet<TimeOfDayResponse>(`/api/v1/geo/time-of-day${buildQueryString(filters)}`);
+}
 
 export async function fetchGeoIntelligence(filters: GeoFiltersState, signal?: AbortSignal): Promise<GeoIntelligenceResponse> {
   return apiGet<GeoIntelligenceResponse>(`/api/v1/geo/intelligence${buildQueryString(filters)}`, signal);
 }
 
-export async function fetchGeoLookupOptions(): Promise<{ districts: string[]; categories: string[] }> {
-  return apiGet<{ districts: string[]; categories: string[] }>("/api/v1/geo/lookup-options");
+export async function fetchGeoLookupOptions(): Promise<GeoLookupOptions> {
+  return apiGet<GeoLookupOptions>("/api/v1/geo/lookup-options");
+}
+
+export async function fetchKarnatakaBoundaryGeoJson(): Promise<any> {
+  try {
+    const res = await fetch("/karnataka_boundary.geojson");
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Fallback to backend endpoint
+  }
+  return apiGet<any>("/api/v1/geo/boundary-geojson");
 }
