@@ -14,6 +14,8 @@ if os.path.basename(backend_root) == "backend" and os.path.exists(os.path.join(p
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
 
+os.environ["ENVIRONMENT"] = "development"
+
 # Import the original app
 from backend.app.main import app
 from fastapi.middleware.cors import CORSMiddleware

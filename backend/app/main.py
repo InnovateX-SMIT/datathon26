@@ -27,7 +27,7 @@ import time
 import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, status
-from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.core.config import settings
 from backend.core.logging import logger
@@ -95,6 +95,25 @@ def migrate_database_schema(db_engine):
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_case_master_CrimeMajorHeadID ON case_master (CrimeMajorHeadID)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_case_master_CrimeMinorHeadID ON case_master (CrimeMinorHeadID)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_case_master_PolicePersonID ON case_master (PolicePersonID)"))
+
+            # Scoping inv_occurance_time table migrations
+            result = conn.execute(text("PRAGMA table_info(inv_occurance_time)"))
+            occ_cols = {row[1] for row in result.fetchall()}
+            if occ_cols:
+                if "OccurrenceBriefFacts" not in occ_cols:
+                    logger.info("Adding OccurrenceBriefFacts column to inv_occurance_time table...")
+                    conn.execute(text("ALTER TABLE inv_occurance_time ADD COLUMN OccurrenceBriefFacts TEXT NULL"))
+                    if "BriefFacts" in occ_cols:
+                        logger.info("Migrating legacy BriefFacts values to OccurrenceBriefFacts...")
+                        conn.execute(text("UPDATE inv_occurance_time SET OccurrenceBriefFacts = BriefFacts WHERE OccurrenceBriefFacts IS NULL"))
+
+            # Create additional child table indexes if tables exist
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_inv_occurance_time_dates ON inv_occurance_time (IncidentFromDate)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accused_case ON accused (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_victim_case ON victim (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_arrest_case ON arrest_surrender (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chargesheet_case ON chargesheet_details (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_employee_kgid ON employee (KGID)"))
 
 
             # 1d. Scoping dataset_configs table migrations
@@ -339,29 +358,29 @@ async def input_sanitization_middleware(request: Request, call_next):
     return await call_next(request)
 
 # CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
-allowed_origins = [
-    "https://crimenexus.onslate.in",
-    "https://crimenexus-backend-50045204017.development.catalystappsail.in",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("ALLOWED_CORS_ORIGINS")
-if allowed_origins_env:
-    for origin in allowed_origins_env.split(","):
-        o = origin.strip().rstrip("/")
-        if o and o not in allowed_origins:
-            allowed_origins.append(o)
+# allowed_origins = [
+#     "https://crimenexus.onslate.in",
+#     "https://crimenexus-backend-50045204017.development.catalystappsail.in",
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+# ]
+# allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("ALLOWED_CORS_ORIGINS")
+# if allowed_origins_env:
+#     for origin in allowed_origins_env.split(","):
+#         o = origin.strip().rstrip("/")
+#         if o and o not in allowed_origins:
+#             allowed_origins.append(o)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://.*",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=allowed_origins,
+#     allow_origin_regex=r"^https?://.*",
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 # Custom Exception Handler
 from backend.core.exceptions import NoActiveDatasetException

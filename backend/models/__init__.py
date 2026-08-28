@@ -16,7 +16,8 @@ from backend.models.dataset import Dataset
 from backend.models.mixins import TimestampMixin, ActiveFlagMixin, BaseLookupMixin
 from backend.models.fir_lookup import (
     CaseCategory, GravityOffence, CaseStatusMaster, CasteMaster,
-    ReligionMaster, OccupationMaster, GenderMaster, NationalityMaster, BloodGroupMaster
+    ReligionMaster, OccupationMaster, GenderMaster, NationalityMaster, BloodGroupMaster,
+    ArrestSurrenderTypeMaster
 )
 from backend.models.fir_geography import State, District, Court
 from backend.models.fir_organization import UnitType, Unit, Rank, Designation, Employee
@@ -56,6 +57,7 @@ __all__ = [
     "GenderMaster",
     "NationalityMaster",
     "BloodGroupMaster",
+    "ArrestSurrenderTypeMaster",
     "State",
     "District",
     "Court",

@@ -1,0 +1,72 @@
+UnitID,UnitName,TypeID,ParentUnit,NationalityID,StateID,DistrictID,Active
+1,Mandya Town PS,1,,1,1,21,1
+2,Bengaluru Rural Rural PS,1,,1,1,4,1
+3,Udupi Town PS,1,,1,1,27,1
+4,Ballari Town PS,1,,1,1,2,1
+5,Kolar Town PS,1,,1,1,19,1
+6,Gadag Rural PS,1,,1,1,14,1
+7,Chamarajanagar Rural PS,1,,1,1,7,1
+8,Chikkaballapur Town PS,1,,1,1,8,1
+9,Chitradurga Town PS,1,,1,1,10,1
+10,Udupi Rural PS,1,,1,1,27,1
+11,Dharwad Rural PS,1,,1,1,13,1
+12,Ramanagara Rural PS,1,,1,1,24,1
+13,Chikkaballapur Rural PS,1,,1,1,8,1
+14,Vijayanagara Town PS,1,,1,1,29,1
+15,Kodagu Town PS,1,,1,1,18,1
+16,Raichur Rural PS,1,,1,1,23,1
+17,Haveri Rural PS,1,,1,1,16,1
+18,Chitradurga Rural PS,1,,1,1,10,1
+19,Koppal Town PS,1,,1,1,20,1
+20,Yadgir Rural PS,1,,1,1,31,1
+21,Saraswathipuram PS,1,,1,1,22,1
+22,Kalaburagi Rural PS,1,,1,1,17,1
+23,Yadgir Town PS,1,,1,1,31,1
+24,Raichur Town PS,1,,1,1,23,1
+25,Chikkamagaluru Rural PS,1,,1,1,9,1
+26,Vijayapura Rural PS,1,,1,1,30,1
+27,Vijayanagara Rural PS,1,,1,1,29,1
+28,Bagalkot Rural PS,1,,1,1,1,1
+29,Gadag Town PS,1,,1,1,14,1
+30,Davanagere Town PS,1,,1,1,12,1
+31,Mandya Rural PS,1,,1,1,21,1
+32,Uttara Kannada Town PS,1,,1,1,28,1
+33,Vijayapura Town PS,1,,1,1,30,1
+34,Tumakuru Town PS,1,,1,1,26,1
+35,Uttara Kannada Rural PS,1,,1,1,28,1
+36,Narasimharaja PS,1,,1,1,22,1
+37,Davanagere Rural PS,1,,1,1,12,1
+38,Tumakuru Rural PS,1,,1,1,26,1
+39,Whitefield PS,1,,1,1,5,1
+40,Tilakwadi PS,1,,1,1,3,1
+41,Cubbon Park PS,1,,1,1,5,1
+42,Bengaluru Rural Town PS,1,,1,1,4,1
+43,Bidar Town PS,1,,1,1,6,1
+44,Hassan Town PS,1,,1,1,15,1
+45,Dharwad Town PS,1,,1,1,13,1
+46,Kodagu Rural PS,1,,1,1,18,1
+47,Bidar Rural PS,1,,1,1,6,1
+48,Kadri PS,1,,1,1,11,1
+49,Indiranagar PS,1,,1,1,5,1
+50,Devaraja PS,1,,1,1,22,1
+51,Market PS,1,,1,1,3,1
+52,Mangaluru North PS,1,,1,1,11,1
+53,Koppal Rural PS,1,,1,1,20,1
+54,Chikkamagaluru Town PS,1,,1,1,9,1
+55,Khadebazar PS,1,,1,1,3,1
+56,Kalaburagi Town PS,1,,1,1,17,1
+57,Krishnaraja PS,1,,1,1,22,1
+58,Hassan Rural PS,1,,1,1,15,1
+59,Bagalkot Town PS,1,,1,1,1,1
+60,Halasuru PS,1,,1,1,5,1
+61,Camp PS,1,,1,1,3,1
+62,Kolar Rural PS,1,,1,1,19,1
+63,Shivamogga Rural PS,1,,1,1,25,1
+64,Ramanagara Town PS,1,,1,1,24,1
+65,Koramangala PS,1,,1,1,5,1
+66,Ballari Rural PS,1,,1,1,2,1
+67,Haveri Town PS,1,,1,1,16,1
+68,Panambur PS,1,,1,1,11,1
+69,Shivamogga Town PS,1,,1,1,25,1
+70,Chamarajanagar Town PS,1,,1,1,7,1
+71,Mangaluru South PS,1,,1,1,11,1

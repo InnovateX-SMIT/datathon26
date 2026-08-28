@@ -454,11 +454,13 @@ class FIRImportService:
 
     def detect_schema_type(self, columns: list[str]) -> str:
         """
-        Robust schema detection using multiple required headers sets.
+        Robust schema detection using multiple required header sets for Police FIR Schema compliance.
         """
         cols = {str(c).strip().lower() for c in columns}
-        fir_indicators = {"crime_no", "registered_date", "act_code", "section_code"}
-        if fir_indicators.issubset(cols):
+        fir_set_1 = {"crime_no", "registered_date", "act_code", "section_code"}
+        fir_set_2 = {"case_category", "gravity_offence", "officer_kgid"}
+        fir_set_3 = {"case_no", "registered_date", "unit"}
+        if fir_set_1.issubset(cols) or fir_set_2.issubset(cols) or fir_set_3.issubset(cols):
             return "fir_normalized"
         return "legacy_crime_intel"
 

@@ -20,11 +20,12 @@ class GeoService:
         active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids()
         # Data compatibility validation
         from backend.models.dataset import Dataset
+        acceptable_statuses = ["Ready", "Completed", "Active", "Processed"]
         for aid in active_ids:
             if aid is None:
                 continue
             ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
-            if not ds or ds.status != "Ready":
+            if ds and ds.status in ["Uploading", "Processing", "Failed", "Archived"]:
                 raise ValueError("One or more active datasets are not ready or are incompatible.")
         return active_ids
 

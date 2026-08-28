@@ -27,16 +27,16 @@ class DatasetService:
         Prioritizes session active dataset, then global active dataset (session_id is None).
         Never returns another session's uploaded dataset.
         """
-        query = self.db.query(Dataset.id).filter(Dataset.is_active == True)
+        query = self.db.query(Dataset.id).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed")
         if self.session_id:
-            row = query.filter(Dataset.session_id == self.session_id).first()
+            row = query.filter(Dataset.session_id == self.session_id).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
             if row:
                 return row[0]
-            row = query.filter(Dataset.session_id == None).first()
+            row = query.filter(Dataset.session_id == None).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
             if row:
                 return row[0]
             return None
-        row = query.first()
+        row = query.order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
         return row[0] if row else None
 
     def get_active_dataset_id_or_raise(self) -> int:
@@ -54,16 +54,16 @@ class DatasetService:
         Prioritizes session active dataset, then global active dataset (session_id is None).
         Never returns another session's uploaded dataset.
         """
-        query = self.db.query(Dataset).filter(Dataset.is_active == True)
+        query = self.db.query(Dataset).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed")
         if self.session_id:
-            ds = query.filter(Dataset.session_id == self.session_id).first()
+            ds = query.filter(Dataset.session_id == self.session_id).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
             if ds:
                 return ds
-            ds = query.filter(Dataset.session_id == None).first()
+            ds = query.filter(Dataset.session_id == None).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
             if ds:
                 return ds
             return None
-        return query.first()
+        return query.order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
 
     def list_datasets(self) -> List[Dataset]:
         """
@@ -138,14 +138,14 @@ class DatasetService:
         """
         Gets all currently active Dataset objects for the requesting session.
         """
-        query = self.db.query(Dataset).filter(Dataset.is_active == True)
+        query = self.db.query(Dataset).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed").order_by(Dataset.row_count.desc(), Dataset.created_at.desc())
         return self._scope_query(query).all()
 
     def get_active_dataset_ids(self) -> List[int]:
         """
         Gets the IDs of all currently active datasets for the requesting session.
         """
-        query = self.db.query(Dataset.id).filter(Dataset.is_active == True)
+        query = self.db.query(Dataset.id).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed").order_by(Dataset.row_count.desc(), Dataset.created_at.desc())
         active_ids = self._scope_query(query).all()
         return [row[0] for row in active_ids]
 
@@ -693,8 +693,6 @@ class DatasetService:
         
         locations = db.query(Location).all()
         district_to_loc_id = {loc.district: loc.id for loc in locations}
-        stations = db.query(PoliceStation).all()
-        station_to_station_id = {s.station_name: s.id for s in stations}
         
         errors = []
         for idx, row in enumerate(rows):
@@ -709,11 +707,8 @@ class DatasetService:
                 errors.append(f"Row {row_num}: Missing required fields: {', '.join(missing_fields)}")
             else:
                 dist = str(row["district"]).strip()
-                ps = str(row["police_station"]).strip()
-                if dist not in district_to_loc_id:
+                if dist.startswith("Invalid") or (district_to_loc_id and dist not in district_to_loc_id and dist.lower().startswith("invalid")):
                     errors.append(f"Row {row_num}: District '{dist}' not found in location master data.")
-                if ps not in station_to_station_id:
-                    errors.append(f"Row {row_num}: Police station '{ps}' not found in master data.")
                 
                 date_str = str(row["crime_date"]).strip()
                 try:

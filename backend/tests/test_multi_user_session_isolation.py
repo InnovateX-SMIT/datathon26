@@ -31,9 +31,9 @@ def test_multi_user_dataset_isolation():
     User A's datasets and processing results cannot be seen, accessed, activated,
     or mutated by User B.
     """
+    # Create dataset belonging to Session A directly
     db = SessionLocal()
     try:
-        # Create dataset belonging to Session A directly
         ds_a = Dataset(
             name="dataset_user_a",
             original_filename="user_a_data.csv",
@@ -48,30 +48,29 @@ def test_multi_user_dataset_isolation():
         db.commit()
         db.refresh(ds_a)
         ds_a_id = ds_a.id
-
-        # User A fetches datasets -> sees dataset A
-        res_a = client.get("/api/v1/datasets/", headers={"X-Session-ID": "session-user-a"})
-        assert res_a.status_code == 200
-        datasets_a = res_a.json()
-        assert any(d["id"] == ds_a_id for d in datasets_a)
-
-        # User B fetches datasets -> MUST NOT see dataset A
-        res_b = client.get("/api/v1/datasets/", headers={"X-Session-ID": "session-user-b"})
-        assert res_b.status_code == 200
-        datasets_b = res_b.json()
-        assert not any(d["id"] == ds_a_id for d in datasets_b)
-
-        # User B attempts to view dataset A by ID -> MUST return 404
-        res_b_detail = client.get(f"/api/v1/datasets/{ds_a_id}", headers={"X-Session-ID": "session-user-b"})
-        assert res_b_detail.status_code == 404
-
-        # User B attempts to activate dataset A -> MUST return 404
-        res_b_activate = client.post("/api/v1/datasets/activate", json={"dataset_id": ds_a_id}, headers={"X-Session-ID": "session-user-b"})
-        assert res_b_activate.status_code == 404
-
-        # User B attempts to delete dataset A -> MUST return 404
-        res_b_delete = client.delete(f"/api/v1/datasets/{ds_a_id}", headers={"X-Session-ID": "session-user-b"})
-        assert res_b_delete.status_code == 404
-
     finally:
         db.close()
+
+    # User A fetches datasets -> sees dataset A
+    res_a = client.get("/api/v1/datasets/", headers={"X-Session-ID": "session-user-a"})
+    assert res_a.status_code == 200
+    datasets_a = res_a.json()
+    assert any(d["id"] == ds_a_id for d in datasets_a)
+
+    # User B fetches datasets -> MUST NOT see dataset A
+    res_b = client.get("/api/v1/datasets/", headers={"X-Session-ID": "session-user-b"})
+    assert res_b.status_code == 200
+    datasets_b = res_b.json()
+    assert not any(d["id"] == ds_a_id for d in datasets_b)
+
+    # User B attempts to view dataset A by ID -> MUST return 404
+    res_b_detail = client.get(f"/api/v1/datasets/{ds_a_id}", headers={"X-Session-ID": "session-user-b"})
+    assert res_b_detail.status_code == 404
+
+    # User B attempts to activate dataset A -> MUST return 404
+    res_b_activate = client.post("/api/v1/datasets/activate", json={"dataset_id": ds_a_id}, headers={"X-Session-ID": "session-user-b"})
+    assert res_b_activate.status_code == 404
+
+    # User B attempts to delete dataset A -> MUST return 404
+    res_b_delete = client.delete(f"/api/v1/datasets/{ds_a_id}", headers={"X-Session-ID": "session-user-b"})
+    assert res_b_delete.status_code == 404

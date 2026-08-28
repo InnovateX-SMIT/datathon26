@@ -8,7 +8,7 @@ class ArrestSurrender(TimestampMixin, Base):
 
     id = Column("ArrestSurrenderID", Integer, primary_key=True)
     CaseMasterID = Column(Integer, ForeignKey("case_master.CaseMasterID"), nullable=False)
-    ArrestSurrenderTypeID = Column(Integer, nullable=False)
+    ArrestSurrenderTypeID = Column(Integer, ForeignKey("arrest_surrender_type_master.ArrestSurrenderTypeID"), nullable=False)
     ArrestSurrenderDate = Column(Date, nullable=False)
     ArrestSurrenderStateId = Column(Integer, ForeignKey("state.StateID"), nullable=False)
     ArrestSurrenderDistrictId = Column(Integer, ForeignKey("district.DistrictID"), nullable=False)
@@ -22,6 +22,7 @@ class ArrestSurrender(TimestampMixin, Base):
 
     # Relationships
     case_master = relationship("CaseMaster", back_populates="arrest_surrenders")
+    arrest_surrender_type = relationship("ArrestSurrenderTypeMaster")
     state = relationship("State")
     district = relationship("District")
     police_station = relationship("Unit")
