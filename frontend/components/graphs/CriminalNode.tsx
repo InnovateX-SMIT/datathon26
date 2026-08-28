@@ -22,14 +22,23 @@ export default function CriminalNode({ id, data }: CriminalNodeProps) {
   const name = data.label || "Unknown Criminal";
   const displayId = id.startsWith("criminal_") ? id.substring(9) : id;
   const metadata = data.metadata || {};
-  const riskScore = metadata.risk_score;
+  const rawRiskScore = metadata.risk_score;
+
+  // Normalize risk score to 0.0 – 1.0 range regardless of backend scale (0-1, 0-10, or 0-100)
+  const normalizedRiskScore = React.useMemo(() => {
+    if (rawRiskScore === undefined || rawRiskScore === null || isNaN(Number(rawRiskScore))) return undefined;
+    const num = Number(rawRiskScore);
+    if (num > 10.0) return Math.min(1.0, Math.max(0.0, num / 100.0));
+    if (num > 1.0) return Math.min(1.0, Math.max(0.0, num / 10.0));
+    return Math.min(1.0, Math.max(0.0, num));
+  }, [rawRiskScore]);
 
   // Color logic for risk score badge
   const getRiskBadgeStyles = (score?: number) => {
     if (score === undefined) return "bg-slate-800 text-slate-400 border-slate-700";
     if (score >= 0.7) return "bg-red-500/10 text-red-400 border-red-500/20";
     if (score >= 0.4) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-    return "bg-green-500/10 text-green-400 border-green-500/20";
+    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
   };
 
   return (
@@ -53,11 +62,11 @@ export default function CriminalNode({ id, data }: CriminalNodeProps) {
         </div>
 
         {/* Risk Score Badge */}
-        {riskScore !== undefined && (
-          <div className={`flex flex-col items-center border rounded-xl px-2 py-1 ${getRiskBadgeStyles(riskScore)}`}>
+        {normalizedRiskScore !== undefined && (
+          <div className={`flex flex-col items-center border rounded-xl px-2.5 py-1 ${getRiskBadgeStyles(normalizedRiskScore)}`}>
             <span className="text-[8px] font-bold uppercase tracking-wider block">Risk</span>
-            <span className="text-xs font-black tracking-tight">
-              {Math.round(riskScore * 100)}%
+            <span className="text-xs font-black tracking-tight font-mono">
+              {Math.round(normalizedRiskScore * 100)}%
             </span>
           </div>
         )}

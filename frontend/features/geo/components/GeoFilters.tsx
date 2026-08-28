@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Filter, Calendar, MapPin, Building2, ShieldAlert, Crosshair, Clock } from "lucide-react";
+import { Filter, Calendar, MapPin, Building2, ShieldAlert, Clock } from "lucide-react";
 import type { GeoFiltersState, GeoLookupOptions } from "../types/geo";
 import { fetchGeoLookupOptions } from "../services/geoApi";
 
@@ -9,8 +9,6 @@ interface GeoFiltersProps {
   filters: GeoFiltersState;
   onFiltersChange: (filters: GeoFiltersState) => void;
 }
-
-const DEFAULT_MIN_CRIME_COUNT = 3;
 
 export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps) {
   const [lookups, setLookups] = useState<GeoLookupOptions>({
@@ -76,16 +74,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     onFiltersChange({ ...filters, time_period: e.target.value || undefined });
   };
 
-  const handleMinCrimeCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value, 10);
-    if (!isNaN(val) && val >= 1) {
-      onFiltersChange({ ...filters, min_crime_count: val });
-    } else if (e.target.value === "") {
-      const { min_crime_count: _removed, ...rest } = filters;
-      onFiltersChange(rest);
-    }
-  };
-
   const resetFilters = () => {
     onFiltersChange({});
   };
@@ -97,7 +85,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     filters.start_date,
     filters.end_date,
     filters.time_period,
-    filters.min_crime_count !== undefined ? String(filters.min_crime_count) : undefined,
   ].filter(Boolean).length;
 
   return (
@@ -229,50 +216,31 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
         </div>
       </div>
 
-      {/* Auxiliary Settings Bar: Hotspot Sensitivity */}
-      <div className="mt-4 pt-3 border-t border-slate-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <Crosshair className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
-          <span className="text-[11px] font-bold text-rose-400 font-sans">DBSCAN Hotspot Sensitivity:</span>
-          <input
-            type="number"
-            min={1}
-            max={500}
-            step={1}
-            placeholder={String(DEFAULT_MIN_CRIME_COUNT)}
-            value={filters.min_crime_count ?? ""}
-            onChange={handleMinCrimeCountChange}
-            className="w-20 bg-[#0a0f1d] border border-rose-900/40 rounded-lg px-2 py-1 text-xs text-slate-200 outline-none focus:border-rose-500/60 font-mono text-center"
-          />
-          <span className="text-[10px] text-slate-500 font-sans">min. crimes per spatial cluster</span>
+      {activeFilterCount > 0 && (
+        <div className="mt-4 pt-3 border-t border-slate-800/40 flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+          <span className="text-slate-500">Active Filters:</span>
+          {filters.district && (
+            <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">
+              Dist: {filters.district}
+            </span>
+          )}
+          {filters.police_station && (
+            <span className="bg-blue-500/10 border border-blue-500/20 text-blue-300 px-2 py-0.5 rounded">
+              PS: {filters.police_station}
+            </span>
+          )}
+          {filters.crime_type && (
+            <span className="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
+              Cat: {filters.crime_type}
+            </span>
+          )}
+          {filters.time_period && (
+            <span className="bg-sky-500/10 border border-sky-500/20 text-sky-300 px-2 py-0.5 rounded">
+              Time: {filters.time_period}
+            </span>
+          )}
         </div>
-
-        {activeFilterCount > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
-            <span className="text-slate-500">Active Filters:</span>
-            {filters.district && (
-              <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">
-                Dist: {filters.district}
-              </span>
-            )}
-            {filters.police_station && (
-              <span className="bg-blue-500/10 border border-blue-500/20 text-blue-300 px-2 py-0.5 rounded">
-                PS: {filters.police_station}
-              </span>
-            )}
-            {filters.crime_type && (
-              <span className="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
-                Cat: {filters.crime_type}
-              </span>
-            )}
-            {filters.time_period && (
-              <span className="bg-sky-500/10 border border-sky-500/20 text-sky-300 px-2 py-0.5 rounded">
-                Time: {filters.time_period}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

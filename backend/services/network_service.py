@@ -77,7 +77,7 @@ class NetworkService:
                     {
                         "id": acc.id,
                         "name": acc.AccusedName,
-                        "risk_score": 5.0,
+                        "risk_score": 0.50,
                         "status": "active"
                     }
                     for acc in accused_list
@@ -127,7 +127,7 @@ class NetworkService:
                     "age": acc.AgeYear,
                     "occupation": "Unknown",
                     "caste": "Unknown",
-                    "risk_score": 5.0,
+                    "risk_score": 0.50,
                     "status": "active"
                 }
             })
@@ -364,7 +364,7 @@ class NetworkService:
                             "age": acc.AgeYear,
                             "occupation": "Unknown",
                             "caste": "Unknown",
-                            "risk_score": 5.0,
+                            "risk_score": 0.50,
                             "status": "active"
                         }
                     })
@@ -527,7 +527,7 @@ class NetworkService:
                                 "age": acc.AgeYear,
                                 "occupation": "Unknown",
                                 "caste": "Unknown",
-                                "risk_score": 5.0,
+                                "risk_score": 0.50,
                                 "status": "active"
                             }
                         })
