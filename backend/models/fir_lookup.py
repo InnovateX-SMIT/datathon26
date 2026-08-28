@@ -45,3 +45,8 @@ class BloodGroupMaster(BaseLookupMixin, Base):
     __tablename__ = "blood_group_master"
     __pk_name__ = "BloodGroupID"
     __name_col__ = "BloodGroupName"
+
+class ArrestSurrenderTypeMaster(BaseLookupMixin, Base):
+    __tablename__ = "arrest_surrender_type_master"
+    __pk_name__ = "ArrestSurrenderTypeID"
+    __name_col__ = "TypeName"

@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 from backend.schemas.network import (
     NetworkGraphResponse,
     CentralityResponse,
@@ -21,11 +22,12 @@ router = APIRouter()
 @router.get("/graph")
 def get_network_graph_summary(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """Returns summary statistics of the criminal intelligence network graph."""
     try:
-        service = NetworkAnalyticsService(db)
+        service = NetworkAnalyticsService(db, session_id=session_id)
         G = service.get_graph()
         node_types = {}
         for _, attr in G.nodes(data=True):
@@ -46,10 +48,11 @@ def get_network_graph_summary(
 @router.get("/centrality", response_model=CentralityResponse)
 def get_network_centrality(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkAnalyticsService(db)
+        service = NetworkAnalyticsService(db, session_id=session_id)
         return service.get_centrality()
     except Exception as e:
         logger.error(f"Error in get_network_centrality: {str(e)}", exc_info=True)
@@ -61,10 +64,11 @@ def get_network_centrality(
 @router.get("/clusters", response_model=List[ClusterResponse])
 def get_network_clusters(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkAnalyticsService(db)
+        service = NetworkAnalyticsService(db, session_id=session_id)
         return service.get_clusters()
     except Exception as e:
         logger.error(f"Error in get_network_clusters: {str(e)}", exc_info=True)
@@ -76,10 +80,11 @@ def get_network_clusters(
 @router.get("/associations", response_model=List[AssociationResponse])
 def get_network_associations(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkAnalyticsService(db)
+        service = NetworkAnalyticsService(db, session_id=session_id)
         return service.get_repeat_associations()
     except Exception as e:
         logger.error(f"Error in get_network_associations: {str(e)}", exc_info=True)
@@ -91,10 +96,11 @@ def get_network_associations(
 @router.get("/location-intelligence", response_model=LocationNetworkResponse)
 def get_location_intelligence(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkAnalyticsService(db)
+        service = NetworkAnalyticsService(db, session_id=session_id)
         return service.get_location_intelligence()
     except Exception as e:
         logger.error(f"Error in get_location_intelligence: {str(e)}", exc_info=True)
@@ -108,10 +114,11 @@ def get_link_analysis(
     source_id: str = Query(..., description="Source node ID (e.g. criminal_1)"),
     target_id: str = Query(..., description="Target node ID (e.g. location_5)"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkAnalyticsService(db)
+        service = NetworkAnalyticsService(db, session_id=session_id)
         return service.find_shortest_path(source_id, target_id)
     except Exception as e:
         logger.error(f"Error in get_link_analysis: {str(e)}", exc_info=True)
@@ -125,10 +132,11 @@ def get_link_analysis(
 def get_sample_criminals(
     limit: int = Query(10, ge=1, le=25, description="Number of active-dataset criminals to return"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkService(db)
+        service = NetworkService(db, session_id=session_id)
         return service.get_sample_criminals(limit=limit)
     except Exception as e:
         logger.error(f"Error in get_sample_criminals: {str(e)}", exc_info=True)
@@ -141,10 +149,11 @@ def get_sample_criminals(
 def get_criminal_network(
     criminal_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkService(db)
+        service = NetworkService(db, session_id=session_id)
         network = service.build_criminal_network(criminal_id)
         if not network:
             raise HTTPException(
@@ -165,10 +174,11 @@ def get_criminal_network(
 def get_crime_network(
     crime_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkService(db)
+        service = NetworkService(db, session_id=session_id)
         network = service.build_crime_network(crime_id)
         if not network:
             raise HTTPException(
@@ -189,10 +199,11 @@ def get_crime_network(
 def get_location_network(
     location_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     try:
-        service = NetworkService(db)
+        service = NetworkService(db, session_id=session_id)
         network = service.build_location_network(location_id)
         if not network:
             raise HTTPException(

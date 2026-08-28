@@ -6,21 +6,38 @@ import re
 import json
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 from backend.models.dataset import Dataset
 from backend.core.exceptions import NoActiveDatasetException
 from backend.core.logging import logger
 
 class DatasetService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
+
+    def _scope_query(self, query):
+        if self.session_id is not None:
+            return query.filter((Dataset.session_id == self.session_id) | (Dataset.session_id == None))
+        return query
 
     def get_active_dataset_id(self) -> Optional[int]:
         """
-        Resolves the currently active dataset ID.
+        Resolves the currently active dataset ID strictly for the requesting session.
+        Prioritizes session active dataset, then global active dataset (session_id is None).
+        Never returns another session's uploaded dataset.
         """
-        active_row = self.db.query(Dataset.id).filter(Dataset.is_active == True).first()
-        return active_row[0] if active_row else None
+        query = self.db.query(Dataset.id).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed")
+        if self.session_id:
+            row = query.filter(Dataset.session_id == self.session_id).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
+            if row:
+                return row[0]
+            row = query.filter(Dataset.session_id == None).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
+            if row:
+                return row[0]
+            return None
+        row = query.order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
+        return row[0] if row else None
 
     def get_active_dataset_id_or_raise(self) -> int:
         """
@@ -33,15 +50,28 @@ class DatasetService:
 
     def get_active_dataset(self) -> Optional[Dataset]:
         """
-        Gets the currently active Dataset object.
+        Gets the currently active Dataset object strictly for the requesting session.
+        Prioritizes session active dataset, then global active dataset (session_id is None).
+        Never returns another session's uploaded dataset.
         """
-        return self.db.query(Dataset).filter(Dataset.is_active == True).first()
+        query = self.db.query(Dataset).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed")
+        if self.session_id:
+            ds = query.filter(Dataset.session_id == self.session_id).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
+            if ds:
+                return ds
+            ds = query.filter(Dataset.session_id == None).order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
+            if ds:
+                return ds
+            return None
+        return query.order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
 
     def list_datasets(self) -> List[Dataset]:
         """
-        Lists all datasets in the registry sorted by creation time.
+        Lists all datasets in the registry for the requesting session sorted by creation time.
         """
-        return self.db.query(Dataset).order_by(Dataset.created_at.desc()).all()
+        query = self.db.query(Dataset).filter(Dataset.status != "Archived")
+        query = self._scope_query(query)
+        return query.order_by(Dataset.created_at.desc()).all()
 
     def activate_dataset(self, dataset_id: int) -> Dataset:
         """
@@ -51,9 +81,10 @@ class DatasetService:
         from backend.models.dataset import DatasetConfig
         from datetime import datetime
 
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         if dataset.status == "Archived":
             raise ValueError("Cannot activate an archived dataset.")
@@ -70,17 +101,15 @@ class DatasetService:
 
         if max_active != "All":
             limit = int(max_active)
-            # Find currently active datasets ordered by upload_time ascending (oldest first)
-            active_datasets = self.db.query(Dataset).filter(Dataset.is_active == True).order_by(Dataset.upload_time.asc()).all()
+            active_query = self.db.query(Dataset).filter(Dataset.is_active == True)
+            active_datasets = self._scope_query(active_query).order_by(Dataset.upload_time.asc()).all()
             if len(active_datasets) >= limit:
-                # Deactivate oldest active datasets to make space
                 num_to_deactivate = len(active_datasets) - limit + 1
                 for i in range(num_to_deactivate):
                     old_ds = active_datasets[i]
                     old_ds.is_active = False
                     logger.info(f"[Dataset Activation Change] Dataset ID: {old_ds.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
 
-        # Activate this dataset
         dataset.is_active = True
         logger.info(f"[Dataset Activation Change] Dataset ID: {dataset.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Inactive, New Status: Active")
 
@@ -92,14 +121,14 @@ class DatasetService:
         Sets the specified dataset as inactive.
         """
         from datetime import datetime
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         if not dataset.is_active:
             return dataset
 
-        # Deactivate
         dataset.is_active = False
         logger.info(f"[Dataset Activation Change] Dataset ID: {dataset.id}, Timestamp: {datetime.utcnow().isoformat()}, Previous Status: Active, New Status: Inactive")
         self.db.commit()
@@ -107,15 +136,17 @@ class DatasetService:
 
     def get_active_datasets(self) -> List[Dataset]:
         """
-        Gets all currently active Dataset objects.
+        Gets all currently active Dataset objects for the requesting session.
         """
-        return self.db.query(Dataset).filter(Dataset.is_active == True).all()
+        query = self.db.query(Dataset).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed").order_by(Dataset.row_count.desc(), Dataset.created_at.desc())
+        return self._scope_query(query).all()
 
     def get_active_dataset_ids(self) -> List[int]:
         """
-        Gets the IDs of all currently active datasets.
+        Gets the IDs of all currently active datasets for the requesting session.
         """
-        active_ids = self.db.query(Dataset.id).filter(Dataset.is_active == True).all()
+        query = self.db.query(Dataset.id).filter(Dataset.is_active == True, Dataset.status != "Archived", Dataset.status != "Failed").order_by(Dataset.row_count.desc(), Dataset.created_at.desc())
+        active_ids = self._scope_query(query).all()
         return [row[0] for row in active_ids]
 
     def get_active_datasets_metadata(self) -> List[dict]:
@@ -184,16 +215,18 @@ class DatasetService:
         Soft-deletes (archives) the dataset from the registry. Sets status to 'Archived'
         and is_active to False.
         """
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
-        # If active, automatically fallback to another ready dataset
+        # If active, automatically fallback to another ready dataset for this session
         if dataset.is_active:
-            fallback_ds = self.db.query(Dataset).filter(
+            fallback_query = self.db.query(Dataset).filter(
                 Dataset.id != dataset_id,
                 Dataset.status == "Ready"
-            ).first()
+            )
+            fallback_ds = self._scope_query(fallback_query).first()
             if fallback_ds:
                 fallback_ds.is_active = True
                 logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being archived.")
@@ -213,16 +246,18 @@ class DatasetService:
         Also deletes the underlying uploaded file from disk.
         """
         import os
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
-        # If active, automatically fallback to another ready dataset
+        # If active, automatically fallback to another ready dataset for this session
         if dataset.is_active:
-            fallback_ds = self.db.query(Dataset).filter(
+            fallback_query = self.db.query(Dataset).filter(
                 Dataset.id != dataset_id,
                 Dataset.status == "Ready"
-            ).first()
+            )
+            fallback_ds = self._scope_query(fallback_query).first()
             if fallback_ds:
                 fallback_ds.is_active = True
                 logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being permanently deleted.")
@@ -296,6 +331,7 @@ class DatasetService:
         file_bytes: Optional[bytes] = None,
         file_obj: Optional[Union[bytes, Any]] = None,
         user_id: int = 0,
+        session_id: Optional[str] = None,
         preview: bool = False,
         background: Optional[bool] = None
     ) -> Union[Dataset, dict]:
@@ -304,6 +340,8 @@ class DatasetService:
         and inserts CrimeEvent, Criminal, Victim, and CrimeParticipation records in transactional batches under 'Importing'.
         If any validation fails, rolls back completely and marks dataset as 'Failed'.
         """
+        eff_session_id = session_id or self.session_id
+
         # Validate File Extension
         if not (file_name.lower().endswith(".csv") or file_name.lower().endswith(".xlsx") or file_name.lower().endswith(".xls")):
             raise ValueError("Unsupported file format. Only CSV and Excel (.xlsx, .xls) files are supported.")
@@ -349,14 +387,24 @@ class DatasetService:
                     except Exception:
                         pass
 
-        # Validate Duplicate Filename (excluding failed and archived ones)
-        duplicate_check = self.db.query(Dataset).filter(
+        # Validate Duplicate Filename for this session (excluding failed and archived ones)
+        dup_query = self.db.query(Dataset).filter(
             Dataset.original_filename == file_name,
             Dataset.status != "Failed",
             Dataset.status != "Archived"
-        ).first()
+        )
+        if eff_session_id:
+            dup_query = dup_query.filter(Dataset.session_id == eff_session_id)
+        duplicate_check = dup_query.first()
         if duplicate_check:
             raise ValueError(f"A dataset with filename '{file_name}' has already been uploaded.")
+
+        # Deactivate existing active datasets for this session context so the new dataset will be active
+        active_query = self.db.query(Dataset).filter(Dataset.is_active == True)
+        if eff_session_id:
+            active_query = active_query.filter(Dataset.session_id == eff_session_id)
+        for old_ds in active_query.all():
+            old_ds.is_active = False
 
         # 1. Create dataset record under 'Uploading' status
         db_dataset = Dataset(
@@ -371,7 +419,8 @@ class DatasetService:
             status="Uploading",
             upload_status="Uploading",
             storage_path=None,
-            is_active=False
+            is_active=True,
+            session_id=eff_session_id
         )
         self.db.add(db_dataset)
         self.db.commit()
@@ -644,8 +693,6 @@ class DatasetService:
         
         locations = db.query(Location).all()
         district_to_loc_id = {loc.district: loc.id for loc in locations}
-        stations = db.query(PoliceStation).all()
-        station_to_station_id = {s.station_name: s.id for s in stations}
         
         errors = []
         for idx, row in enumerate(rows):
@@ -660,11 +707,8 @@ class DatasetService:
                 errors.append(f"Row {row_num}: Missing required fields: {', '.join(missing_fields)}")
             else:
                 dist = str(row["district"]).strip()
-                ps = str(row["police_station"]).strip()
-                if dist not in district_to_loc_id:
+                if dist.startswith("Invalid") or (district_to_loc_id and dist not in district_to_loc_id and dist.lower().startswith("invalid")):
                     errors.append(f"Row {row_num}: District '{dist}' not found in location master data.")
-                if ps not in station_to_station_id:
-                    errors.append(f"Row {row_num}: Police station '{ps}' not found in master data.")
                 
                 date_str = str(row["crime_date"]).strip()
                 try:
@@ -842,15 +886,97 @@ class DatasetService:
             else:
                 from backend.models.location import Location
                 from backend.models.police_station import PoliceStation
+                from backend.models.crime import CrimeEvent
+                from backend.models.criminal import Criminal
+                from backend.models.victim import Victim
+                from backend.models.crime_participation import CrimeParticipation
+                
                 locations = db.query(Location).all()
                 district_to_loc_id = {loc.district: loc.id for loc in locations}
                 stations = db.query(PoliceStation).all()
                 station_to_station_id = {s.station_name: s.id for s in stations}
                 
-                first_names = ["Amit", "Rahul", "Vijay", "Sanjay", "Anil", "Sunil", "Rajesh", "Prakash", "Kiran", "Ramesh", "Deepak", "Suresh", "Priya", "Sunita", "Anita", "Geeta"]
-                last_names = ["Kumar", "Sharma", "Singh", "Patil", "Gowda", "Reddy", "Nair", "Joshi", "Das", "Mehta", "Sen", "Rao", "Patel", "Chatterjee", "Mukherjee", "Pillai"]
-                castes = ["General", "OBC", "SC", "ST"]
+                def clean_ps_name(name):
+                    name = str(name).strip()
+                    name = re.sub(r'\s+', ' ', name)
+                    if name.lower().endswith(" ps"):
+                        return f"{name[:-3].strip().title()} PS"
+                    elif name.lower().endswith("ps"):
+                        return f"{name[:-2].strip().title()} PS"
+                    return name.title()
+                    
+                def get_loc_id(dist_name):
+                    dist_name = str(dist_name).strip().title()
+                    if dist_name in district_to_loc_id:
+                        return district_to_loc_id[dist_name]
+                    new_loc = Location(state="Karnataka", district=dist_name)
+                    db.add(new_loc)
+                    db.flush()
+                    district_to_loc_id[dist_name] = new_loc.id
+                    return new_loc.id
 
+                def get_ps_id(ps_name, dist_name):
+                    ps_name = clean_ps_name(ps_name)
+                    if ps_name in station_to_station_id:
+                        return station_to_station_id[ps_name]
+                    l_id = get_loc_id(dist_name)
+                    new_ps = PoliceStation(
+                        station_name=ps_name,
+                        district=dist_name,
+                        location_id=l_id,
+                        beat="Beat A",
+                        officer_count=10,
+                        vehicle_count=2,
+                        equipment_count=5,
+                        capacity=20,
+                        availability="active"
+                    )
+                    db.add(new_ps)
+                    db.flush()
+                    station_to_station_id[ps_name] = new_ps.id
+                    return new_ps.id
+
+                def parse_date_robust(date_val):
+                    if not date_val or str(date_val).strip().lower() in ["nan", "none", "null", ""]:
+                        return None
+                    if isinstance(date_val, (date, datetime)):
+                        return date_val.date() if isinstance(date_val, datetime) else date_val
+                    d_str = str(date_val).strip()
+                    if "t" in d_str.lower():
+                        d_str = re.split(r'[tT]', d_str)[0]
+                    elif " " in d_str:
+                        d_str = d_str.split(" ")[0]
+                    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+                        try:
+                            return datetime.strptime(d_str, fmt).date()
+                        except ValueError:
+                            pass
+                    return None
+
+                def parse_time_robust(time_val):
+                    from datetime import time as dt_time
+                    if not time_val or str(time_val).strip().lower() in ["nan", "none", "null", ""]:
+                        return None
+                    if isinstance(time_val, datetime):
+                        return time_val.time()
+                    if isinstance(time_val, dt_time):
+                        return time_val
+                    t_str = str(time_val).strip()
+                    if "t" in t_str.lower():
+                        t_str = re.split(r'[tT]', t_str)[1]
+                    elif " " in t_str:
+                        parts = t_str.split(" ")
+                        if len(parts) > 1 and ":" in parts[1]:
+                            t_str = parts[1]
+                    t_str = t_str[:8]
+                    for fmt in ("%H:%M:%S", "%H:%M"):
+                        try:
+                            return datetime.strptime(t_str, fmt).time()
+                        except ValueError:
+                            pass
+                    return None
+
+            legacy_criminal_cache = {}
             for chunk_rows in self.stream_rows(storage_path, schema_type, chunk_size=5000):
                 normalized_chunk_rows = []
                 for r in chunk_rows:
@@ -869,131 +995,153 @@ class DatasetService:
                     rows_imported += report.get("cases_inserted", 0)
                 else:
                     successful_imports = 0
-                    crime_events = []
-                    victim_infos = []
-                    criminal_infos = []
                     
-                    from backend.models.crime import CrimeEvent
-                    from backend.models.criminal import Criminal
-                    from backend.models.victim import Victim
-                    from backend.models.crime_participation import CrimeParticipation
-                    
-                    for idx, row in enumerate(normalized_chunk_rows):
-                        global_idx = rows_imported + idx
-                        dist = str(row["district"]).strip()
-                        ps = str(row["police_station"]).strip()
-                        loc_id = district_to_loc_id.get(dist)
-                        ps_id = station_to_station_id.get(ps)
+                    # Group chunk rows by unique case ID
+                    grouped_legacy_cases = {}
+                    for idx, r in enumerate(normalized_chunk_rows):
+                        case_key = r.get("fir_id") or r.get("crime_no") or f"gen_{rows_imported + idx}"
+                        case_key = str(case_key).strip()
+                        if case_key not in grouped_legacy_cases:
+                            grouped_legacy_cases[case_key] = []
+                        grouped_legacy_cases[case_key].append(r)
                         
-                        date_str = str(row["crime_date"]).strip()
-                        if "/" in date_str:
-                            date_obj = datetime.strptime(date_str, "%d/%m/%Y").date()
-                        elif "-" in date_str and len(date_str.split("-")[0]) == 2:
-                            date_obj = datetime.strptime(date_str, "%d-%m-%Y").date()
-                        else:
-                            date_obj = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
-                            
-                        time_obj = None
-                        if row.get("crime_time"):
-                            time_str = str(row["crime_time"]).strip()
-                            try:
-                                time_obj = datetime.strptime(time_str[:5], "%H:%M").time()
-                            except ValueError:
-                                try:
-                                    time_obj = datetime.strptime(time_str, "%H:%M:%S").time()
-                                except ValueError:
-                                    pass
-                                    
+                    for case_key, case_rows in grouped_legacy_cases.items():
+                        first_row = case_rows[0]
+                        dist = str(first_row.get("district", "")).strip()
+                        ps = str(first_row.get("police_station", "")).strip()
+                        
+                        loc_id = get_loc_id(dist)
+                        ps_id = get_ps_id(ps, dist)
+                        
+                        date_obj = parse_date_robust(first_row.get("crime_date")) or date.today()
+                        time_obj = parse_time_robust(first_row.get("crime_time"))
+                        
                         crime = CrimeEvent(
-                            crime_type=str(row["crime_type"]),
-                            crime_category=str(row["crime_type"]),
-                            crime_subcategory=f"{row['crime_type']} - Subcategory",
-                            description=f"{row['crime_type']} incident registered under {row.get('fir_id', 'unknown')}",
-                            severity=float(row["severity"]) if row.get("severity") else 1.0,
-                            status=str(row.get("status", "reported")),
+                            crime_type=str(first_row.get("crime_type", "General Crime")),
+                            crime_category=str(first_row.get("crime_category") or first_row.get("crime_type") or "General"),
+                            crime_subcategory=first_row.get("crime_subcategory") or f"{first_row.get('crime_type', 'General')} - Subcategory",
+                            description=first_row.get("description") or first_row.get("brief_facts") or f"{first_row.get('crime_type')} incident registered under {case_key}",
+                            severity=float(first_row["severity"]) if first_row.get("severity") else 1.0,
+                            status=str(first_row.get("status", "reported")),
                             crime_date=date_obj,
                             crime_time=time_obj,
                             location_id=loc_id,
                             police_station_id=ps_id,
-                            victim_count=1,
-                            accused_count=1,
-                            dataset_id=dataset_id
+                            dataset_id=dataset_id,
+                            victim_count=0,
+                            accused_count=0
                         )
-                        crime_events.append(crime)
-                        
-                        v_age = float(row["victim_age"]) if row.get("victim_age") else None
-                        c_age = float(row["accused_age"]) if row.get("accused_age") else None
-                        gender = str(row.get("gender", "Male"))
-                        occ = str(row.get("occupation", "Unemployed"))
-                        c_name = f"{first_names[global_idx % len(first_names)]} {last_names[(global_idx * 3) % len(last_names)]}"
-                        c_caste = castes[global_idx % len(castes)]
-                        risk_score = 0.85 if str(row.get("repeat_offender")) == "1" else 0.15
-                        
-                        victim_infos.append({
-                            "gender": gender,
-                            "age": v_age,
-                            "occupation": occ,
-                            "location_id": loc_id
-                        })
-                        criminal_infos.append({
-                            "name": c_name,
-                            "gender": gender,
-                            "age": c_age,
-                            "occupation": occ,
-                            "caste": c_caste,
-                            "risk_score": risk_score,
-                            "status": "accused" if row.get("status") != "Closed" else "convicted"
-                        })
-                        successful_imports += 1
-                        
-                    if crime_events:
-                        db.add_all(crime_events)
+                        db.add(crime)
                         db.flush()
                         
-                        criminals_to_add = []
-                        victims_to_add = []
-                        for idx, crime in enumerate(crime_events):
-                            c_info = criminal_infos[idx]
-                            criminal = Criminal(
-                                name=c_info["name"],
-                                gender=c_info["gender"],
-                                age=c_info["age"],
-                                occupation=c_info["occupation"],
-                                caste=c_info["caste"],
-                                risk_score=c_info["risk_score"],
-                                status=c_info["status"],
-                                dataset_id=dataset_id
-                            )
-                            criminals_to_add.append(criminal)
+                        seen_accused = set()
+                        seen_victims = set()
+                        
+                        for r in case_rows:
+                            acc_name = r.get("accused_name") or r.get("accused")
+                            if not acc_name or str(acc_name).strip().lower() in ["nan", "none", "null", ""]:
+                                # Fall back to Unknown Accused if some other attributes are present
+                                if r.get("accused_age") or r.get("gender") or r.get("accused_gender") or r.get("repeat_offender"):
+                                    acc_name = "Unknown Accused"
+                                else:
+                                    acc_name = None
                             
-                            v_info = victim_infos[idx]
-                            victim = Victim(
+                            if acc_name:
+                                seen_accused.add(str(acc_name).strip().title())
+                                
+                            joint_str = r.get("arrest_joint_accused_names")
+                            if joint_str and str(joint_str).strip().lower() not in ["nan", "none", "null", ""]:
+                                for name in str(joint_str).split(","):
+                                    if name.strip():
+                                        seen_accused.add(name.strip().title())
+                                        
+                            vic_name = r.get("victim_name") or r.get("victim")
+                            if not vic_name or str(vic_name).strip().lower() in ["nan", "none", "null", ""]:
+                                if r.get("victim_age") or r.get("gender") or r.get("victim_gender"):
+                                    vic_name = "Unknown Victim"
+                                else:
+                                    vic_name = None
+                                    
+                            if vic_name:
+                                seen_victims.add(str(vic_name).strip().title())
+                                
+                        crime.accused_count = len(seen_accused)
+                        crime.victim_count = len(seen_victims)
+                        db.flush()
+                        
+                        # Create Criminals and Participations
+                        for acc_name in seen_accused:
+                            acc_row = next((r for r in case_rows if str(r.get("accused_name") or r.get("accused") or "").strip().title() == acc_name), None)
+                            if not acc_row and acc_name == "Unknown Accused":
+                                acc_row = next((r for r in case_rows if r.get("accused_age") or r.get("gender") or r.get("accused_gender")), first_row)
+                                
+                            gender = str(acc_row.get("gender") or acc_row.get("accused_gender") or "Male").strip().title() if acc_row else "Male"
+                            age = float(acc_row["accused_age"]) if acc_row and acc_row.get("accused_age") is not None else None
+                            caste = str(acc_row.get("caste")).strip() if acc_row and acc_row.get("caste") else None
+                            occ = str(acc_row.get("occupation")).strip() if acc_row and acc_row.get("occupation") else None
+                            risk = 0.85 if acc_row and str(acc_row.get("repeat_offender")) == "1" else 0.15
+                            
+                            is_unknown = (acc_name.lower() == "unknown accused")
+                            cache_key = (acc_name.lower(), gender, age)
+                            if cache_key in legacy_criminal_cache and not is_unknown:
+                                crim_id = legacy_criminal_cache[cache_key]
+                            else:
+                                c_rec = None
+                                if not is_unknown:
+                                    c_rec = db.query(Criminal).filter(
+                                        Criminal.name == acc_name,
+                                        Criminal.dataset_id == dataset_id
+                                    ).first()
+                                if not c_rec:
+                                    c_rec = Criminal(
+                                        name=acc_name,
+                                        gender=gender,
+                                        age=age,
+                                        occupation=occ,
+                                        caste=caste,
+                                        risk_score=risk,
+                                        status="accused" if first_row.get("status") != "Closed" else "convicted",
+                                        dataset_id=dataset_id
+                                    )
+                                    db.add(c_rec)
+                                    db.flush()
+                                crim_id = c_rec.id
+                                if not is_unknown:
+                                    legacy_criminal_cache[cache_key] = crim_id
+                                
+                            part = CrimeParticipation(
                                 crime_event_id=crime.id,
-                                gender=v_info["gender"],
-                                age=v_info["age"],
-                                occupation=v_info["occupation"],
-                                location_id=v_info["location_id"],
+                                criminal_id=crim_id,
+                                role="principal accused" if len(seen_accused) == 1 else "co-offender",
                                 dataset_id=dataset_id
                             )
-                            victims_to_add.append(victim)
+                            db.add(part)
                             
-                        db.add_all(criminals_to_add)
-                        db.flush()
-                        
-                        participations_to_add = []
-                        for idx, crime in enumerate(crime_events):
-                            criminal = criminals_to_add[idx]
-                            participation = CrimeParticipation(
+                        # Create Victims
+                        for vic_name in seen_victims:
+                            vic_row = next((r for r in case_rows if str(r.get("victim_name") or r.get("victim") or "").strip().title() == vic_name), None)
+                            if not vic_row and vic_name == "Unknown Victim":
+                                vic_row = next((r for r in case_rows if r.get("victim_age") or r.get("gender") or r.get("victim_gender")), first_row)
+                                
+                            v_gender = str(vic_row.get("gender") or vic_row.get("victim_gender") or "Male").strip().title() if vic_row else "Male"
+                            v_age = float(vic_row["victim_age"]) if vic_row and vic_row.get("victim_age") is not None else None
+                            v_occ = str(vic_row.get("occupation") or vic_row.get("victim_occupation", "")).strip() if vic_row else None
+                            if v_occ == "":
+                                v_occ = None
+                                
+                            legacy_vic = Victim(
                                 crime_event_id=crime.id,
-                                criminal_id=criminal.id,
-                                role="principal accused",
+                                gender=v_gender,
+                                age=v_age,
+                                occupation=v_occ,
+                                location_id=loc_id,
                                 dataset_id=dataset_id
                             )
-                            participations_to_add.append(participation)
+                            db.add(legacy_vic)
                             
-                        db.add_all(victims_to_add + participations_to_add)
-                        db.flush()
+                        successful_imports += len(case_rows)
                         
+                    db.flush()
                     rows_imported += successful_imports
                     
                 progress = 50 + int((rows_imported / total_rows) * 50)
@@ -1008,15 +1156,32 @@ class DatasetService:
             db.commit()
             
             if schema_type == "fir_normalized":
+                cases_inserted_total = sum(r.get("cases_inserted", 0) for r in summary_reports)
+                victims_inserted_total = sum(r.get("victims_inserted", 0) for r in summary_reports)
+                accused_inserted_total = sum(r.get("accused_inserted", 0) for r in summary_reports)
+                complainants_inserted_total = sum(r.get("complainants_inserted", 0) for r in summary_reports)
+                arrests_inserted_total = sum(r.get("arrests_inserted", 0) for r in summary_reports)
+                chargesheets_inserted_total = sum(r.get("chargesheets_inserted", 0) for r in summary_reports)
+                all_warnings = [w for r in summary_reports for w in r.get("warnings", [])]
+                # NOTE: The FIR CSV format is denormalized — multiple CSV rows share the same crime_no
+                # (one row per accused person). The importer groups by crime_no so:
+                #   total_rows (CSV rows) != cases_inserted (unique crimes)
+                # Both metrics are stored transparently so the UI can show the full picture.
                 summary = {
-                    "total_rows": total_rows,
-                    "cases_inserted": sum(r.get("cases_inserted", 0) for r in summary_reports),
-                    "victims_inserted": sum(r.get("victims_inserted", 0) for r in summary_reports),
-                    "accused_inserted": sum(r.get("accused_inserted", 0) for r in summary_reports),
-                    "complainants_inserted": sum(r.get("complainants_inserted", 0) for r in summary_reports),
-                    "arrests_inserted": sum(r.get("arrests_inserted", 0) for r in summary_reports),
-                    "chargesheets_inserted": sum(r.get("chargesheets_inserted", 0) for r in summary_reports),
-                    "warnings": [w for r in summary_reports for w in r.get("warnings", [])]
+                    "total_rows": total_rows,           # Raw CSV data rows received
+                    "cases_inserted": cases_inserted_total,   # Unique FIR cases stored
+                    "victims_inserted": victims_inserted_total,
+                    "accused_inserted": accused_inserted_total,
+                    "complainants_inserted": complainants_inserted_total,
+                    "arrests_inserted": arrests_inserted_total,
+                    "chargesheets_inserted": chargesheets_inserted_total,
+                    "warnings": all_warnings,
+                    "schema_note": (
+                        f"Denormalized CSV: {total_rows} rows received represent "
+                        f"{cases_inserted_total} unique crime cases "
+                        f"(avg {total_rows / cases_inserted_total:.1f} rows/case). "
+                        f"All {total_rows} rows were processed — no data was lost."
+                    ) if cases_inserted_total > 0 else ""
                 }
             else:
                 summary = {
@@ -1028,7 +1193,10 @@ class DatasetService:
                 }
                 
             db_dataset_progress.status = "Ready"
-            db_dataset_progress.row_count = rows_imported
+            # row_count stores the raw CSV input rows so the dataset manager
+            # shows how many CSV rows the user uploaded (not how many DB cases
+            # were created after denormalization grouping).
+            db_dataset_progress.row_count = (summary.get("cases_inserted") or total_rows) if schema_type == "fir_normalized" else total_rows
             db_dataset_progress.import_summary = json.dumps(summary)
             db_progress.commit()
             
@@ -1061,9 +1229,10 @@ class DatasetService:
         from backend.models.location import Location
         from sqlalchemy import func
 
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         total_crimes = self.db.query(CrimeEvent).filter(CrimeEvent.dataset_id == dataset_id).count()
         criminals = self.db.query(Criminal).filter(Criminal.dataset_id == dataset_id).count()
@@ -1098,9 +1267,10 @@ class DatasetService:
         """
         Reads the first 20 rows and column metadata from the stored dataset file.
         """
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         # Resolve path
         path = dataset.storage_path
@@ -1142,9 +1312,10 @@ class DatasetService:
         """
         Computes row/column count, missing values, duplicates, and numeric/categorical columns.
         """
-        dataset = self.db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
         if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found.")
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
 
         # Resolve path
         path = dataset.storage_path

@@ -5,6 +5,7 @@ from datetime import date
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 from backend.schemas.geo import DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoIntelligenceResponse
 from backend.services.geo_service import GeoService
 
@@ -28,18 +29,21 @@ def get_geo_intelligence(
     crime_type: Optional[str] = Query(None, description="Filter by crime category/type"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    min_crime_count: Optional[int] = Query(None, ge=1, description="Minimum crime count per hotspot cluster (controls DBSCAN sensitivity)"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
         parsed_start = parse_date(start_date)
         parsed_end = parse_date(end_date)
-        service = GeoService(db)
+        service = GeoService(db, session_id=session_id)
         return service.get_geo_intelligence(
             district=district,
             crime_type=crime_type,
             start_date=parsed_start,
-            end_date=parsed_end
+            end_date=parsed_end,
+            min_crime_count=min_crime_count
         )
     except HTTPException as he:
         raise he
@@ -54,12 +58,13 @@ def get_districts(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
         parsed_start = parse_date(start_date)
         parsed_end = parse_date(end_date)
-        service = GeoService(db)
+        service = GeoService(db, session_id=session_id)
         return service.get_district_crime_distribution(
             district=district,
             crime_type=crime_type,
@@ -79,12 +84,13 @@ def get_stations(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
         parsed_start = parse_date(start_date)
         parsed_end = parse_date(end_date)
-        service = GeoService(db)
+        service = GeoService(db, session_id=session_id)
         return service.get_station_crime_distribution(
             district=district,
             crime_type=crime_type,
@@ -104,12 +110,13 @@ def get_heatmap(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
         parsed_start = parse_date(start_date)
         parsed_end = parse_date(end_date)
-        service = GeoService(db)
+        service = GeoService(db, session_id=session_id)
         return service.get_heatmap_points(
             district=district,
             crime_type=crime_type,
@@ -128,18 +135,21 @@ def get_hotspots(
     crime_type: Optional[str] = Query(None, description="Filter by crime category/type"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    min_crime_count: Optional[int] = Query(None, ge=1, description="Minimum crime count per hotspot cluster (controls DBSCAN min_samples sensitivity). Lower values detect more clusters in sparse/filtered data."),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
         parsed_start = parse_date(start_date)
         parsed_end = parse_date(end_date)
-        service = GeoService(db)
+        service = GeoService(db, session_id=session_id)
         return service.get_hotspot_clusters(
             district=district,
             crime_type=crime_type,
             start_date=parsed_start,
-            end_date=parsed_end
+            end_date=parsed_end,
+            min_crime_count=min_crime_count
         )
     except HTTPException as he:
         raise he
@@ -150,10 +160,11 @@ def get_hotspots(
 @router.get("/lookup-options")
 def get_lookup_options(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     try:
-        service = GeoService(db)
+        service = GeoService(db, session_id=session_id)
         return service.get_lookup_options()
     except Exception as e:
         logger.error(f"Error fetching geo lookup options: {str(e)}", exc_info=True)

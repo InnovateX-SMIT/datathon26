@@ -2,7 +2,10 @@ import sqlite3
 import os
 from datetime import datetime
 
-db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "crime_intel.db")
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+db_path = os.path.join(root_dir, "backend", "crime_intel.db")
+if not os.path.exists(db_path):
+    db_path = os.path.join(root_dir, "crime_intel.db")
 print(f"Connecting to database at {db_path}...")
 
 conn = sqlite3.connect(db_path)

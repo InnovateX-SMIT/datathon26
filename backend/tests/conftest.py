@@ -1,8 +1,11 @@
 import os
+import tempfile
 import pytest
 
-# Set ENVIRONMENT to test to prevent background network cache warmups and database locking during test runs
+# Ensure tests run against an isolated test database
 os.environ["ENVIRONMENT"] = "test"
+test_db_dir = os.path.dirname(os.path.abspath(__file__))
+os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(test_db_dir, 'test_crime_intel.db')}"
 
 @pytest.fixture(autouse=True)
 def clear_rate_limiter():

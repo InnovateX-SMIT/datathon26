@@ -1,35 +1,37 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Any
+from typing import Any, Optional
 from backend.models.crime import CrimeEvent
 from backend.models.location import Location
 from backend.models.police_station import PoliceStation
 import datetime
 
 class GeoService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
 
     def _get_active_id(self) -> int:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_id()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_id()
 
     def _get_active_ids(self) -> list[int]:
         from backend.core.dataset_resolver import DatasetResolver
-        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids()
         # Data compatibility validation
         from backend.models.dataset import Dataset
+        acceptable_statuses = ["Ready", "Completed", "Active", "Processed"]
         for aid in active_ids:
             if aid is None:
                 continue
             ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
-            if not ds or ds.status != "Ready":
+            if ds and ds.status in ["Uploading", "Processing", "Failed", "Archived"]:
                 raise ValueError("One or more active datasets are not ready or are incompatible.")
         return active_ids
 
     def _get_schema_type(self) -> str:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_schema_type()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
 
     def _get_cache_key(self, active_ids: list[int]) -> tuple:
         from backend.models.dataset import Dataset
@@ -38,7 +40,7 @@ class GeoService:
             Dataset.id.in_(active_ids)
         ).scalar()
         max_updated_str = max_updated.isoformat() if max_updated else "none"
-        return (tuple(sorted(active_ids)), max_updated_str)
+        return (self.session_id, tuple(sorted(active_ids)), max_updated_str)
 
     def _check_cache(self, method_name: str, active_ids: list[int], *args, **kwargs) -> tuple[bool, Any, tuple]:
         from backend.core.analytics_cache import AnalyticsCache
@@ -314,11 +316,18 @@ class GeoService:
         crime_type: str = None,
         start_date: datetime.date = None,
         end_date: datetime.date = None,
-        dataset_id: int = None
+        dataset_id: int = None,
+        min_crime_count: int = None
     ) -> list[dict]:
         active_ids = [dataset_id] if dataset_id else self._get_active_ids()
 
-        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        # Determine effective min_samples for DBSCAN:
+        # - User-supplied min_crime_count takes priority (allows fine-grained control when filtering).
+        # - Default is 3 (lower than the previous hardcoded 5) so district/crime/date filters
+        #   that reduce the point set still find real spatial clusters.
+        effective_min_samples = max(1, int(min_crime_count)) if min_crime_count is not None else 3
+
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, effective_min_samples)
         is_cached, val, full_key = self._check_cache("get_hotspot_clusters", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -379,7 +388,7 @@ class GeoService:
             results = query.group_by(Location.latitude, Location.longitude).all()
             coords = [(r[0], r[1], r[2]) for r in results if r[0] is not None and r[1] is not None]
         
-        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=5)
+        result = find_hotspots_dbscan(coords, eps=0.1, min_samples=effective_min_samples)
         self._set_cache("get_hotspot_clusters", full_key, result)
         return result
 
@@ -532,11 +541,12 @@ class GeoService:
         district: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None
+        end_date: datetime.date = None,
+        min_crime_count: int = None
     ) -> dict:
         active_ids = self._get_active_ids()
         
-        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
+        args_tuple = (district, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, min_crime_count)
         is_cached, val, full_key = self._check_cache("get_geo_intelligence", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -552,7 +562,7 @@ class GeoService:
             "districts": self.get_district_crime_distribution(**common_filters),
             "stations": self.get_station_crime_distribution(**common_filters),
             "heatmap": self.get_heatmap_points(**common_filters),
-            "hotspots": self.get_hotspot_clusters(**common_filters),
+            "hotspots": self.get_hotspot_clusters(**common_filters, min_crime_count=min_crime_count),
             "markers": self.get_geo_markers(**common_filters),
         }
         self._set_cache("get_geo_intelligence", full_key, result)

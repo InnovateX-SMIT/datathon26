@@ -32,7 +32,7 @@ class Court(BaseLookupMixin, Base):
     __pk_name__ = "CourtID"
     __name_col__ = "CourtName"
 
-    DistrictID = Column(Integer, ForeignKey("district.DistrictID"), nullable=False)
+    DistrictID = Column(Integer, ForeignKey("district.DistrictID"), nullable=True)
     StateID = Column(Integer, ForeignKey("state.StateID"), nullable=False)
 
     # Relationships

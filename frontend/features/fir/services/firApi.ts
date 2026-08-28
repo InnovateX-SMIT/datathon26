@@ -35,6 +35,7 @@ const FIR_PREFIX = "/api/v1/fir";
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
+    headers: getAuthHeaders(true),
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));

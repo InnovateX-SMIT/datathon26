@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 from backend.core.database import get_db
 from backend.core.logging import logger
 from backend.api.auth.router import get_current_user
+from backend.api.deps import get_session_id
 from backend.schemas.recommendation import (
     AllocationPayload,
     AllocationResponse,
@@ -20,13 +21,14 @@ router = APIRouter()
 def run_allocation_solver(
     payload: AllocationPayload,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Solves resource allocation optimization for a district and logs the run in history.
     """
     try:
-        service = RecommendationService(db)
+        service = RecommendationService(db, session_id=session_id)
         allocations = service.run_resource_optimization(
             district=payload.district,
             sanctioned_asi=payload.sanctioned_asi,
@@ -55,13 +57,14 @@ def run_allocation_solver(
 @router.get("/resource-allocation", response_model=List[ResourceAllocationResponse])
 def get_resource_allocations_history(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Retrieves the logs of previous resource allocation runs.
     """
     try:
-        service = RecommendationService(db)
+        service = RecommendationService(db, session_id=session_id)
         return service.fetch_allocations_logs()
     except Exception as e:
         logger.error(f"Error in get_resource_allocations_history: {str(e)}", exc_info=True)
@@ -76,13 +79,14 @@ def get_recommendations(
     status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (pending, resolved, dismissed)"),
     priority_filter: Optional[str] = Query(None, alias="priority", description="Filter by priority (high, medium, low)"),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Lists prioritized decision support actions / recommendations.
     """
     try:
-        service = RecommendationService(db)
+        service = RecommendationService(db, session_id=session_id)
         return service.get_recommendations(status=status_filter, priority=priority_filter)
     except Exception as e:
         logger.error(f"Error in get_recommendations: {str(e)}", exc_info=True)
@@ -94,13 +98,14 @@ def get_recommendations(
 @router.post("/generate", response_model=List[RecommendationResponse])
 def generate_recommendations(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Triggers refresh of dynamic recommendations from latest intelligence data.
     """
     try:
-        service = RecommendationService(db)
+        service = RecommendationService(db, session_id=session_id)
         recs = service.generate_dynamic_recommendations()
         
         from backend.repositories.admin_repository import AdminRepository
@@ -124,13 +129,14 @@ def update_recommendation_status(
     id: int,
     payload: RecommendationStatusUpdate,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Updates status of a recommendation (Acknowledge/Resolve/Dismiss).
     """
     try:
-        service = RecommendationService(db)
+        service = RecommendationService(db, session_id=session_id)
         rec = service.update_recommendation_status(recommendation_id=id, status=payload.status)
         if not rec:
             raise HTTPException(
@@ -163,13 +169,14 @@ from backend.schemas.recommendation import RecommendationHistoryResponse
 @router.get("/history", response_model=List[RecommendationHistoryResponse])
 def get_recommendation_history_endpoint(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """
     Retrieves the pipeline synchronization history.
     """
     try:
-        service = RecommendationService(db)
+        service = RecommendationService(db, session_id=session_id)
         return service.get_recommendation_history()
     except Exception as e:
         logger.error(f"Error in get_recommendation_history_endpoint: {str(e)}", exc_info=True)
@@ -181,6 +188,7 @@ def get_recommendation_history_endpoint(
 @router.post("/sync", status_code=status.HTTP_200_OK)
 def trigger_synchronization(
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ) -> Any:
     """

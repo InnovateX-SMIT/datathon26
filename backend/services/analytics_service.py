@@ -8,29 +8,29 @@ from backend.models.criminal import Criminal
 from backend.models.location import Location
 
 class AnalyticsService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
 
     def _get_active_id(self) -> int:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_id()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_id()
 
     def _get_active_ids(self) -> list[int]:
         from backend.core.dataset_resolver import DatasetResolver
-        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
-        # Data compatibility validation
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids()
         from backend.models.dataset import Dataset
         for aid in active_ids:
             if aid is None:
                 continue
             ds = self.db.query(Dataset).filter(Dataset.id == aid).first()
-            if not ds or ds.status != "Ready":
+            if ds and ds.status in ["Uploading", "Processing", "Failed", "Archived"]:
                 raise ValueError("One or more active datasets are not ready or are incompatible.")
         return active_ids
 
     def _get_schema_type(self) -> str:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_schema_type()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
 
     def _get_cache_key(self, active_ids: list[int]) -> tuple:
         from backend.models.dataset import Dataset
@@ -39,7 +39,7 @@ class AnalyticsService:
             Dataset.id.in_(active_ids)
         ).scalar()
         max_updated_str = max_updated.isoformat() if max_updated else "none"
-        return (tuple(sorted(active_ids)), max_updated_str)
+        return (self.session_id, tuple(sorted(active_ids)), max_updated_str)
 
     def _check_cache(self, method_name: str, active_ids: list[int], *args, **kwargs) -> tuple[bool, Any, tuple]:
         from backend.core.analytics_cache import AnalyticsCache

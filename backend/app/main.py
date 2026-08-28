@@ -7,6 +7,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_root = os.path.dirname(current_dir)
 parent_dir = os.path.dirname(backend_root)
 
+if backend_root not in sys.path:
+    sys.path.insert(0, backend_root)
+
 vendor_dir = os.path.join(backend_root, "vendor")
 if sys.platform.startswith("linux") and os.path.exists(vendor_dir) and vendor_dir not in sys.path:
     sys.path.insert(0, vendor_dir)
@@ -24,7 +27,7 @@ import time
 import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, status
-from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.core.config import settings
 from backend.core.logging import logger
@@ -70,6 +73,10 @@ def migrate_database_schema(db_engine):
                 if "schema_type" not in ds_cols:
                     logger.info("Adding schema_type column to datasets table...")
                     conn.execute(text("ALTER TABLE datasets ADD COLUMN schema_type VARCHAR(50) DEFAULT 'legacy_crime_intel'"))
+                if "session_id" not in ds_cols:
+                    logger.info("Adding session_id column to datasets table...")
+                    conn.execute(text("ALTER TABLE datasets ADD COLUMN session_id VARCHAR(100) NULL"))
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_datasets_session_id ON datasets (session_id)"))
 
             # 1c. Scoping case_master table migrations
             result = conn.execute(text("PRAGMA table_info(case_master)"))
@@ -88,6 +95,25 @@ def migrate_database_schema(db_engine):
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_case_master_CrimeMajorHeadID ON case_master (CrimeMajorHeadID)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_case_master_CrimeMinorHeadID ON case_master (CrimeMinorHeadID)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_case_master_PolicePersonID ON case_master (PolicePersonID)"))
+
+            # Scoping inv_occurance_time table migrations
+            result = conn.execute(text("PRAGMA table_info(inv_occurance_time)"))
+            occ_cols = {row[1] for row in result.fetchall()}
+            if occ_cols:
+                if "OccurrenceBriefFacts" not in occ_cols:
+                    logger.info("Adding OccurrenceBriefFacts column to inv_occurance_time table...")
+                    conn.execute(text("ALTER TABLE inv_occurance_time ADD COLUMN OccurrenceBriefFacts TEXT NULL"))
+                    if "BriefFacts" in occ_cols:
+                        logger.info("Migrating legacy BriefFacts values to OccurrenceBriefFacts...")
+                        conn.execute(text("UPDATE inv_occurance_time SET OccurrenceBriefFacts = BriefFacts WHERE OccurrenceBriefFacts IS NULL"))
+
+            # Create additional child table indexes if tables exist
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_inv_occurance_time_dates ON inv_occurance_time (IncidentFromDate)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accused_case ON accused (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_victim_case ON victim (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_arrest_case ON arrest_surrender (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chargesheet_case ON chargesheet_details (CaseMasterID)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_employee_kgid ON employee (KGID)"))
 
 
             # 1d. Scoping dataset_configs table migrations
@@ -332,7 +358,6 @@ async def input_sanitization_middleware(request: Request, call_next):
     return await call_next(request)
 
 # CORS middleware - Registered last so it wraps as the outermost middleware for all responses and preflights
-# Explicit origins and dynamic regex support for all HTTP/HTTPS origins
 # allowed_origins = [
 #     "https://crimenexus.onslate.in",
 #     "https://crimenexus-backend-50045204017.development.catalystappsail.in",

@@ -4,11 +4,12 @@ import type {
   CategoryResponse,
   ComparisonResponse,
 } from "../types/analytics";
-import { API_BASE } from "@/services/api";
+import { API_BASE, getAuthHeaders } from "@/services/api";
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
+    headers: getAuthHeaders(true),
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));

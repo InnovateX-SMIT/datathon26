@@ -43,11 +43,9 @@ file.txt
 .DS_Store
 Thumbs.db
 
-# Database data folders and local SQLite/runtime files
+# Database data folders and temporary SQLite runtime files
 pgdata/
-crime_intel.db
 crime_intel.sqlite3
-backend/crime_intel.db
 *.sqlite
 *.sqlite3
 *.db-journal
@@ -57,6 +55,8 @@ backend/crime_intel.db
 *.bak
 
 *.test.db
+backend/tests/*.db
+test_crime_intel.db
 # models
 *.pkl
 
@@ -75,4 +75,10 @@ backend/tests/scratch*
 
 # Catalyst Vendor directory
 vendor/
-backend/vendor/
+backend/vendor/
+
+# Allow committing env files and local SQLite database
+!frontend/.env.local
+!backend/.env
+!backend/crime_intel.db
+

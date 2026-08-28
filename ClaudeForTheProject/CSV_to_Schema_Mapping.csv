@@ -1,0 +1,63 @@
+csv_column,target_table_column,transformation,classification,confidence,notes
+case_category,CaseMaster.CaseCategoryID,lookup FK (via CaseCategory),DIRECT,High,3 of 4 official values seen (FIR/UDR/PAR); Zero FIR absent from sample
+gravity_offence,CaseMaster.GravityOffenceID,lookup FK (via GravityOffence),DIRECT,High,
+case_status,CaseMaster.CaseStatusID,lookup FK (via CaseStatusMaster),DIRECT,High,4 distinct statuses seen
+state,District.StateID / Unit.StateID / Court.StateID / ArrestSurrender.ArrestSurrenderStateId,"lookup FK, constant 'Karnataka'",DIRECT,High,"single value across all 10,001 rows"
+district,District.DistrictName,master row + FK,DIRECT,High,"31 distinct districts, stable"
+court,Court.CourtName,master row + FK,DIRECT,High,32 distinct; High Court is state-level (see note)
+unit_type,UnitType.UnitTypeName,master row + FK,DIRECT,High,only 'Police Station' present in this sample
+unit,Unit.UnitName,master row + FK,DIRECT,High,"71 distinct, always mapped to exactly 1 district"
+officer_kgid,Employee.KGID,master row (dedup) + FK,DIRECT,High,natural key; 284 distinct officers
+officer_name,Employee.FirstName,DIRECT,DIRECT,Medium,PDF defines only 1 name field; full name stored as-is
+officer_rank,Rank.RankName,master row + FK,DIRECT,High,
+officer_designation,Designation.DesignationName,master row + FK,DIRECT,High,
+officer_dob,Employee.EmployeeDOB,DIRECT,DIRECT,High,
+officer_gender,Employee.GenderID,lookup FK (via NEW GenderMaster),TRANSFORMED,Medium,GenderMaster not formally defined in PDF - flagged
+officer_blood_group,Employee.BloodGroupID,lookup FK (via NEW BloodGroupMaster),TRANSFORMED,Medium,BloodGroupMaster not formally defined in PDF - flagged
+officer_physically_challenged,Employee.PhysicallyChallenged,DIRECT,DIRECT,High,
+officer_appointment_date,Employee.AppointmentDate,DIRECT,DIRECT,High,
+crime_no,CaseMaster.CrimeNo,DIRECT,DIRECT,High,18-digit structure verified; category-code digit does not match PDF's example table (see report)
+case_no,CaseMaster.CaseNo,DIRECT,DIRECT,High,verified = last 9 digits of crime_no in 100% of rows
+registered_date,CaseMaster.CrimeRegisteredDate,DIRECT,DIRECT,High,
+brief_facts,CaseMaster.BriefFacts,DIRECT,DIRECT,High,case-level summary
+incident_from_date,Inv_OccuranceTime.IncidentFromDate,DIRECT (to NEW child table),SPLIT INTO MULTIPLE TABLES,High,moved out of CaseMaster; see schema changelog
+incident_to_date,Inv_OccuranceTime.IncidentToDate,DIRECT (to NEW child table),SPLIT INTO MULTIPLE TABLES,High,
+info_received_date,Inv_OccuranceTime.InfoReceivedPSDate,DIRECT (to NEW child table),SPLIT INTO MULTIPLE TABLES,High,
+latitude,Inv_OccuranceTime.latitude,DIRECT (to NEW child table),SPLIT INTO MULTIPLE TABLES,High,
+longitude,Inv_OccuranceTime.longitude,DIRECT (to NEW child table),SPLIT INTO MULTIPLE TABLES,High,
+occurrence_brief_facts,Inv_OccuranceTime.OccurrenceBriefFacts,DIRECT (to NEW child table),SPLIT INTO MULTIPLE TABLES,High,distinct free text from brief_facts - justifies the split
+crime_group_name,CrimeHead.CrimeGroupName / CaseMaster.CrimeMajorHeadID,master row + FK,DIRECT,High,5 distinct major heads
+crime_head_name,CrimeSubHead.CrimeHeadName / CaseMaster.CrimeMinorHeadID,master row + FK,DIRECT,High,"8 distinct sub-heads, each maps to exactly 1 major head"
+act_code,Act.ActCode / ActSectionAssociation.ActID,master row + FK,DIRECT,High,4 distinct acts
+act_description,Act.ActDescription,DIRECT,DIRECT,High,
+short_name,Act.ShortName,DIRECT,DIRECT,High,
+section_code,Section.SectionCode / ActSectionAssociation.SectionID,master row + FK,DIRECT,High,8 distinct sections
+section_description,Section.SectionDescription,DIRECT,DIRECT,High,
+act_order,ActSectionAssociation.ActOrderID,DIRECT,DIRECT,High,constant = 1 in this sample
+section_order,ActSectionAssociation.SectionOrderID,DIRECT,DIRECT,High,constant = 1 in this sample
+complainant_name,ComplainantDetails.ComplainantName,DIRECT,DIRECT,High,exactly 1 non-null complainant row per case
+complainant_age,ComplainantDetails.AgeYear,DIRECT,DIRECT,High,
+complainant_occupation,ComplainantDetails.OccupationID,would be lookup FK,NOT REPRESENTABLE,N/A,column is 100% NULL in source CSV - no values to map
+complainant_religion,ComplainantDetails.ReligionID,would be lookup FK,NOT REPRESENTABLE,N/A,column is 100% NULL in source CSV - no values to map
+complainant_caste,ComplainantDetails.CasteID,would be lookup FK,NOT REPRESENTABLE,N/A,column is 100% NULL in source CSV - no values to map
+complainant_gender,ComplainantDetails.GenderID,lookup FK (via NEW GenderMaster),TRANSFORMED,Medium,
+victim_name,Victim.VictimName,"DIRECT, deduped per case",DIRECT,High,NOT 1:1 with CSV rows - see grain note
+victim_age,Victim.AgeYear,DIRECT,DIRECT,High,
+victim_gender,Victim.GenderID,lookup FK (via NEW GenderMaster),TRANSFORMED,Medium,
+victim_police,Victim.VictimPolice,DIRECT (0/1),DIRECT,High,
+accused_name,Accused.AccusedName,"DIRECT, deduped per case+PersonID",DIRECT,High,NOT 1:1 with CSV rows - see grain note
+accused_age,Accused.AgeYear,DIRECT,DIRECT,High,
+accused_gender,Accused.GenderID,lookup FK (via NEW GenderMaster),TRANSFORMED,Medium,
+accused_person_id,Accused.PersonID,"DIRECT (business key, not global PK)",DIRECT,High,only unique WITHIN a case (A1..A4 repeats across cases)
+arrest_type,ArrestSurrender.ArrestSurrenderTypeID,lookup FK (via NEW ArrestSurrenderTypeMaster),TRANSFORMED,Low,label text (Arrest/Surrender) is an ASSUMPTION - CSV gives only codes 1/2
+arrest_date,ArrestSurrender.ArrestSurrenderDate,DIRECT,DIRECT,High,
+arrest_state,ArrestSurrender.ArrestSurrenderStateId,lookup FK,DIRECT,High,constant 'Karnataka'
+arrest_district,ArrestSurrender.ArrestSurrenderDistrictId,lookup FK,DIRECT,High,
+arrest_station,ArrestSurrender.PoliceStationID,lookup FK (via Unit),DIRECT,High,
+arrest_io_kgid,ArrestSurrender.IOID,lookup FK (via Employee),DIRECT,High,
+arrest_court,ArrestSurrender.CourtID,lookup FK (via Court),DIRECT,High,
+arrest_primary_accused_name,ArrestSurrender.AccusedMasterID,name-matched FK to Accused,TRANSFORMED,High,matched 2271/2271 (100%) against that case's accused roster
+arrest_joint_accused_names,inv_arrestsurrenderaccused rows,parsed comma-list -> junction rows,SPLIT INTO MULTIPLE TABLES,High,matched 618/618 (100%) parsed names against that case's accused roster
+chargesheet_date,ChargesheetDetails.csdate,DIRECT,DIRECT,High,
+chargesheet_type,ChargesheetDetails.cstype,DIRECT (A/B/C),DIRECT,High,
+chargesheet_officer_kgid,ChargesheetDetails.PolicePersonID,lookup FK (via Employee),DIRECT,High,

@@ -49,7 +49,15 @@ class Inv_OccuranceTime(TimestampMixin, Base):
     InfoReceivedPSDate = Column(DateTime, nullable=False)
     latitude = Column(Numeric(10, 8), nullable=True)
     longitude = Column(Numeric(11, 8), nullable=True)
-    BriefFacts = Column(Text, nullable=True)
+    OccurrenceBriefFacts = Column("OccurrenceBriefFacts", Text, nullable=True)
+
+    @property
+    def BriefFacts(self):
+        return self.OccurrenceBriefFacts
+
+    @BriefFacts.setter
+    def BriefFacts(self, value):
+        self.OccurrenceBriefFacts = value
 
     # Relationships
     case_master = relationship("CaseMaster", back_populates="occurrence_time")

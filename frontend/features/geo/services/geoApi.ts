@@ -1,9 +1,10 @@
 import type { DistrictCrime, StationCrime, HeatmapPoint, HotspotCluster, GeoFiltersState, GeoIntelligenceResponse } from "../types/geo";
-import { API_BASE } from "@/services/api";
+import { API_BASE, getAuthHeaders } from "@/services/api";
 
 async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
+    headers: getAuthHeaders(true),
     signal,
   });
   if (!res.ok) {
@@ -19,6 +20,7 @@ function buildQueryString(filters: GeoFiltersState): string {
   if (filters.crime_type) params.append("crime_type", filters.crime_type);
   if (filters.start_date) params.append("start_date", filters.start_date);
   if (filters.end_date) params.append("end_date", filters.end_date);
+  if (filters.min_crime_count !== undefined) params.append("min_crime_count", String(filters.min_crime_count));
   
   const query = params.toString();
   return query ? `?${query}` : "";

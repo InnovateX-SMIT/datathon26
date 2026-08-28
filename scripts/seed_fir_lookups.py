@@ -21,6 +21,7 @@ from backend.models import (
     ReligionMaster, OccupationMaster, CaseCategory, GravityOffence,
     CaseStatusMaster, State, District, Court, UnitType, Unit, Rank,
     Designation, Employee, Act, Section, CrimeHead, CrimeSubHead,
+    ArrestSurrenderTypeMaster
 )
 
 
@@ -58,8 +59,16 @@ def seed_fir_lookups(db):
     db.flush()
     print(f"  Blood Groups: {len(blood_groups)}")
 
+    # ── Arrest / Surrender Type ────────────────────────────────────────────────
+    arrest_types = {1: "Arrest", 2: "Surrender"}
+    for tid, tname in arrest_types.items():
+        obj = db.query(ArrestSurrenderTypeMaster).filter(ArrestSurrenderTypeMaster.id == tid).first()
+        if not obj:
+            db.add(ArrestSurrenderTypeMaster(id=tid, name=tname))
+    db.flush()
+    print(f"  Arrest/Surrender Types: {len(arrest_types)}")
+
     # ── Caste ──────────────────────────────────────────────────────────────────
-    castes = ["General", "OBC", "SC", "ST", "EWS"]
     for c in castes:
         if not db.query(CasteMaster).filter(CasteMaster.name == c).first():
             db.add(CasteMaster(name=c))

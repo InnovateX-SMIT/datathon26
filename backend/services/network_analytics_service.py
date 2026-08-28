@@ -4,28 +4,30 @@ from typing import Dict, Any, List, Optional
 from backend.repositories.network_repository import NetworkRepository
 
 class NetworkAnalyticsService:
-    # Class-level caches to avoid rebuilding/recalculating on every API request
+    # Class-level caches keyed by (session_id, dataset_id) to avoid cross-user state leaks
     _cached_graph: Optional[nx.Graph] = None
-    _cached_dataset_id: Optional[int] = None
+    _cached_key: Optional[tuple] = None
     _cached_centrality: Optional[Dict[str, List[Dict[str, Any]]]] = None
     _cached_clusters: Optional[List[Dict[str, Any]]] = None
     _cached_associations: Optional[List[Dict[str, Any]]] = None
     _cached_location_intel: Optional[Dict[str, Any]] = None
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
         self.repo = NetworkRepository(db)
 
     def _get_active_id(self) -> int:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_id()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_id()
 
     def get_graph(self, force_rebuild: bool = False) -> nx.Graph:
         """
-        Retrieves the cached network graph. If the cache is empty, the active dataset has changed,
+        Retrieves the cached network graph for the requesting session. If the cache is empty, the session's active dataset has changed,
         or in-memory testing database is active, rebuilds the graph dynamically.
         """
         active_id = self._get_active_id()
+        current_key = (self.session_id, active_id)
         # Test database checks
         is_test = False
         try:
@@ -36,10 +38,10 @@ class NetworkAnalyticsService:
             pass
 
         if (NetworkAnalyticsService._cached_graph is None or 
-            NetworkAnalyticsService._cached_dataset_id != active_id or 
+            NetworkAnalyticsService._cached_key != current_key or 
             force_rebuild or is_test):
             NetworkAnalyticsService._cached_graph = self.build_graph(active_id)
-            NetworkAnalyticsService._cached_dataset_id = active_id
+            NetworkAnalyticsService._cached_key = current_key
             # Invalidate all caches when graph is rebuilt
             NetworkAnalyticsService._cached_centrality = None
             NetworkAnalyticsService._cached_clusters = None

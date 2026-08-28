@@ -2,45 +2,64 @@ import os
 import sys
 import sqlite3
 
+def get_db_path():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(script_dir)
+    candidates = [
+        os.path.join(root_dir, "backend", "crime_intel.db"),
+        os.path.join(root_dir, "crime_intel.db"),
+        "backend/crime_intel.db",
+        "crime_intel.db"
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return os.path.abspath(p)
+    return None
+
 def main():
-    db_path = "crime_intel.db"
-    if not os.path.exists(db_path):
-        print(f"Database {db_path} not found.")
+    db_path = get_db_path()
+    if not db_path:
+        print("Database crime_intel.db not found in root or backend directories.")
         return
 
-    print("Cleaning database...")
+    print(f"Cleaning database at: {db_path}")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
-        # Delete predictions, recommendations, alerts, reports, models, audit logs, and histories
-        cursor.execute("DELETE FROM ml_models")
-        cursor.execute("DELETE FROM predictions")
-        cursor.execute("DELETE FROM alerts")
-        cursor.execute("DELETE FROM recommendations")
-        cursor.execute("DELETE FROM reports")
-        cursor.execute("DELETE FROM audit_logs")
-        cursor.execute("DELETE FROM recommendation_history")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        existing_tables = set(r[0] for r in cursor.fetchall())
 
-        # Completely truncate dataset-scoped tables so the next upload starts from a clean slate.
-        cursor.execute("DELETE FROM complainant_details")
-        cursor.execute("DELETE FROM act_section_association")
-        cursor.execute("DELETE FROM victim")
-        cursor.execute("DELETE FROM accused")
-        cursor.execute("DELETE FROM arrest_surrender")
-        cursor.execute("DELETE FROM chargesheet_details")
-        cursor.execute("DELETE FROM inv_occurance_time")
-        cursor.execute("DELETE FROM inv_arrestsurrenderaccused")
-        cursor.execute("DELETE FROM case_master")
-        cursor.execute("DELETE FROM crime_events")
-        cursor.execute("DELETE FROM criminals")
-        cursor.execute("DELETE FROM victims")
-        cursor.execute("DELETE FROM crime_participation")
-        cursor.execute("DELETE FROM datasets")
+        target_tables = [
+            "alerts",
+            "recommendations",
+            "reports",
+            "audit_logs",
+            "recommendation_history",
+            "resource_allocations",
+            "dataset_configs",
+            "complainant_details",
+            "act_section_association",
+            "victim",
+            "accused",
+            "arrest_surrender",
+            "chargesheet_details",
+            "inv_occurance_time",
+            "inv_arrestsurrenderaccused",
+            "case_master",
+            "crime_events",
+            "criminals",
+            "victims",
+            "crime_participation",
+            "datasets"
+        ]
+
+        for table in target_tables:
+            if table in existing_tables:
+                cursor.execute(f"DELETE FROM {table}")
 
         conn.commit()
         print("Database tables cleaned successfully.")
 
-        # Shrink database file size
         print("Optimizing database size via VACUUM...")
         cursor.execute("VACUUM")
         conn.commit()
@@ -53,26 +72,24 @@ def main():
     finally:
         conn.close()
 
-    # Clear uploaded folder caches
     print("Clearing disk caches...")
-    upload_paths = ["datasets/uploaded", "backend/datasets/uploaded"]
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(script_dir)
+
+    upload_paths = [
+        os.path.join(root_dir, "datasets", "uploaded"),
+        os.path.join(root_dir, "backend", "datasets", "uploaded"),
+        os.path.join(root_dir, "datasets", "models"),
+        os.path.join(root_dir, "backend", "datasets", "models")
+    ]
     for path in upload_paths:
         if os.path.exists(path):
             for f in os.listdir(path):
                 if f != ".gitkeep":
+                    file_p = os.path.join(path, f)
                     try:
-                        os.remove(os.path.join(path, f))
-                    except Exception as err:
-                        print(f"Error deleting file {f} from {path}: {err}")
-
-    # Clear trained model caches
-    model_paths = ["datasets/models", "backend/datasets/models"]
-    for path in model_paths:
-        if os.path.exists(path):
-            for f in os.listdir(path):
-                if f != ".gitkeep":
-                    try:
-                        os.remove(os.path.join(path, f))
+                        if os.path.isfile(file_p):
+                            os.remove(file_p)
                     except Exception as err:
                         print(f"Error deleting file {f} from {path}: {err}")
 
@@ -80,3 +97,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

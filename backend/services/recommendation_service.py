@@ -11,13 +11,14 @@ from backend.repositories.recommendation_repository import RecommendationReposit
 from backend.schemas.recommendation import RecommendationCreate, BeatAllocation
 
 class RecommendationService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
         self.repo = RecommendationRepository(db)
 
     def _get_active_id(self) -> int:
         from backend.core.dataset_resolver import DatasetResolver
-        return DatasetResolver(self.db).get_active_dataset_id()
+        return DatasetResolver(self.db, self.session_id).get_active_dataset_id()
 
     def run_resource_optimization(
         self,
@@ -32,7 +33,7 @@ class RecommendationService:
         """
         active_id = self._get_active_id()
         from backend.core.dataset_resolver import DatasetResolver
-        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
+        schema_type = DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
 
         if schema_type == "fir_normalized":
             from backend.models.fir_geography import District
@@ -247,7 +248,7 @@ class RecommendationService:
         Analyzes models, network metrics, and risk predictions to create prioritized recommendations.
         """
         from backend.core.dataset_resolver import DatasetResolver
-        active_ids = DatasetResolver(self.db).get_active_dataset_ids()
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids()
         if not active_ids:
             logger.warning("No active dataset is selected. Generating default fallbacks.")
             self.repo.clear_pending_recommendations()
@@ -277,7 +278,7 @@ class RecommendationService:
         recs_to_create = []
         seen_texts = set()
 
-        schema_type = DatasetResolver(self.db).get_active_dataset_schema_type()
+        schema_type = DatasetResolver(self.db, self.session_id).get_active_dataset_schema_type()
 
 
 
