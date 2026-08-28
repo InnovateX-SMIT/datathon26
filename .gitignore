@@ -75,4 +75,10 @@ backend/tests/scratch*
 
 # Catalyst Vendor directory
 vendor/
-backend/vendor/
+backend/vendor/
+
+# Allow committing env files and local SQLite database
+!frontend/.env.local
+!backend/.env
+!backend/crime_intel.db
+

@@ -21,3 +21,6 @@ htmlcov/
 *.log
 
 vendor/
+
+!.env
+!.env.local

@@ -528,6 +528,138 @@ class FIRImportService:
                         
         return errors
 
+    def normalize_police_station_name(self, name: str) -> str:
+        name = str(name).strip()
+        name = re.sub(r'\s+', ' ', name)
+        if name.lower().endswith(" ps"):
+            base_name = name[:-3].strip()
+            return f"{base_name.title()} PS"
+        elif name.lower().endswith("ps"):
+            base_name = name[:-2].strip()
+            return f"{base_name.title()} PS"
+        else:
+            return name.title()
+
+    def normalize_person_name(self, name: str) -> str:
+        name = str(name).strip()
+        name = re.sub(r'\s+', ' ', name)
+        return name.title()
+
+    def parse_date_robust(self, date_val) -> Optional[date]:
+        if not date_val or str(date_val).strip().lower() in ["nan", "none", "null", ""]:
+            return None
+        if isinstance(date_val, (date, datetime)):
+            return date_val.date() if isinstance(date_val, datetime) else date_val
+        d_str = str(date_val).strip()
+        if "t" in d_str.lower():
+            d_str = re.split(r'[tT]', d_str)[0]
+        elif " " in d_str:
+            d_str = d_str.split(" ")[0]
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(d_str, fmt).date()
+            except ValueError:
+                pass
+        return None
+
+    def parse_time_robust(self, time_val) -> Optional[datetime.time]:
+        from datetime import time as dt_time
+        if not time_val or str(time_val).strip().lower() in ["nan", "none", "null", ""]:
+            return None
+        if isinstance(time_val, datetime):
+            return time_val.time()
+        if isinstance(time_val, dt_time):
+            return time_val
+        t_str = str(time_val).strip()
+        if "t" in t_str.lower():
+            t_str = re.split(r'[tT]', t_str)[1]
+        elif " " in t_str:
+            parts = t_str.split(" ")
+            if len(parts) > 1 and ":" in parts[1]:
+                t_str = parts[1]
+        t_str = t_str[:8]
+        for fmt in ("%H:%M:%S", "%H:%M"):
+            try:
+                return datetime.strptime(t_str, fmt).time()
+            except ValueError:
+                pass
+        return None
+
+    def get_legacy_location_id(self, district_name: str, state_name: str, latitude: Optional[float], longitude: Optional[float]) -> int:
+        district_name = str(district_name).strip().title()
+        state_name = str(state_name).strip().title()
+        from backend.models.location import Location
+        loc = self.db.query(Location).filter(Location.district == district_name).first()
+        if not loc:
+            loc = Location(
+                state=state_name,
+                district=district_name,
+                latitude=latitude,
+                longitude=longitude
+            )
+            self.db.add(loc)
+            self.db.flush()
+        return loc.id
+
+    def get_legacy_police_station_id(self, station_name: str, district_name: str, state_name: str, latitude: Optional[float], longitude: Optional[float]) -> int:
+        station_name = self.normalize_police_station_name(station_name)
+        district_name = str(district_name).strip().title()
+        from backend.models.police_station import PoliceStation
+        ps = self.db.query(PoliceStation).filter(PoliceStation.station_name == station_name).first()
+        if not ps:
+            loc_id = self.get_legacy_location_id(district_name, state_name, latitude, longitude)
+            ps = PoliceStation(
+                station_name=station_name,
+                district=district_name,
+                location_id=loc_id,
+                beat="Beat A",
+                officer_count=10,
+                vehicle_count=2,
+                equipment_count=5,
+                capacity=20,
+                availability="active"
+            )
+            self.db.add(ps)
+            self.db.flush()
+        return ps.id
+
+    def get_legacy_criminal(self, name: str, gender: Optional[str], age: Optional[float], dataset_id: int, cache: dict) -> int:
+        name_clean = self.normalize_person_name(name)
+        gender_clean = str(gender).strip().title() if gender else None
+        
+        is_unknown = (name_clean.lower() == "unknown accused")
+        
+        # Deduplication key
+        key = (name_clean.lower(), gender_clean, age)
+        if key in cache and not is_unknown:
+            return cache[key]
+            
+        from backend.models.criminal import Criminal
+        c = None
+        if not is_unknown:
+            c = self.db.query(Criminal).filter(
+                Criminal.name == name_clean,
+                Criminal.dataset_id == dataset_id
+            ).first()
+        
+        if not c:
+            c = Criminal(
+                name=name_clean,
+                gender=gender_clean,
+                age=age,
+                occupation=None,
+                caste=None,
+                risk_score=0.15,
+                status="accused",
+                dataset_id=dataset_id
+            )
+            self.db.add(c)
+            self.db.flush()
+            
+        if not is_unknown:
+            cache[key] = c.id
+        return c.id
+
     def import_normalized_dataset(
         self,
         rows: list[dict],
@@ -557,6 +689,8 @@ class FIRImportService:
         arrest_count = 0
         chargesheet_count = 0
         warnings = []
+        
+        legacy_criminal_cache = {}
 
         # Bulk query existing crime numbers to avoid N+1 queries
         incoming_crime_nos = list(grouped_cases.keys())
@@ -614,14 +748,24 @@ class FIRImportService:
                 minor_head_id = self.get_crime_sub_head(minor_head, major_head)
 
                 # Parse dates
-                reg_date = date.fromisoformat(first_row["registered_date"][:10])
+                reg_date = self.parse_date_robust(first_row.get("registered_date")) or date.today()
                 
                 # 3. Create CaseMaster and Inv_OccuranceTime
                 case_no = first_row.get("case_no") or generate_case_no(crime_no)
                 
-                inc_from = datetime.fromisoformat(first_row["incident_from_date"]) if first_row.get("incident_from_date") else None
-                inc_to = datetime.fromisoformat(first_row["incident_to_date"]) if first_row.get("incident_to_date") else None
-                info_received = datetime.fromisoformat(first_row["info_received_date"]) if first_row.get("info_received_date") else None
+                inc_from = datetime.combine(self.parse_date_robust(first_row.get("incident_from_date")) or reg_date, self.parse_time_robust(first_row.get("incident_from_date")) or datetime.min.time())
+                inc_to = None
+                if first_row.get("incident_to_date"):
+                    to_d = self.parse_date_robust(first_row["incident_to_date"])
+                    to_t = self.parse_time_robust(first_row["incident_to_date"])
+                    if to_d:
+                        inc_to = datetime.combine(to_d, to_t or datetime.min.time())
+                info_received = None
+                if first_row.get("info_received_date"):
+                    ir_d = self.parse_date_robust(first_row["info_received_date"])
+                    ir_t = self.parse_time_robust(first_row["info_received_date"])
+                    if ir_d:
+                        info_received = datetime.combine(ir_d, ir_t or datetime.min.time())
                 
                 case = self.repo.create_case(
                     crime_no=crime_no,
@@ -658,60 +802,66 @@ class FIRImportService:
                 for r in case_rows:
                     # Complainants
                     comp_name = r.get("complainant_name")
-                    if comp_name and comp_name not in seen_complainants:
-                        seen_complainants.add(comp_name)
-                        comp_gender = self.get_gender(r.get("complainant_gender", "Male"))
-                        comp_occ = self.get_occupation(r.get("complainant_occupation"))
-                        comp_rel = self.get_religion(r.get("complainant_religion"))
-                        comp_caste = self.get_caste(r.get("complainant_caste"))
-                        
-                        self.repo.add_complainant_to_case(
-                            case_id=case.id,
-                            name=comp_name,
-                            age=int(float(r["complainant_age"])) if r.get("complainant_age") is not None else None,
-                            occupation_id=comp_occ,
-                            religion_id=comp_rel,
-                            caste_id=comp_caste,
-                            gender_id=comp_gender,
-                            performed_by_user_id=None,
-                            commit=False
-                        )
-                        complainant_count += 1
+                    if comp_name:
+                        comp_name = self.normalize_person_name(comp_name)
+                        if comp_name not in seen_complainants:
+                            seen_complainants.add(comp_name)
+                            comp_gender = self.get_gender(r.get("complainant_gender", "Male"))
+                            comp_occ = self.get_occupation(r.get("complainant_occupation"))
+                            comp_rel = self.get_religion(r.get("complainant_religion"))
+                            comp_caste = self.get_caste(r.get("complainant_caste"))
+                            
+                            self.repo.add_complainant_to_case(
+                                case_id=case.id,
+                                name=comp_name,
+                                age=int(float(r["complainant_age"])) if r.get("complainant_age") is not None else None,
+                                occupation_id=comp_occ,
+                                religion_id=comp_rel,
+                                caste_id=comp_caste,
+                                gender_id=comp_gender,
+                                performed_by_user_id=None,
+                                commit=False
+                            )
+                            complainant_count += 1
 
                     # Victims
                     vic_name = r.get("victim_name")
-                    if vic_name and vic_name not in seen_victims:
-                        seen_victims.add(vic_name)
-                        vic_gender = self.get_gender(r.get("victim_gender", "Male"))
-                        
-                        self.repo.add_victim_to_case(
-                            case_id=case.id,
-                            name=vic_name,
-                            age=int(float(r["victim_age"])) if r.get("victim_age") is not None else None,
-                            gender_id=vic_gender,
-                            victim_police=str(r.get("victim_police", "0")),
-                            performed_by_user_id=None,
-                            commit=False
-                        )
-                        victim_count += 1
+                    if vic_name:
+                        vic_name = self.normalize_person_name(vic_name)
+                        if vic_name not in seen_victims:
+                            seen_victims.add(vic_name)
+                            vic_gender = self.get_gender(r.get("victim_gender", "Male"))
+                            
+                            self.repo.add_victim_to_case(
+                                case_id=case.id,
+                                name=vic_name,
+                                age=int(float(r["victim_age"])) if r.get("victim_age") is not None else None,
+                                gender_id=vic_gender,
+                                victim_police=str(r.get("victim_police", "0")),
+                                performed_by_user_id=None,
+                                commit=False
+                            )
+                            victim_count += 1
 
                     # Accused
                     acc_name = r.get("accused_name")
-                    if acc_name and acc_name not in seen_accused:
-                        seen_accused.add(acc_name)
-                        acc_gender = self.get_gender(r.get("accused_gender", "Male"))
-                        
-                        acc = self.repo.add_accused_to_case(
-                            case_id=case.id,
-                            name=acc_name,
-                            age=int(float(r["accused_age"])) if r.get("accused_age") is not None else None,
-                            gender_id=acc_gender,
-                            person_id=r.get("accused_person_id"),
-                            performed_by_user_id=None,
-                            commit=False
-                        )
-                        accused_count += 1
-                        accused_id_map[acc_name] = acc.id
+                    if acc_name:
+                        acc_name = self.normalize_person_name(acc_name)
+                        if acc_name not in seen_accused:
+                            seen_accused.add(acc_name)
+                            acc_gender = self.get_gender(r.get("accused_gender", "Male"))
+                            
+                            acc = self.repo.add_accused_to_case(
+                                case_id=case.id,
+                                name=acc_name,
+                                age=int(float(r["accused_age"])) if r.get("accused_age") is not None else None,
+                                gender_id=acc_gender,
+                                person_id=r.get("accused_person_id"),
+                                performed_by_user_id=None,
+                                commit=False
+                            )
+                            accused_count += 1
+                            accused_id_map[acc_name] = acc.id
 
                     # Acts and Sections
                     act_code = r.get("act_code")
@@ -734,7 +884,7 @@ class FIRImportService:
                     # Arrest & Surrenders (only recorded on first row to prevent duplicate event inserts)
                     if r.get("arrest_date") and r.get("arrest_primary_accused_name"):
                         arrest_type_id = int(r["arrest_type"])
-                        arrest_dt = date.fromisoformat(r["arrest_date"][:10])
+                        arrest_dt = self.parse_date_robust(r["arrest_date"]) or reg_date
                         
                         arrest_state_id = self.get_state(r.get("arrest_state", "Karnataka"))
                         arrest_dist_id = self.get_district(r.get("arrest_district", "Mysuru"), r.get("arrest_state", "Karnataka"))
@@ -755,7 +905,7 @@ class FIRImportService:
                         arrest_court_id = self.get_court(r.get("arrest_court", court_name), dist_name, state_name)
                         
                         # Resolve primary accused id
-                        prim_acc_name = r["arrest_primary_accused_name"]
+                        prim_acc_name = self.normalize_person_name(r["arrest_primary_accused_name"])
                         prim_id = accused_id_map.get(prim_acc_name)
                         if not prim_id:
                             # Search in database or fallback
@@ -766,7 +916,7 @@ class FIRImportService:
                         joint_str = r.get("arrest_joint_accused_names")
                         if joint_str:
                             for name in str(joint_str).split(","):
-                                name = name.strip()
+                                name = self.normalize_person_name(name.strip())
                                 jid = accused_id_map.get(name)
                                 if not jid:
                                     jid = self.db.query(Accused.id).filter(Accused.CaseMasterID == case.id, Accused.AccusedName == name).scalar()
@@ -794,7 +944,7 @@ class FIRImportService:
 
                     # Chargesheets
                     if r.get("chargesheet_date") and r.get("chargesheet_type"):
-                        cs_dt = datetime.fromisoformat(r["chargesheet_date"])
+                        cs_dt = self.parse_date_robust(r["chargesheet_date"]) or datetime.now()
                         cs_officer_kgid = r.get("chargesheet_officer_kgid", officer_kgid)
                         cs_officer_id = self.get_employee(
                             kgid=cs_officer_kgid,
@@ -814,6 +964,98 @@ class FIRImportService:
                             commit=False
                         )
                         chargesheet_count += 1
+
+                # 5. Populate Legacy Schema Tables Unconditionally
+                from backend.models.crime import CrimeEvent
+                from backend.models.crime_participation import CrimeParticipation
+                
+                crime_type = first_row.get("crime_head_name", "General Crime")
+                crime_cat = first_row.get("crime_group_name", "General")
+                crime_sub = first_row.get("crime_head_name", "General")
+                
+                crime_date_obj = self.parse_date_robust(first_row.get("registered_date")) or date.today()
+                crime_time_obj = self.parse_time_robust(first_row.get("incident_from_date"))
+                
+                leg_loc_id = self.get_legacy_location_id(
+                    district_name=dist_name,
+                    state_name=state_name,
+                    latitude=first_row.get("latitude"),
+                    longitude=first_row.get("longitude")
+                )
+                leg_ps_id = self.get_legacy_police_station_id(
+                    station_name=unit_name,
+                    district_name=dist_name,
+                    state_name=state_name,
+                    latitude=first_row.get("latitude"),
+                    longitude=first_row.get("longitude")
+                )
+                
+                legacy_crime = CrimeEvent(
+                    crime_type=crime_type,
+                    crime_category=crime_cat,
+                    crime_subcategory=crime_sub,
+                    description=f"{crime_type} incident registered under {crime_no}. Facts: {first_row.get('brief_facts') or ''}",
+                    severity=5.0 if first_row.get("gravity_offence") == "Heinous" else 1.0,
+                    status=first_row.get("case_status", "reported"),
+                    crime_date=crime_date_obj,
+                    crime_time=crime_time_obj,
+                    location_id=leg_loc_id,
+                    police_station_id=leg_ps_id,
+                    dataset_id=dataset_id,
+                    victim_count=len(seen_victims),
+                    accused_count=len(seen_accused)
+                )
+                self.db.add(legacy_crime)
+                self.db.flush()
+                
+                # Link criminals (accused)
+                for acc_name in seen_accused:
+                    acc_row = next((r for r in case_rows if self.normalize_person_name(r.get("accused_name", "")) == acc_name), None)
+                    gender_str = acc_row.get("accused_gender") if acc_row else None
+                    age_val = None
+                    if acc_row and acc_row.get("accused_age") is not None:
+                        try:
+                            age_val = float(acc_row["accused_age"])
+                        except ValueError:
+                            pass
+                            
+                    crim_id = self.get_legacy_criminal(
+                        name=acc_name,
+                        gender=gender_str,
+                        age=age_val,
+                        dataset_id=dataset_id,
+                        cache=legacy_criminal_cache
+                    )
+                    
+                    participation = CrimeParticipation(
+                        crime_event_id=legacy_crime.id,
+                        criminal_id=crim_id,
+                        role="principal accused" if len(seen_accused) == 1 else "co-offender",
+                        dataset_id=dataset_id
+                    )
+                    self.db.add(participation)
+                    
+                # Link victims
+                for vic_name in seen_victims:
+                    vic_row = next((r for r in case_rows if self.normalize_person_name(r.get("victim_name", "")) == vic_name), None)
+                    gender_str = vic_row.get("victim_gender") if vic_row else None
+                    age_val = None
+                    if vic_row and vic_row.get("victim_age") is not None:
+                        try:
+                            age_val = float(vic_row["victim_age"])
+                        except ValueError:
+                            pass
+                            
+                    from backend.models.victim import Victim
+                    legacy_victim = Victim(
+                        crime_event_id=legacy_crime.id,
+                        gender=str(gender_str).strip().title() if gender_str else None,
+                        age=age_val,
+                        occupation=None,
+                        location_id=leg_loc_id,
+                        dataset_id=dataset_id
+                    )
+                    self.db.add(legacy_victim)
                         
             # Final Transaction Commit (only if requested)
             if commit:
