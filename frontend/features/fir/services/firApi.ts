@@ -208,3 +208,40 @@ export async function fetchCrimeSubHeads(crimeHeadId?: number | null): Promise<C
   const qs = crimeHeadId ? `?crime_head_id=${crimeHeadId}` : "";
   return apiGet<CrimeSubHeadDTO[]>(`${FIR_PREFIX}/lookups/crime-sub-heads${qs}`);
 }
+
+// ── Modus Operandi & Behavioral Intelligence Endpoints ─────────────────────
+
+import type {
+  MOProfileResponse,
+  SimilarCaseMatch,
+  OffenderBehavioralProfileResponse,
+  CrossJurisdictionSummary,
+} from "../types/mo";
+
+export async function getCaseMO(caseId: number): Promise<MOProfileResponse> {
+  return apiGet<MOProfileResponse>(`${FIR_PREFIX}/${caseId}/mo`);
+}
+
+export async function getSimilarCases(
+  caseId: number,
+  limit: number = 10,
+  minSimilarity: number = 0.20
+): Promise<SimilarCaseMatch[]> {
+  return apiGet<SimilarCaseMatch[]>(
+    `${FIR_PREFIX}/mo/similar-cases?case_id=${caseId}&limit=${limit}&min_similarity=${minSimilarity}`
+  );
+}
+
+export async function getOffenderMOProfile(accusedId: number): Promise<OffenderBehavioralProfileResponse> {
+  return apiGet<OffenderBehavioralProfileResponse>(`${FIR_PREFIX}/mo/offender/${accusedId}`);
+}
+
+export async function getCrossJurisdictionMO(
+  minSimilarity: number = 0.50,
+  limit: number = 25
+): Promise<CrossJurisdictionSummary> {
+  return apiGet<CrossJurisdictionSummary>(
+    `${FIR_PREFIX}/mo/cross-jurisdiction?min_similarity=${minSimilarity}&limit=${limit}`
+  );
+}
+

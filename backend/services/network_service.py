@@ -34,7 +34,9 @@ class NetworkService:
                 "severity": crime.severity,
                 "status": crime.status,
                 "crime_date": str(crime.crime_date) if crime.crime_date else None,
-                "crime_time": str(crime.crime_time) if crime.crime_time else None
+                "crime_time": str(crime.crime_time) if crime.crime_time else None,
+                "brief_facts": crime.description or None,
+                "mo_summary": crime.description or None
             }
         }
 
@@ -161,7 +163,9 @@ class NetworkService:
                             "severity": 5.0 if case.gravity_offence.name == "Heinous" else 2.0,
                             "status": case.case_status.name if case.case_status else "Under Investigation",
                             "crime_date": str(case.CrimeRegisteredDate) if case.CrimeRegisteredDate else None,
-                            "crime_time": None
+                            "crime_time": None,
+                            "brief_facts": case.BriefFacts or None,
+                            "mo_summary": case.BriefFacts or None
                         }
                     })
                     seen_nodes.add(crime_node_id)
@@ -310,7 +314,9 @@ class NetworkService:
                     "severity": 5.0 if case.gravity_offence.name == "Heinous" else 2.0,
                     "status": case.case_status.name if case.case_status else "Under Investigation",
                     "crime_date": str(case.CrimeRegisteredDate) if case.CrimeRegisteredDate else None,
-                    "crime_time": None
+                    "crime_time": None,
+                    "brief_facts": case.BriefFacts or None,
+                    "mo_summary": case.BriefFacts or None
                 }
             })
             seen_nodes.add(crime_node_id)
@@ -491,7 +497,9 @@ class NetworkService:
                             "severity": 5.0 if case.gravity_offence.name == "Heinous" else 2.0,
                             "status": case.case_status.name if case.case_status else "Under Investigation",
                             "crime_date": str(case.CrimeRegisteredDate) if case.CrimeRegisteredDate else None,
-                            "crime_time": None
+                            "crime_time": None,
+                            "brief_facts": case.BriefFacts or None,
+                            "mo_summary": case.BriefFacts or None
                         }
                     })
                     seen_nodes.add(crime_node_id)

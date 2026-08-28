@@ -216,6 +216,7 @@ export default function FirCaseList() {
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-24">Complainants</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-24">Accused</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-24">Victims</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40">
@@ -230,11 +231,12 @@ export default function FirCaseList() {
                     <td className="px-4 py-3.5"><div className="h-4 w-8 bg-slate-800/50 rounded animate-pulse" /></td>
                     <td className="px-4 py-3.5"><div className="h-4 w-8 bg-slate-800/50 rounded animate-pulse" /></td>
                     <td className="px-4 py-3.5"><div className="h-4 w-8 bg-slate-800/50 rounded animate-pulse" /></td>
+                    <td className="px-4 py-3.5"><div className="h-4 w-16 bg-slate-800/50 rounded animate-pulse ml-auto" /></td>
                   </tr>
                 ))
               ) : cases.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <div className="p-3 bg-slate-800/40 border border-slate-700/40 rounded-xl mb-4">
                         <Search className="w-8 h-8 text-slate-600" />
@@ -254,7 +256,7 @@ export default function FirCaseList() {
                   return (
                     <tr
                       key={c.id}
-                      className="border-b border-slate-800/45 hover:bg-slate-800/30 even:bg-slate-900/10 transition-colors cursor-pointer"
+                      className="border-b border-slate-800/45 hover:bg-slate-800/30 even:bg-slate-900/10 transition-colors cursor-pointer group"
                       onClick={() => (window.location.href = `/fir/cases/${c.id}`)}
                     >
                       <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
@@ -282,6 +284,11 @@ export default function FirCaseList() {
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-400 text-center font-bold">
                         {c.victims.length}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-500/10 group-hover:bg-violet-500/20 text-violet-300 border border-violet-500/25 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-colors">
+                          Inspect MO →
+                        </span>
                       </td>
                     </tr>
                   );
