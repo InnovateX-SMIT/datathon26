@@ -90,14 +90,15 @@ class ModusOperandiService:
         (r"\b(industrial\s+area|tech\s+park|commercial\s+hub)\b", "Commercial / Industrial District")
     ]
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        self.session_id = session_id
 
     def _get_active_id(self) -> Optional[int]:
-        return DatasetResolver(self.db).get_active_dataset_id_optional()
+        return DatasetResolver(self.db, session_id=self.session_id).get_active_dataset_id_optional()
 
     def _get_schema_type(self) -> str:
-        return DatasetResolver(self.db).get_active_dataset_schema_type()
+        return DatasetResolver(self.db, session_id=self.session_id).get_active_dataset_schema_type()
 
     def _clean_text(self, text: Optional[str]) -> str:
         if not text:
@@ -257,7 +258,12 @@ class ModusOperandiService:
 
         return (attributes, list(dict.fromkeys(behavioral_tags)), mo_summary, is_sufficient)
 
-    def _build_case_text_corpus(self, cases: List[Any], schema_type: str) -> Tuple[List[str], List[Dict[str, Any]]]:
+    def _build_case_text_corpus(
+        self,
+        cases: List[Any],
+        schema_type: str,
+        districts_map: Optional[Dict[int, str]] = None
+    ) -> Tuple[List[str], List[Dict[str, Any]]]:
         """
         Builds normalized text document representations for all cases in dataset for TF-IDF vectorization.
         """
@@ -265,9 +271,13 @@ class ModusOperandiService:
         case_metas = []
 
         if schema_type == "fir_normalized":
-            from backend.models.fir_case import CaseMaster
-            from backend.models.fir_organization import Unit
             from backend.models.fir_geography import District
+
+            if districts_map is None:
+                try:
+                    districts_map = {d.id: d.name for d in self.db.query(District).all()}
+                except Exception:
+                    districts_map = {}
 
             for case in cases:
                 brief = case.BriefFacts or ""
@@ -276,7 +286,8 @@ class ModusOperandiService:
                 crime_group = case.crime_major_head.CrimeGroupName if case.crime_major_head else ""
                 gravity = case.gravity_offence.name if case.gravity_offence else ""
                 sec_descs = [
-                    assoc.section.SectionDescription for assoc in case.act_sections if assoc.section and assoc.section.SectionDescription
+                    assoc.section.SectionDescription for assoc in (case.act_sections or [])
+                    if assoc and assoc.section and assoc.section.SectionDescription
                 ]
                 inc_time = case.occurrence_time.IncidentFromDate if case.occurrence_time else None
 
@@ -304,9 +315,7 @@ class ModusOperandiService:
                 station_name = case.police_station.name if case.police_station else "Unknown Station"
                 district_name = "Unknown District"
                 if case.police_station and case.police_station.DistrictID:
-                    dist = self.db.query(District).filter(District.id == case.police_station.DistrictID).first()
-                    if dist:
-                        district_name = dist.name
+                    district_name = districts_map.get(case.police_station.DistrictID, "Unknown District")
 
                 suspects = [
                     AssociatedSuspect(
@@ -316,7 +325,7 @@ class ModusOperandiService:
                         age=acc.AgeYear,
                         gender=acc.gender.name if acc.gender else None
                     )
-                    for acc in case.accused
+                    for acc in (case.accused or [])
                 ]
 
                 documents.append(doc)
@@ -361,7 +370,7 @@ class ModusOperandiService:
                 station_name = crime.police_station.station_name if crime.police_station else "Unknown Station"
 
                 suspects = []
-                for p in crime.participations:
+                for p in (crime.participations or []):
                     if p.criminal:
                         suspects.append(AssociatedSuspect(
                             accused_id=p.criminal.id,
@@ -400,28 +409,67 @@ class ModusOperandiService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            target_case = self.db.query(CaseMaster).filter(CaseMaster.id == case_id).first()
+            from backend.models.fir_people import Accused
+            from backend.models.fir_law import ActSectionAssociation
+            from backend.models.fir_geography import District
+            from sqlalchemy.orm import joinedload, selectinload
+
+            target_case = self.db.query(CaseMaster).options(
+                joinedload(CaseMaster.occurrence_time),
+                joinedload(CaseMaster.crime_minor_head),
+                joinedload(CaseMaster.crime_major_head),
+                joinedload(CaseMaster.gravity_offence),
+                joinedload(CaseMaster.police_station),
+                selectinload(CaseMaster.act_sections).joinedload(ActSectionAssociation.section),
+                selectinload(CaseMaster.accused).joinedload(Accused.gender)
+            ).filter(CaseMaster.id == case_id).first()
+
             if not target_case:
                 return None
 
-            all_cases = self.db.query(CaseMaster).filter(
-                CaseMaster.dataset_id == active_id if active_id else True
-            ).all()
+            target_ds_id = target_case.dataset_id or active_id
+
+            # Fetch comparison candidate pool in the same dataset (bounded for fast execution < 50ms)
+            query = self.db.query(CaseMaster).options(
+                joinedload(CaseMaster.occurrence_time),
+                joinedload(CaseMaster.crime_minor_head),
+                joinedload(CaseMaster.crime_major_head),
+                joinedload(CaseMaster.gravity_offence),
+                joinedload(CaseMaster.police_station),
+                selectinload(CaseMaster.act_sections).joinedload(ActSectionAssociation.section),
+                selectinload(CaseMaster.accused).joinedload(Accused.gender)
+            )
+            if target_ds_id:
+                query = query.filter(CaseMaster.dataset_id == target_ds_id)
+
+            all_cases = query.limit(200).all()
+
+            # Ensure target_case is ALWAYS present in the case comparison corpus
+            if not any(c.id == target_case.id for c in all_cases):
+                all_cases.insert(0, target_case)
+
+            districts_map = {d.id: d.name for d in self.db.query(District).all()}
+            docs, metas = self._build_case_text_corpus(all_cases, schema_type, districts_map=districts_map)
         else:
             from backend.models.crime import CrimeEvent
+
             target_case = self.db.query(CrimeEvent).filter(CrimeEvent.id == case_id).first()
             if not target_case:
                 return None
 
-            all_cases = self.db.query(CrimeEvent).filter(
-                CrimeEvent.dataset_id == active_id if active_id else True
-            ).all()
+            target_ds_id = target_case.dataset_id or active_id
+            query = self.db.query(CrimeEvent)
+            if target_ds_id:
+                query = query.filter(CrimeEvent.dataset_id == target_ds_id)
 
-        if not all_cases:
+            all_cases = query.limit(200).all()
+            if not any(c.id == target_case.id for c in all_cases):
+                all_cases.insert(0, target_case)
+
+            docs, metas = self._build_case_text_corpus(all_cases, schema_type)
+
+        if not metas:
             return None
-
-        # Build corpus & metadata
-        docs, metas = self._build_case_text_corpus(all_cases, schema_type)
 
         target_idx = None
         for idx, meta in enumerate(metas):
@@ -430,7 +478,7 @@ class ModusOperandiService:
                 break
 
         if target_idx is None:
-            return None
+            target_idx = 0
 
         target_meta = metas[target_idx]
 
@@ -525,7 +573,9 @@ class ModusOperandiService:
         if schema_type == "fir_normalized":
             from backend.models.fir_people import Accused
             from backend.models.fir_case import CaseMaster
+            from backend.models.fir_law import ActSectionAssociation
             from backend.models.fir_geography import District
+            from sqlalchemy.orm import joinedload, selectinload
 
             acc = self.db.query(Accused).filter(Accused.id == accused_id).first()
             if not acc:
@@ -538,7 +588,15 @@ class ModusOperandiService:
             if active_id:
                 filters.append(CaseMaster.dataset_id == active_id)
 
-            cases = self.db.query(CaseMaster).join(Accused).filter(*filters).all()
+            districts_map = {d.id: d.name for d in self.db.query(District).all()}
+
+            cases = self.db.query(CaseMaster).options(
+                joinedload(CaseMaster.occurrence_time),
+                joinedload(CaseMaster.crime_minor_head),
+                joinedload(CaseMaster.crime_major_head),
+                joinedload(CaseMaster.police_station),
+                selectinload(CaseMaster.act_sections).joinedload(ActSectionAssociation.section)
+            ).join(Accused).filter(*filters).limit(100).all()
 
             if not cases:
                 return None
@@ -555,13 +613,12 @@ class ModusOperandiService:
                 station_name = c.police_station.name if c.police_station else "Unknown Station"
                 dist_name = "Unknown District"
                 if c.police_station and c.police_station.DistrictID:
-                    dist = self.db.query(District).filter(District.id == c.police_station.DistrictID).first()
-                    if dist:
-                        dist_name = dist.name
+                    dist_name = districts_map.get(c.police_station.DistrictID, "Unknown District")
                 districts.append(dist_name)
 
                 sec_descs = [
-                    assoc.section.SectionDescription for assoc in c.act_sections if assoc.section and assoc.section.SectionDescription
+                    assoc.section.SectionDescription for assoc in (c.act_sections or [])
+                    if assoc and assoc.section and assoc.section.SectionDescription
                 ]
 
                 _, tags, summary, _ = self.extract_mo(
@@ -609,7 +666,7 @@ class ModusOperandiService:
                 return None
 
             cases = [
-                p.crime_event for p in criminal.participations
+                p.crime_event for p in (criminal.participations or [])
                 if p.crime_event and (active_id is None or p.crime_event.dataset_id == active_id)
             ]
 
@@ -672,14 +729,31 @@ class ModusOperandiService:
 
         if schema_type == "fir_normalized":
             from backend.models.fir_case import CaseMaster
-            all_cases = self.db.query(CaseMaster).filter(
+            from backend.models.fir_people import Accused
+            from backend.models.fir_law import ActSectionAssociation
+            from backend.models.fir_geography import District
+            from sqlalchemy.orm import joinedload, selectinload
+
+            all_cases = self.db.query(CaseMaster).options(
+                joinedload(CaseMaster.occurrence_time),
+                joinedload(CaseMaster.crime_minor_head),
+                joinedload(CaseMaster.crime_major_head),
+                joinedload(CaseMaster.gravity_offence),
+                joinedload(CaseMaster.police_station),
+                selectinload(CaseMaster.act_sections).joinedload(ActSectionAssociation.section),
+                selectinload(CaseMaster.accused).joinedload(Accused.gender)
+            ).filter(
                 CaseMaster.dataset_id == active_id if active_id else True
             ).limit(200).all() # Sample 200 cases for fast, representative cross-district analysis
+
+            districts_map = {d.id: d.name for d in self.db.query(District).all()}
+            docs, metas = self._build_case_text_corpus(all_cases, schema_type, districts_map=districts_map)
         else:
             from backend.models.crime import CrimeEvent
             all_cases = self.db.query(CrimeEvent).filter(
                 CrimeEvent.dataset_id == active_id if active_id else True
             ).limit(200).all()
+            docs, metas = self._build_case_text_corpus(all_cases, schema_type)
 
         if len(all_cases) < 2:
             return CrossJurisdictionSummary(
@@ -687,8 +761,6 @@ class ModusOperandiService:
                 jurisdiction_pairs=[],
                 sample_links=[]
             )
-
-        docs, metas = self._build_case_text_corpus(all_cases, schema_type)
 
         cross_links: List[CrossJurisdictionLink] = []
         pair_counts: Dict[Tuple[str, str], List[float]] = {}
