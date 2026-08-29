@@ -16,9 +16,23 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(default=DEFAULT_DB_URL, env="DATABASE_URL")
     ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
 
+    # Zoho Catalyst QuickML Credentials
+    QUICKML_CRIME_RISK_ENDPOINT: str = ""
+    QUICKML_API_KEY: str = ""
+    QUICKML_CATALYST_ORG: str = ""
+    QUICKML_ENVIRONMENT: str = "Development"
+
+    # Zoho OAuth Credentials
+    ZOHO_CLIENT_ID: str = ""
+    ZOHO_CLIENT_SECRET: str = ""
+    ZOHO_GRANT_TOKEN: str = ""
+    ZOHO_ACCESS_TOKEN: str = ""
+    ZOHO_REFRESH_TOKEN: str = ""
+
     class Config:
         case_sensitive = True
         env_file = ".env"
+        extra = "ignore"
 
     def __init__(self, **values):
         super().__init__(**values)
