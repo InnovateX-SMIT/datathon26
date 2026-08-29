@@ -82,9 +82,9 @@ export default function CrimeRiskPredictionCard({ filters }: CrimeRiskPrediction
     }
   };
 
-  // Safe confidence score calculation
+  // Dynamic confidence score calculation (no hardcoded fallback)
   const rawConf = prediction?.confidence ?? prediction?.risk_score;
-  const safeConfidence = typeof rawConf === "number" && !isNaN(rawConf) ? rawConf : 0.95;
+  const safeConfidence = typeof rawConf === "number" && !isNaN(rawConf) ? rawConf : 0;
 
   return (
     <div className="glass-card p-6 rounded-2xl border border-indigo-500/30 bg-slate-900/60 backdrop-blur-xl mb-6 relative overflow-hidden font-sans">
