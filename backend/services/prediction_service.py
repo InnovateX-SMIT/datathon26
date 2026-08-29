@@ -14,6 +14,13 @@ Includes intelligent fallback engine if QuickML environment variables are unconf
 import os
 import requests
 from typing import Dict, Any, List, Optional
+from dotenv import load_dotenv
+
+# Ensure backend/.env is explicitly loaded
+env_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
+if os.path.exists(env_file):
+    load_dotenv(env_file)
+
 from backend.core.config import settings
 from backend.core.logging import logger
 
@@ -24,6 +31,7 @@ class PredictionService:
         self.hotspot_url = os.getenv("QUICKML_HOTSPOT_ENDPOINT") or getattr(settings, "QUICKML_HOTSPOT_ENDPOINT", "")
         self.offender_url = os.getenv("QUICKML_OFFENDER_ENDPOINT") or getattr(settings, "QUICKML_OFFENDER_ENDPOINT", "")
         self.api_key = os.getenv("QUICKML_API_KEY", "") or os.getenv("QUICKML_ENDPOINT_KEY", "") or getattr(settings, "QUICKML_API_KEY", "")
+        self.hotspot_api_key = os.getenv("QUICKML_HOTSPOT_API_KEY", "") or getattr(settings, "QUICKML_HOTSPOT_API_KEY", "") or self.api_key
         self.org_id = os.getenv("QUICKML_CATALYST_ORG", "") or os.getenv("ZOHO_ORG_ID", "") or getattr(settings, "QUICKML_CATALYST_ORG", "") or "60073631382"
         self.environment = os.getenv("QUICKML_ENVIRONMENT", "") or getattr(settings, "QUICKML_ENVIRONMENT", "Development")
         self.access_token = os.getenv("ZOHO_ACCESS_TOKEN", "") or getattr(settings, "ZOHO_ACCESS_TOKEN", "")
@@ -80,7 +88,7 @@ class PredictionService:
             logger.error(f"Exception during Zoho token refresh: {e}")
             return None
 
-    def _call_quickml_endpoint(self, endpoint_url: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _call_quickml_endpoint(self, endpoint_url: str, payload: Dict[str, Any], api_key_override: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Executes HTTPS POST request to Zoho Catalyst QuickML Managed Endpoint.
         Includes automatic OAuth token refresh and fallback handling.
@@ -88,12 +96,15 @@ class PredictionService:
         if not endpoint_url:
             return None
 
+        effective_key = api_key_override or self.api_key
+
         def build_headers():
+            token = os.getenv("ZOHO_ACCESS_TOKEN") or self.access_token
             headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["X-QUICKML-ENDPOINT-KEY"] = self.api_key
-            if self.access_token:
-                headers["Authorization"] = f"Zoho-oauthtoken {self.access_token}"
+            if effective_key:
+                headers["X-QUICKML-ENDPOINT-KEY"] = effective_key
+            if token:
+                headers["Authorization"] = f"Zoho-oauthtoken {token}"
             if self.org_id:
                 headers["CATALYST-ORG"] = str(self.org_id)
             if self.environment:
@@ -103,15 +114,16 @@ class PredictionService:
         try:
             response = requests.post(endpoint_url, json=payload, headers=build_headers(), timeout=10.0)
             
-            # If token expired (401 / 403), refresh and retry once
-            if response.status_code in (401, 403) or "INVALID_OAUTH" in response.text or "invalid_token" in response.text:
-                logger.info("Received OAuth token error from QuickML. Attempting OAuth token refresh...")
+            # If response is non-200 (e.g. 401, 403 or stale token error), refresh token once & retry
+            if response.status_code != 200:
+                logger.info(f"Received status {response.status_code} from QuickML. Refreshing OAuth token...")
                 if self._refresh_access_token():
                     response = requests.post(endpoint_url, json=payload, headers=build_headers(), timeout=10.0)
 
             if response.status_code == 200:
                 return response.json()
             else:
+                print(f"[DEBUG QUICKML] Endpoint: {endpoint_url} | Status: {response.status_code} | Text: {response.text}")
                 logger.warning(f"QuickML Endpoint returned HTTP status {response.status_code}: {response.text}")
                 return None
         except Exception as e:
@@ -231,26 +243,71 @@ class PredictionService:
 
     def predict_future_hotspots(
         self,
-        district_id: Optional[int] = None,
-        police_station_id: Optional[int] = None,
-        top_k: int = 10
+        grid_lat: float = 13.0,
+        grid_lon: float = 76.1,
+        district_id: int = 9,
+        police_station_id: int = 10,
+        prior_7d_crime_count: int = 0,
+        prior_30d_crime_count: int = 0,
+        prior_90d_crime_count: int = 1,
+        prior_180d_crime_count: int = 5,
+        spatial_density_ratio: float = 0.0,
+        peak_hour_window_id: int = 0
     ) -> Dict[str, Any]:
         """
-        2. Future Hotspot Prediction
+        2. Future Hotspot Prediction via Zoho Catalyst QuickML Managed POST Endpoint.
+        Sends exact 10 numeric features expected by the Pipeline 2 CatBoost model.
+        Maps predictions: 0 -> NON_HOTSPOT, 1 -> FUTURE_HOTSPOT.
         """
         payload = {
             "data": [{
-                "district_id": district_id or 1,
-                "police_station_id": police_station_id or 1,
-                "top_k": top_k
+                "grid_lat": grid_lat,
+                "grid_lon": grid_lon,
+                "district_id": district_id,
+                "police_station_id": police_station_id,
+                "prior_7d_crime_count": prior_7d_crime_count,
+                "prior_30d_crime_count": prior_30d_crime_count,
+                "prior_90d_crime_count": prior_90d_crime_count,
+                "prior_180d_crime_count": prior_180d_crime_count,
+                "spatial_density_ratio": spatial_density_ratio,
+                "peak_hour_window_id": peak_hour_window_id
             }]
         }
 
-        quickml_res = self._call_quickml_endpoint(self.hotspot_url, payload)
-        if quickml_res and "hotspots" in quickml_res:
+        quickml_res = self._call_quickml_endpoint(
+            self.hotspot_url,
+            payload,
+            api_key_override=self.hotspot_api_key
+        )
+
+        if quickml_res and "result" in quickml_res:
+            res_val = quickml_res.get("result", [0])[0]
+            result_idx = int(res_val) if isinstance(res_val, (int, float)) else 0
+            likelihood = float(quickml_res.get("likelihood_score", [0.80])[0])
+
+            hotspot_flag = "FUTURE_HOTSPOT" if result_idx == 1 else "NON_HOTSPOT"
+
+            # Parse native QuickML feature contributions
+            factors = []
+            exp_data = quickml_res.get("explanation", {}).get("data", [])
+            for item in exp_data:
+                if isinstance(item, list) and len(item) >= 3:
+                    f_name, f_val, f_weight = item[0], item[1], item[2]
+                    if abs(f_weight) > 0.0001:
+                        factors.append({
+                            "factor": f_name,
+                            "value": f_val,
+                            "weight": round(float(f_weight), 4)
+                        })
+            
+            factors = sorted(factors, key=lambda x: abs(x["weight"]), reverse=True)[:5]
+
             return {
-                "source": "QUICKML_MANAGED_ENDPOINT",
-                "predicted_hotspots": quickml_res["hotspots"]
+                "source": "ZOHO_CATALYST_QUICKML_PRIMARY_ENGINE",
+                "hotspot_flag_id": result_idx,
+                "hotspot_flag": hotspot_flag,
+                "confidence": round(likelihood, 4),
+                "top_contributing_factors": factors
             }
 
         # Fallback Engine based on spatial centroids
@@ -265,7 +322,7 @@ class PredictionService:
         return {
             "source": "FASTAPI_HEURISTIC_ENGINE (QuickML Fallback)",
             "total_predicted_hotspots": len(sample_hotspots),
-            "predicted_hotspots": sample_hotspots[:top_k]
+            "predicted_hotspots": sample_hotspots
         }
 
     def predict_recidivism(

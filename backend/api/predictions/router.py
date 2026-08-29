@@ -38,6 +38,19 @@ class CrimeRiskRequest(BaseModel):
     hist_district_crime_count_30d: int = Field(default=800, description="District 30-day incident volume")
 
 
+class HotspotPredictionRequest(BaseModel):
+    grid_lat: float = Field(default=13.0, description="Sector Grid Latitude")
+    grid_lon: float = Field(default=76.1, description="Sector Grid Longitude")
+    district_id: int = Field(default=9, description="District ID")
+    police_station_id: int = Field(default=10, description="Police Station Unit ID")
+    prior_7d_crime_count: int = Field(default=0, description="Prior 7-day crime count")
+    prior_30d_crime_count: int = Field(default=0, description="Prior 30-day crime count")
+    prior_90d_crime_count: int = Field(default=1, description="Prior 90-day crime count")
+    prior_180d_crime_count: int = Field(default=5, description="Prior 180-day crime count")
+    spatial_density_ratio: float = Field(default=0.0, description="Spatial density ratio")
+    peak_hour_window_id: int = Field(default=0, description="Peak hour window ID (0=NIGHT, 1=MORNING, 2=AFTERNOON, 3=EVENING)")
+
+
 class OffenderRecidivismRequest(BaseModel):
     accused_id: int = Field(..., description="Accused Master ID")
     age_years: int = Field(default=35, ge=1, le=120)
@@ -129,20 +142,58 @@ def predict_crime_risk(
 
 @router.api_route("/hotspots", methods=["GET", "POST"])
 def predict_future_hotspots(
-    district_id: Optional[int] = Query(None),
-    police_station_id: Optional[int] = Query(None),
-    top_k: int = Query(10, ge=1, le=100),
+    req: Optional[HotspotPredictionRequest] = None,
+    grid_lat: float = Query(13.0),
+    grid_lon: float = Query(76.1),
+    district_id: int = Query(9),
+    police_station_id: int = Query(10),
+    prior_7d_crime_count: int = Query(0),
+    prior_30d_crime_count: int = Query(0),
+    prior_90d_crime_count: int = Query(1),
+    prior_180d_crime_count: int = Query(5),
+    spatial_density_ratio: float = Query(0.0),
+    peak_hour_window_id: int = Query(0),
     session_id: str = Depends(get_session_id)
 ):
     """
-    Predict Future High-Risk Hotspot Grid Cells (Next 24h / 7d).
+    Predict Future High-Risk Hotspot Sector Clusters (0=NON_HOTSPOT, 1=FUTURE_HOTSPOT) via QuickML Pipeline 2.
     """
     try:
         service = PredictionService()
+        if req:
+            lat = req.grid_lat
+            lon = req.grid_lon
+            d_id = req.district_id
+            ps_id = req.police_station_id
+            p7 = req.prior_7d_crime_count
+            p30 = req.prior_30d_crime_count
+            p90 = req.prior_90d_crime_count
+            p180 = req.prior_180d_crime_count
+            density = req.spatial_density_ratio
+            peak = req.peak_hour_window_id
+        else:
+            lat = grid_lat
+            lon = grid_lon
+            d_id = district_id
+            ps_id = police_station_id
+            p7 = prior_7d_crime_count
+            p30 = prior_30d_crime_count
+            p90 = prior_90d_crime_count
+            p180 = prior_180d_crime_count
+            density = spatial_density_ratio
+            peak = peak_hour_window_id
+
         return service.predict_future_hotspots(
-            district_id=district_id,
-            police_station_id=police_station_id,
-            top_k=top_k
+            grid_lat=lat,
+            grid_lon=lon,
+            district_id=d_id,
+            police_station_id=ps_id,
+            prior_7d_crime_count=p7,
+            prior_30d_crime_count=p30,
+            prior_90d_crime_count=p90,
+            prior_180d_crime_count=p180,
+            spatial_density_ratio=density,
+            peak_hour_window_id=peak
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Hotspot prediction failed: {str(e)}")

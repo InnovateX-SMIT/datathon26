@@ -18,7 +18,9 @@ class Settings(BaseSettings):
 
     # Zoho Catalyst QuickML Credentials
     QUICKML_CRIME_RISK_ENDPOINT: str = ""
+    QUICKML_HOTSPOT_ENDPOINT: str = ""
     QUICKML_API_KEY: str = ""
+    QUICKML_HOTSPOT_API_KEY: str = ""
     QUICKML_CATALYST_ORG: str = ""
     QUICKML_ENVIRONMENT: str = "Development"
 
