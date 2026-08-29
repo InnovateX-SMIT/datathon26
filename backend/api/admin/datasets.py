@@ -386,6 +386,7 @@ def activate_dataset(
         )
 
 @router.delete("/{dataset_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{dataset_id}/permanent", status_code=status.HTTP_200_OK)
 def delete_dataset_record(
     dataset_id: int,
     db: Session = Depends(get_db),
@@ -393,7 +394,7 @@ def delete_dataset_record(
     current_user = Depends(require_admin)
 ):
     """
-    Deletes the dataset and all associated records via cascade deletion for the current session.
+    Forcefully and permanently deletes the dataset, all child database records, and disk files for the current session.
     """
     try:
         service = DatasetService(db, session_id=session_id)
@@ -404,7 +405,7 @@ def delete_dataset_record(
                 detail=f"Dataset with ID {dataset_id} not found or does not belong to session."
             )
         ds_name = dataset.display_name
-        service.delete_dataset(dataset_id)
+        service.delete_dataset_permanent(dataset_id)
         # Audit Log Deletion
         try:
             admin_id = get_current_user_id(current_user)
@@ -415,11 +416,11 @@ def delete_dataset_record(
                 action="DATASET_DELETED",
                 entity_type="dataset",
                 entity_id=dataset_id,
-                details=f"Deleted dataset '{ds_name}' (ID: {dataset_id})"
+                details=f"Permanently deleted dataset '{ds_name}' (ID: {dataset_id})"
             )
         except Exception as ae:
             logger.error(f"Failed to log dataset deletion audit: {ae}")
-        return {"detail": "Dataset deleted successfully."}
+        return {"detail": "Dataset permanently deleted successfully."}
     except HTTPException:
         raise
     except ValueError as ve:

@@ -76,6 +76,12 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     onFiltersChange({ ...filters, time_period: e.target.value || undefined });
   };
 
+  const handleMinCrimeCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value;
+    const parsed = rawVal ? parseInt(rawVal, 10) : undefined;
+    onFiltersChange({ ...filters, min_crime_count: parsed && !isNaN(parsed) ? parsed : undefined });
+  };
+
   const resetFilters = () => {
     onFiltersChange({});
   };
@@ -87,6 +93,7 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     filters.start_date,
     filters.end_date,
     filters.time_period,
+    filters.min_crime_count,
   ].filter(Boolean).length;
 
   return (
