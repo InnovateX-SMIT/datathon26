@@ -81,3 +81,6 @@ backend/vendor/
 
 # Documents
 Project_Documents/FIR_DB/
+
+# ENV VARIALES
+backend/.env

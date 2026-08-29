@@ -17,6 +17,8 @@ import type {
 } from "@/features/geo/types/geo";
 import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 
+import CrimeRiskPredictionCard from "@/features/geo/components/CrimeRiskPredictionCard";
+
 // Dynamically import Leaflet maps with ssr: false to prevent Next.js SSR build crashes
 const DistrictMap = dynamic(() => import("@/features/geo/components/DistrictMap"), {
   ssr: false,
@@ -290,6 +292,9 @@ export default function GeoPage() {
 
       {/* Query Filters */}
       <GeoFilters filters={filters} onFiltersChange={setFilters} />
+
+      {/* Crime Risk AI Prediction Card (Pipeline 1: Zoho Catalyst QuickML) */}
+      <CrimeRiskPredictionCard filters={filters} />
 
       {/* Error State Banner */}
       {error && (

@@ -535,6 +535,7 @@ from backend.api.alerts.router import router as alerts_router
 from backend.api.reports.router import router as reports_router
 from backend.api.admin.datasets import router as datasets_router
 from backend.api.fir.router import router as fir_router
+from backend.api.predictions.router import router as predictions_router
 
 # Register routers with API Prefix
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
@@ -547,6 +548,7 @@ app.include_router(alerts_router, prefix=f"{settings.API_V1_STR}/alerts", tags=[
 app.include_router(reports_router, prefix=f"{settings.API_V1_STR}/reports", tags=["Executive Reports"])
 app.include_router(datasets_router, prefix=f"{settings.API_V1_STR}/datasets", tags=["Dataset Manager"])
 app.include_router(fir_router, prefix=f"{settings.API_V1_STR}/fir", tags=["FIR System"])
+app.include_router(predictions_router, prefix=f"{settings.API_V1_STR}/predictions", tags=["Predictive Intelligence (QuickML)"])
 
 
 if __name__ == "__main__":
