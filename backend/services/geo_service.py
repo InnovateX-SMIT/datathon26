@@ -337,11 +337,10 @@ class GeoService:
         crime_type: str = None,
         start_date: datetime.date = None,
         end_date: datetime.date = None,
-        dataset_id: int = None,
-        min_crime_count: int = None
+        dataset_id: int = None
     ) -> list[dict]:
         active_ids = [dataset_id] if dataset_id else self._get_active_ids()
-        effective_min_samples = max(1, int(min_crime_count)) if min_crime_count is not None else 3
+        effective_min_samples = 3
 
         args_tuple = (district, police_station, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
         is_cached, val, full_key = self._check_cache("get_hotspot_clusters", active_ids, *args_tuple)
@@ -794,12 +793,11 @@ class GeoService:
         police_station: str = None,
         crime_type: str = None,
         start_date: datetime.date = None,
-        end_date: datetime.date = None,
-        min_crime_count: int = None
+        end_date: datetime.date = None
     ) -> dict:
         active_ids = self._get_active_ids()
         
-        args_tuple = (district, police_station, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None, min_crime_count)
+        args_tuple = (district, police_station, crime_type, start_date.isoformat() if start_date else None, end_date.isoformat() if end_date else None)
         is_cached, val, full_key = self._check_cache("get_geo_intelligence", active_ids, *args_tuple)
         if is_cached:
             return val
@@ -816,7 +814,7 @@ class GeoService:
             "districts": self.get_district_crime_distribution(**common_filters),
             "stations": self.get_station_crime_distribution(**common_filters),
             "heatmap": self.get_heatmap_points(**common_filters),
-            "hotspots": self.get_hotspot_clusters(**common_filters, min_crime_count=min_crime_count),
+            "hotspots": self.get_hotspot_clusters(**common_filters),
             "markers": self.get_geo_markers(**common_filters),
             "time_of_day": self.get_time_of_day_distribution(**common_filters),
         }

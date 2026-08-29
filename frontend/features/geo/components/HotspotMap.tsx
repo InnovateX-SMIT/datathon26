@@ -84,9 +84,13 @@ export default function HotspotMap({ data, loading }: HotspotMapProps) {
               >
                 <LeafletMapResizer resizeKey={fullscreen ? "hotspot-full" : "hotspot-inline"} />
                 <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
-                  maxZoom={19}
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  attribution='&copy; <a href="https://www.esri.com/" target="_blank">Esri</a>, HERE, Garmin, NGA, EPA'
+                  maxZoom={16}
+                />
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={16}
                 />
                 {data.map((cluster) => {
                   const icon = createHotspotIcon(cluster.cluster_id);

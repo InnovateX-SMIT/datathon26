@@ -151,9 +151,13 @@ export default function FirMarkerMap({ data, loading }: FirMarkerMapProps) {
             <MapContainer center={mapCenter} zoom={defaultZoom} style={{ height: "100%", width: "100%", background: "#0c1020" }} zoomControl>
               <LeafletMapResizer resizeKey={fullscreen ? "marker-full" : "marker-inline"} />
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
-                maxZoom={19}
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                attribution='&copy; <a href="https://www.esri.com/" target="_blank">Esri</a>, HERE, Garmin, NGA, EPA'
+                maxZoom={16}
+              />
+              <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={16}
               />
               {clusters.map((cluster) => {
                 if (cluster.markers.length === 1) {

@@ -1,9 +1,0 @@
-CrimeSubHeadID,CrimeHeadID,CrimeHeadName,SeqID
-1,1,Kidnapping,1
-2,1,Murder,2
-3,2,Cryptocurrency Crime,1
-4,2,Cyber Crime,2
-5,2,Dark Web Crime,3
-6,3,Money Laundering,1
-7,4,Drug Offence,1
-8,5,Theft,1

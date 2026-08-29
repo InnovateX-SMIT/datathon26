@@ -61,12 +61,13 @@ test_crime_intel.db
 # models
 *.pkl
 
-# Datasets
+# Datasets & Generated Tables
 datasets/uploaded/
 datasets/models/
+datasets/datasets_final/
 backend/datasets/uploaded/
 backend/datasets/models/
-
+ClaudeForTheProject/normalized_tables/out/
 # Test Scratch files
 backend/tests/scratch*
 
@@ -77,3 +78,6 @@ backend/vendor/
 # Allow committing env files
 !frontend/.env.local
 !backend/.env
+
+# Documents
+Project_Documents/FIR_DB/

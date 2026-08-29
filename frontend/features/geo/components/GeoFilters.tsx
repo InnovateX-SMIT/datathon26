@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Filter, Calendar, MapPin, Building2, ShieldAlert, Clock, Crosshair} from "lucide-react";
+import { Filter, Calendar, MapPin, Building2, ShieldAlert, Clock } from "lucide-react";
 import type { GeoFiltersState, GeoLookupOptions } from "../types/geo";
 import { fetchGeoLookupOptions } from "../services/geoApi";
 
@@ -9,8 +9,6 @@ interface GeoFiltersProps {
   filters: GeoFiltersState;
   onFiltersChange: (filters: GeoFiltersState) => void;
 }
-
-const DEFAULT_MIN_CRIME_COUNT = 3;
 
 export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps) {
   const [lookups, setLookups] = useState<GeoLookupOptions>({
@@ -76,12 +74,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     onFiltersChange({ ...filters, time_period: e.target.value || undefined });
   };
 
-  const handleMinCrimeCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawVal = e.target.value;
-    const parsed = rawVal ? parseInt(rawVal, 10) : undefined;
-    onFiltersChange({ ...filters, min_crime_count: parsed && !isNaN(parsed) ? parsed : undefined });
-  };
-
   const resetFilters = () => {
     onFiltersChange({});
   };
@@ -93,7 +85,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
     filters.start_date,
     filters.end_date,
     filters.time_period,
-    filters.min_crime_count,
   ].filter(Boolean).length;
 
   return (
@@ -222,29 +213,6 @@ export default function GeoFilters({ filters, onFiltersChange }: GeoFiltersProps
             onChange={handleEndDateChange}
             className="w-full bg-[#0a0f1d] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 hover:border-slate-700 transition-all cursor-pointer font-sans"
           />
-        </div>
-
-        {/* Hotspot Sensitivity — Min. Crimes per Cluster */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-            <Crosshair className="w-3 h-3 text-rose-500" />
-            <span className="text-rose-400/80">Hotspot Min. Crimes</span>
-          </label>
-          <div className="relative flex items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              max={500}
-              step={1}
-              placeholder={String(DEFAULT_MIN_CRIME_COUNT)}
-              value={filters.min_crime_count ?? ""}
-              onChange={handleMinCrimeCountChange}
-              className="w-full bg-[#0a0f1d] border border-rose-900/40 rounded-xl px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-rose-500/60 hover:border-rose-800/60 transition-all cursor-pointer font-sans placeholder:text-slate-600"
-            />
-          </div>
-          <p className="text-[9px] text-slate-600 leading-tight font-sans">
-            Lower = more hotspots detected. Raise when filtering to a specific area.
-          </p>
         </div>
       </div>
 

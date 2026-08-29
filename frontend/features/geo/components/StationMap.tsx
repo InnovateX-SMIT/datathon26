@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import MapFullscreenPanel, { LeafletMapResizer } from "./MapFullscreenPanel";
@@ -97,9 +97,13 @@ export default function StationMap({ data, loading, selectedStation, onSelectSta
               >
                 <LeafletMapResizer resizeKey={fullscreen ? "station-full" : "station-inline"} />
                 <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
-                  maxZoom={19}
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  attribution='&copy; <a href="https://www.esri.com/" target="_blank">Esri</a>, HERE, Garmin, NGA, EPA'
+                  maxZoom={16}
+                />
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={16}
                 />
                 {data.map((station, idx) => {
                   if (!station.latitude || !station.longitude) return null;
@@ -119,6 +123,14 @@ export default function StationMap({ data, loading, selectedStation, onSelectSta
                         },
                       }}
                     >
+                      <Tooltip sticky>
+                        <div className="p-1 text-slate-100 bg-[#0f172a]/95 rounded border border-[#1e293b] font-sans text-xs">
+                          <p className="font-bold text-blue-400 uppercase tracking-wide">{station.station}</p>
+                          <p className="mt-0.5">
+                            Station Crimes: <span className="font-extrabold text-white">{station.crime_count.toLocaleString()}</span>
+                          </p>
+                        </div>
+                      </Tooltip>
                       <Popup>
                         <div className="p-2 text-slate-200 font-sans text-xs min-w-[150px]">
                           <h4 className="font-bold text-blue-400 text-sm border-b border-slate-800 pb-1 mb-1 uppercase">
