@@ -14,21 +14,22 @@ Includes intelligent fallback engine if QuickML environment variables are unconf
 import os
 import requests
 from typing import Dict, Any, List, Optional
+from backend.core.config import settings
 from backend.core.logging import logger
 
 
 class PredictionService:
     def __init__(self):
-        self.crime_risk_url = os.getenv("QUICKML_CRIME_RISK_ENDPOINT")
-        self.hotspot_url = os.getenv("QUICKML_HOTSPOT_ENDPOINT")
-        self.offender_url = os.getenv("QUICKML_OFFENDER_ENDPOINT")
-        self.api_key = os.getenv("QUICKML_API_KEY", "") or os.getenv("QUICKML_ENDPOINT_KEY", "")
-        self.org_id = os.getenv("QUICKML_CATALYST_ORG", "") or os.getenv("ZOHO_ORG_ID", "") or "60073631382"
-        self.environment = os.getenv("QUICKML_ENVIRONMENT", "Development")
-        self.access_token = os.getenv("ZOHO_ACCESS_TOKEN", "")
-        self.refresh_token = os.getenv("ZOHO_REFRESH_TOKEN", "")
-        self.client_id = os.getenv("ZOHO_CLIENT_ID", "")
-        self.client_secret = os.getenv("ZOHO_CLIENT_SECRET", "")
+        self.crime_risk_url = os.getenv("QUICKML_CRIME_RISK_ENDPOINT") or getattr(settings, "QUICKML_CRIME_RISK_ENDPOINT", "")
+        self.hotspot_url = os.getenv("QUICKML_HOTSPOT_ENDPOINT") or getattr(settings, "QUICKML_HOTSPOT_ENDPOINT", "")
+        self.offender_url = os.getenv("QUICKML_OFFENDER_ENDPOINT") or getattr(settings, "QUICKML_OFFENDER_ENDPOINT", "")
+        self.api_key = os.getenv("QUICKML_API_KEY", "") or os.getenv("QUICKML_ENDPOINT_KEY", "") or getattr(settings, "QUICKML_API_KEY", "")
+        self.org_id = os.getenv("QUICKML_CATALYST_ORG", "") or os.getenv("ZOHO_ORG_ID", "") or getattr(settings, "QUICKML_CATALYST_ORG", "") or "60073631382"
+        self.environment = os.getenv("QUICKML_ENVIRONMENT", "") or getattr(settings, "QUICKML_ENVIRONMENT", "Development")
+        self.access_token = os.getenv("ZOHO_ACCESS_TOKEN", "") or getattr(settings, "ZOHO_ACCESS_TOKEN", "")
+        self.refresh_token = os.getenv("ZOHO_REFRESH_TOKEN", "") or getattr(settings, "ZOHO_REFRESH_TOKEN", "")
+        self.client_id = os.getenv("ZOHO_CLIENT_ID", "") or getattr(settings, "ZOHO_CLIENT_ID", "")
+        self.client_secret = os.getenv("ZOHO_CLIENT_SECRET", "") or getattr(settings, "ZOHO_CLIENT_SECRET", "")
 
     def _refresh_access_token(self) -> Optional[str]:
         """
@@ -219,6 +220,7 @@ class PredictionService:
         return {
             "source": "FASTAPI_HEURISTIC_ENGINE (QuickML Fallback)",
             "risk_score": score,
+            "confidence": score,
             "risk_tier": tier,
             "top_contributing_factors": [
                 {"factor": "Night-time Window (22:00-06:00)", "weight": 0.35 if is_night_time else 0.10},

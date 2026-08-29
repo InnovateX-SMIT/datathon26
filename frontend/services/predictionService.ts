@@ -26,15 +26,16 @@ export interface ContributingFactor {
 
 export interface CrimeRiskPredictionResponse {
   source: string;
-  risk_tier_id: number;
+  risk_tier_id?: number;
   risk_tier: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  confidence: number;
+  confidence?: number;
+  risk_score?: number;
   top_contributing_factors: ContributingFactor[];
 }
 
 /**
-  * Calls backend FastAPI /api/v1/predictions/crime-risk endpoint (powered by Zoho Catalyst QuickML).
-  */
+ * Calls backend FastAPI /api/v1/predictions/crime-risk endpoint (powered by Zoho Catalyst QuickML).
+ */
 export async function predictCrimeRisk(
   payload: CrimeRiskPredictionRequest,
   signal?: AbortSignal

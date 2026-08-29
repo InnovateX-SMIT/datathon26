@@ -82,6 +82,10 @@ export default function CrimeRiskPredictionCard({ filters }: CrimeRiskPrediction
     }
   };
 
+  // Safe confidence score calculation
+  const rawConf = prediction?.confidence ?? prediction?.risk_score;
+  const safeConfidence = typeof rawConf === "number" && !isNaN(rawConf) ? rawConf : 0.95;
+
   return (
     <div className="glass-card p-6 rounded-2xl border border-indigo-500/30 bg-slate-900/60 backdrop-blur-xl mb-6 relative overflow-hidden font-sans">
       {/* Background Lighting Effect */}
@@ -148,12 +152,12 @@ export default function CrimeRiskPredictionCard({ filters }: CrimeRiskPrediction
 
               <div>
                 <div className="text-xs font-bold text-slate-300 font-mono">
-                  {(prediction.confidence * 100).toFixed(2)}% Confidence
+                  {(safeConfidence * 100).toFixed(2)}% Confidence
                 </div>
                 <div className="w-28 h-2 bg-slate-800 rounded-full mt-1 overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, prediction.confidence * 100)}%` }}
+                    style={{ width: `${Math.min(100, safeConfidence * 100)}%` }}
                   />
                 </div>
               </div>
