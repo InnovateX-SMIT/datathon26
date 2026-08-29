@@ -64,17 +64,31 @@ export default function DatasetManagerPage() {
 
 
 
+  const [deletingDatasetName, setDeletingDatasetName] = useState<string | null>(null);
+  const [deleteProgress, setDeleteProgress] = useState<number>(0);
+
   const handlePermanentDelete = async (ds: DatasetInfo) => {
     const confirmMsg = `Are you sure you want to delete "${ds.display_name}"? \nThis action will immediately and permanently delete this dataset and all associated crime records from the server.`;
     if (!confirm(confirmMsg)) return;
 
-    // Optimistic UI update for instant feedback
-    setDatasets(prev => prev.filter(d => d.id !== ds.id));
+    setDeletingDatasetName(ds.display_name);
+    setDeleteProgress(20);
     setActionLoading(true);
     setError(null);
     setSuccess(null);
+
+    const progressInterval = setInterval(() => {
+      setDeleteProgress((prev) => (prev < 85 ? prev + 15 : prev));
+    }, 150);
+
     try {
       await deleteDatasetPermanent(ds.id);
+      clearInterval(progressInterval);
+      setDeleteProgress(100);
+
+      await new Promise((r) => setTimeout(r, 250));
+
+      setDatasets((prev) => prev.filter((d) => d.id !== ds.id));
       setSuccess(`Dataset "${ds.display_name}" permanently deleted.`);
       await loadDatasets(true);
       await loadConfig();
@@ -82,9 +96,12 @@ export default function DatasetManagerPage() {
         window.dispatchEvent(new Event("activeDatasetChanged"));
       }
     } catch (err: any) {
+      clearInterval(progressInterval);
       setError(err.response?.data?.detail || "Failed to delete dataset.");
       await loadDatasets(true);
     } finally {
+      setDeletingDatasetName(null);
+      setDeleteProgress(0);
       setActionLoading(false);
     }
   };
@@ -126,13 +143,18 @@ export default function DatasetManagerPage() {
 
   useEffect(() => {
     const hasActiveJob = datasets.some(
-      (ds) => ds.status === "Uploading" || ds.status === "Validating" || ds.status === "Importing"
+      (ds) =>
+        ds.status === "Uploading" ||
+        ds.status === "Validating" ||
+        ds.status === "Importing" ||
+        ds.status === "Processing" ||
+        ds.status === "Activating"
     );
 
     if (hasActiveJob) {
       const interval = setInterval(() => {
         loadDatasets(true);
-      }, 2000);
+      }, 1500);
       return () => clearInterval(interval);
     }
   }, [datasets]);
@@ -446,7 +468,42 @@ export default function DatasetManagerPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  const isDatasetReady = (ds: DatasetInfo) => {
+    if (["Uploading", "Validating", "Importing", "Processing", "Activating", "Failed"].includes(ds.status)) {
+      return false;
+    }
+    return ["Ready", "Active", "Completed", "Processed"].includes(ds.status) || ds.is_active || (ds.row_count ?? 0) > 0;
+  };
+
   const getStatusBadge = (ds: DatasetInfo) => {
+    const isProcessing = [
+      "Uploading",
+      "Validating",
+      "Importing",
+      "Processing",
+      "Activating",
+    ].includes(ds.status);
+
+    if (isProcessing) {
+      let progress = 0;
+      let progressText: string = ds.status;
+      if (ds.import_summary) {
+        try {
+          const summary = JSON.parse(ds.import_summary);
+          if (typeof summary.progress === "number") {
+            progress = summary.progress;
+            progressText = `${ds.status} (${progress}%)`;
+          }
+        } catch (e) { }
+      }
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-violet-500/10 border border-violet-500/20 text-violet-400 animate-pulse font-mono">
+          <RefreshCw className="w-3 h-3 animate-spin text-violet-400 shrink-0" />
+          {progressText}
+        </span>
+      );
+    }
+
     if (ds.is_active) {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
@@ -458,6 +515,8 @@ export default function DatasetManagerPage() {
 
     switch (ds.status) {
       case "Ready":
+      case "Completed":
+      case "Processed":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-700 text-slate-400">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
@@ -478,29 +537,10 @@ export default function DatasetManagerPage() {
             Archived
           </span>
         );
-      case "Uploading":
-      case "Validating":
-      case "Importing":
-        let progress = 0;
-        let progressText: string = ds.status;
-        if (ds.import_summary) {
-          try {
-            const summary = JSON.parse(ds.import_summary);
-            if (typeof summary.progress === "number") {
-              progress = summary.progress;
-              progressText = `${ds.status} (${progress}%)`;
-            }
-          } catch (e) { }
-        }
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse">
-            <RefreshCw className="w-3 h-3 animate-spin text-amber-400 shrink-0" />
-            {progressText}
-          </span>
-        );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 border border-slate-500/20 text-slate-400">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-700 text-slate-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
             {ds.status}
           </span>
         );
@@ -508,6 +548,14 @@ export default function DatasetManagerPage() {
   };
 
   const activeDatasetsList = (Array.isArray(datasets) ? datasets : []).filter(d => d.is_active);
+  const activeJobDataset = (Array.isArray(datasets) ? datasets : []).find(
+    (ds) =>
+      ds.status === "Uploading" ||
+      ds.status === "Validating" ||
+      ds.status === "Importing" ||
+      ds.status === "Processing" ||
+      ds.status === "Activating"
+  );
   const activeCount = activeDatasetsList.length;
   const maxActiveStr = config?.max_active_datasets || "1";
 
@@ -858,6 +906,36 @@ export default function DatasetManagerPage() {
               </div>
             </div>
 
+            {/* Full-width Validating / Ingesting Progress Bar Only */}
+            {activeJobDataset && !deletingDatasetName && (
+              <div className="w-full bg-slate-950 h-1 overflow-hidden border-b border-slate-900">
+                <div
+                  className="bg-gradient-to-r from-violet-500 to-indigo-500 h-full transition-all duration-300"
+                  style={{
+                    width: `${(() => {
+                      if (activeJobDataset.import_summary) {
+                        try {
+                          const s = JSON.parse(activeJobDataset.import_summary);
+                          if (typeof s.progress === "number") return s.progress;
+                        } catch (e) {}
+                      }
+                      return 25;
+                    })()}%`
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Full-width Deleting Progress Bar Only */}
+            {deletingDatasetName && (
+              <div className="w-full bg-slate-950 h-1 overflow-hidden border-b border-slate-900">
+                <div
+                  className="bg-gradient-to-r from-rose-500 to-red-500 h-full transition-all duration-300"
+                  style={{ width: `${deleteProgress}%` }}
+                />
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -922,9 +1000,9 @@ export default function DatasetManagerPage() {
                           {getStatusBadge(ds)}
                         </td>
                         <td className="px-6 py-4 text-right font-bold text-slate-200">
-                          {ds.status === "Ready" ? (
+                          {isDatasetReady(ds) ? (
                             <div>
-                              <div>{ds.row_count.toLocaleString()}</div>
+                              <div>{(ds.row_count ?? 0).toLocaleString()}</div>
                               {(() => {
                                 if (ds.schema_type === "fir_normalized" && ds.import_summary) {
                                   try {
@@ -946,7 +1024,7 @@ export default function DatasetManagerPage() {
                           ) : "-"}
                         </td>
                         <td className="px-6 py-4 text-right text-slate-400">
-                          {ds.status === "Ready" ? (ds.column_count ?? 0) : "-"}
+                          {isDatasetReady(ds) ? (ds.column_count ?? 0) : "-"}
                         </td>
                         <td className="px-6 py-4 text-slate-450 text-[11px]">
                           {ds.upload_time
@@ -954,7 +1032,7 @@ export default function DatasetManagerPage() {
                             : new Date(ds.created_at || "").toLocaleString("en-IN")}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          {ds.status === "Ready" ? (
+                          {isDatasetReady(ds) ? (
                             <button
                               onClick={() => handleToggleActive(ds)}
                               disabled={actionLoading}
@@ -983,7 +1061,7 @@ export default function DatasetManagerPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             {/* Preview button */}
-                            {ds.status === "Ready" && (
+                            {isDatasetReady(ds) && (
                               <button
                                 onClick={() => handleOpenPreview(ds)}
                                 className="p-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 hover:border-slate-750 text-slate-400 hover:text-violet-400 rounded-lg cursor-pointer transition-all"

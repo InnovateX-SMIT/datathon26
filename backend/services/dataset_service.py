@@ -89,8 +89,10 @@ class DatasetService:
         if dataset.status == "Archived":
             raise ValueError("Cannot activate an archived dataset.")
 
-        if dataset.status != "Ready":
-            raise ValueError("Cannot activate a dataset that is not in Ready state.")
+        if dataset.status not in ["Ready", "Active", "Completed", "Processed"]:
+            if dataset.status in ["Uploading", "Validating", "Importing", "Processing", "Activating"]:
+                raise ValueError("Dataset is currently being processed. Please wait for processing to complete.")
+            raise ValueError(f"Cannot activate a dataset in '{dataset.status}' state.")
 
         if dataset.is_active:
             return dataset
@@ -212,32 +214,9 @@ class DatasetService:
 
     def delete_dataset(self, dataset_id: int) -> bool:
         """
-        Soft-deletes (archives) the dataset from the registry. Sets status to 'Archived'
-        and is_active to False.
+        Forcefully hard-deletes the dataset and all associated child rows from the database.
         """
-        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
-        dataset = self._scope_query(query).first()
-        if not dataset:
-            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
-
-        # If active, automatically fallback to another ready dataset for this session
-        if dataset.is_active:
-            fallback_query = self.db.query(Dataset).filter(
-                Dataset.id != dataset_id,
-                Dataset.status == "Ready"
-            )
-            fallback_ds = self._scope_query(fallback_query).first()
-            if fallback_ds:
-                fallback_ds.is_active = True
-                logger.info(f"Automatically fell back active context to dataset ID {fallback_ds.id} because dataset ID {dataset_id} is being archived.")
-            dataset.is_active = False
-
-        # Soft delete: set status to Archived
-        dataset.status = "Archived"
-        self.db.commit()
-
-        logger.info(f"Dataset ID {dataset_id} soft-deleted/archived successfully.")
-        return True
+        return self.delete_dataset_permanent(dataset_id)
 
 
     def delete_dataset_permanent(self, dataset_id: int) -> bool:
@@ -255,7 +234,7 @@ class DatasetService:
         if dataset.is_active:
             fallback_query = self.db.query(Dataset).filter(
                 Dataset.id != dataset_id,
-                Dataset.status == "Ready"
+                Dataset.status.in_(["Ready", "Active", "Completed", "Processed"])
             )
             fallback_ds = self._scope_query(fallback_query).first()
             if fallback_ds:
