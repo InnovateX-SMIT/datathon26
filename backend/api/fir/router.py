@@ -16,8 +16,62 @@ from backend.schemas.fir import (
 )
 from backend.services.fir_service import FIRService
 from backend.services.dataset_service import DatasetService
+from backend.analytics.crime_analysis.modus_operandi_service import ModusOperandiService
+from backend.schemas.modus_operandi import (
+    MOProfileResponse,
+    SimilarCaseMatch,
+    OffenderBehavioralProfileResponse,
+    CrossJurisdictionSummary
+)
 
 router = APIRouter()
+
+# ── Modus Operandi & Behavioral Intelligence Endpoints (Declared before /{case_id}) ──
+
+@router.get("/mo/similar-cases", response_model=List[SimilarCaseMatch])
+def get_similar_cases_endpoint(
+    case_id: int = Query(..., description="Target Case ID to find similar cases for"),
+    limit: int = Query(10, ge=1, le=50),
+    min_similarity: float = Query(0.20, ge=0.0, le=1.0),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Finds behaviorally similar cases in the active dataset using TF-IDF cosine similarity.
+    """
+    service = ModusOperandiService(db)
+    return service.find_similar_cases(case_id=case_id, limit=limit, min_similarity=min_similarity)
+
+@router.get("/mo/offender/{accused_id}", response_model=OffenderBehavioralProfileResponse)
+def get_offender_mo_profile_endpoint(
+    accused_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Retrieves recurring Modus Operandi signatures and case history for an offender.
+    """
+    service = ModusOperandiService(db)
+    profile = service.get_offender_behavioral_profile(accused_id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Offender with ID {accused_id} not found."
+        )
+    return profile
+
+@router.get("/mo/cross-jurisdiction", response_model=CrossJurisdictionSummary)
+def get_cross_jurisdiction_mo_endpoint(
+    min_similarity: float = Query(0.50, ge=0.0, le=1.0),
+    limit: int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Identifies high-similarity cross-jurisdiction (inter-district) MO patterns.
+    """
+    service = ModusOperandiService(db)
+    return service.get_cross_jurisdiction_patterns(min_similarity=min_similarity, limit=limit)
 
 # ── Lookup Endpoints (MUST be declared before /{case_id} wildcard) ───────────
 
@@ -258,6 +312,26 @@ def get_case_endpoint(
         logger.error(f"Failed to write view audit log: {ae}")
         
     return case
+
+@router.get("/{case_id}/mo", response_model=MOProfileResponse)
+@router.get("/cases/{case_id}/mo", response_model=MOProfileResponse)
+def get_case_mo_endpoint(
+    case_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Retrieves extracted Modus Operandi profile, top behaviorally similar cases,
+    and associated suspects for a specific FIR case.
+    """
+    service = ModusOperandiService(db)
+    profile = service.get_case_mo_profile(case_id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Case with ID {case_id} not found."
+        )
+    return profile
 
 @router.put("/{case_id}", response_model=CaseMasterResponse)
 def update_case_endpoint(

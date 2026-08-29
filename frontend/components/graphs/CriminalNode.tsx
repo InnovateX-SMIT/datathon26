@@ -22,15 +22,6 @@ export default function CriminalNode({ id, data }: CriminalNodeProps) {
   const name = data.label || "Unknown Criminal";
   const displayId = id.startsWith("criminal_") ? id.substring(9) : id;
   const metadata = data.metadata || {};
-  const riskScore = metadata.risk_score;
-
-  // Color logic for risk score badge
-  const getRiskBadgeStyles = (score?: number) => {
-    if (score === undefined) return "bg-slate-800 text-slate-400 border-slate-700";
-    if (score >= 0.7) return "bg-red-500/10 text-red-400 border-red-500/20";
-    if (score >= 0.4) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-    return "bg-green-500/10 text-green-400 border-green-500/20";
-  };
 
   return (
     <div className="glass-card bg-slate-950/90 border border-blue-500/30 hover:border-blue-500 shadow-[0_4px_20px_rgba(59,130,246,0.1)] hover:shadow-[0_4px_30px_rgba(59,130,246,0.2)] rounded-2xl p-4 min-w-[240px] text-slate-100 transition-all duration-300 relative group">
@@ -46,21 +37,11 @@ export default function CriminalNode({ id, data }: CriminalNodeProps) {
             <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">
               Criminal ID #{displayId}
             </span>
-            <h4 className="font-bold text-slate-200 text-sm tracking-tight truncate max-w-[140px] mt-0.5">
+            <h4 className="font-bold text-slate-200 text-sm tracking-tight truncate max-w-[160px] mt-0.5">
               {name}
             </h4>
           </div>
         </div>
-
-        {/* Risk Score Badge */}
-        {riskScore !== undefined && (
-          <div className={`flex flex-col items-center border rounded-xl px-2 py-1 ${getRiskBadgeStyles(riskScore)}`}>
-            <span className="text-[8px] font-bold uppercase tracking-wider block">Risk</span>
-            <span className="text-xs font-black tracking-tight">
-              {Math.round(riskScore * 100)}%
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Profile Details */}

@@ -48,6 +48,7 @@ pgdata/
 crime_intel.sqlite3
 *.sqlite
 *.sqlite3
+*.db
 *.db-journal
 *.db-wal
 *.db-shm
@@ -60,12 +61,8 @@ test_crime_intel.db
 # models
 *.pkl
 
-# Keep the active root development database available locally but do not add new SQLite caches.
-# If a production database snapshot is needed, document it explicitly before committing.
-
 # Datasets
 datasets/uploaded/
-# datasets/processed/ (Allowed so seed datasets, locations, and stations can be shared)
 datasets/models/
 backend/datasets/uploaded/
 backend/datasets/models/
@@ -77,8 +74,6 @@ backend/tests/scratch*
 vendor/
 backend/vendor/
 
-# Allow committing env files and local SQLite database
+# Allow committing env files
 !frontend/.env.local
 !backend/.env
-!backend/crime_intel.db
-

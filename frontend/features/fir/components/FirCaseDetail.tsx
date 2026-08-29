@@ -20,6 +20,7 @@ import SectionHeader from "@/components/layout/section-header";
 import { getCase, deleteCase } from "../services/firApi";
 import { useFirLookups } from "../hooks/useFirLookups";
 import type { CaseMasterResponse } from "../types/fir";
+import FirModusOperandi from "./FirModusOperandi";
 
 // ── Shared styling ──────────────────────────────────────────────────────────
 const labelCls = "text-[10px] font-bold text-slate-500 uppercase tracking-wider";
@@ -181,6 +182,12 @@ export default function FirCaseDetail({ caseId }: FirCaseDetailProps) {
             </div>
             <div className="flex items-center gap-2 border-l border-slate-800/80 pl-4 ml-2">
               <a
+                href="#modus-operandi"
+                className="px-3.5 py-2 bg-violet-600/30 hover:bg-violet-600/50 text-violet-200 border border-violet-500/30 font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
+              >
+                MO Intel
+              </a>
+              <a
                 href={`/fir/cases/${c.id}/edit`}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-indigo-500/20"
               >
@@ -252,6 +259,11 @@ export default function FirCaseDetail({ caseId }: FirCaseDetailProps) {
           )}
         </div>
       )}
+
+      {/* ── Modus Operandi & Behavioral Intelligence ─────────────────────────── */}
+      <div id="modus-operandi" className="scroll-mt-6">
+        <FirModusOperandi caseId={caseId} />
+      </div>
 
       {/* ── Complainants ───────────────────────────────────────────────────── */}
       <div className={cardCls}>

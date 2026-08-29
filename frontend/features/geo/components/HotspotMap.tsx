@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -34,7 +34,7 @@ const createHotspotIcon = (clusterId: number) => {
 export default function HotspotMap({ data, loading }: HotspotMapProps) {
   const defaultZoom = 10;
 
-  const mapCenter = React.useMemo<[number, number]>(() => {
+  const mapCenter = useMemo<[number, number]>(() => {
     const validPoints = data.filter((c) => c.latitude && c.longitude);
     if (validPoints.length === 0) return [15.0, 76.25];
     const latSum = validPoints.reduce((sum, p) => sum + p.latitude, 0);
@@ -43,51 +43,104 @@ export default function HotspotMap({ data, loading }: HotspotMapProps) {
   }, [data]);
 
   return (
-    <MapFullscreenPanel title="DBSCAN Crime Hotspots (Algorithmic Detections)" loading={loading}>
+    <MapFullscreenPanel
+      title="Historical Crime Hotspots (Spatiotemporal DBSCAN)"
+      loading={loading}
+    >
       {(fullscreen) => {
         if (loading) {
-          return <div className="flex-1 bg-slate-800/10 rounded-xl flex items-center justify-center text-slate-500 text-xs animate-pulse">Loading algorithmic hotspots...</div>;
+          return (
+            <div className="flex-1 bg-slate-800/10 rounded-xl flex items-center justify-center text-slate-500 text-xs animate-pulse font-sans">
+              Computing descriptive spatiotemporal clusters...
+            </div>
+          );
         }
 
         if (data.length === 0) {
           return (
             <div className="flex-1 rounded-xl border border-dashed border-slate-800/80 bg-slate-950/40 flex flex-col items-center justify-center text-center px-6">
-              <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider">No Hotspots Detected</h4>
-              <p className="text-xs text-slate-500 mt-2 max-w-xs leading-relaxed">No algorithmic hotspot clusters were detected for the active filters.</p>
+              <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider font-sans">No Hotspots Detected</h4>
+              <p className="text-xs text-slate-500 mt-2 max-w-xs leading-relaxed font-sans">
+                No historical hotspot clusters were detected for the active filters.
+              </p>
             </div>
           );
         }
 
         return (
-          <div className="flex-1 rounded-xl overflow-hidden border border-slate-800/80 z-0 relative h-full min-h-[300px]">
-            <MapContainer center={mapCenter} zoom={defaultZoom} style={{ height: "100%", width: "100%", background: "#0c1020" }} zoomControl>
-              <LeafletMapResizer resizeKey={fullscreen ? "hotspot-full" : "hotspot-inline"} />
-              <TileLayer
-                url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
-                maxZoom={20}
-              />
-              {data.map((cluster) => {
-                const icon = createHotspotIcon(cluster.cluster_id);
-                return (
-                  <React.Fragment key={`hotspot-${cluster.cluster_id}`}>
-                    <Circle center={[cluster.latitude, cluster.longitude]} radius={2000} pathOptions={{ fillColor: "#ef4444", fillOpacity: 0.12, color: "#ef4444", weight: 1, dashArray: "4 4" }} />
-                    <Marker position={[cluster.latitude, cluster.longitude]} icon={icon || undefined}>
-                      <Popup>
-                        <div className="p-2 text-slate-200 font-sans text-xs min-w-[140px]">
-                          <h4 className="font-bold text-[#ef4444] text-sm border-b border-slate-800 pb-1 mb-1">Hotspot Zone H{cluster.cluster_id}</h4>
-                          <div className="space-y-1 mt-2">
-                            <p>Incident Density: <span className="font-bold text-slate-100">{cluster.crime_count.toLocaleString()}</span></p>
-                            <p className="text-[10px] text-slate-400">Centroid: {cluster.latitude.toFixed(4)}, {cluster.longitude.toFixed(4)}</p>
-                            <div className="py-1 px-2 bg-rose-500/10 border border-rose-500/20 text-[#ef4444] text-[9px] uppercase tracking-wider rounded font-bold mt-1 text-center">High Density Risk Area</div>
+          <div className="flex-1 flex flex-col h-full min-h-[340px]">
+            {/* Descriptive Context Banner */}
+            <div className="mb-2 px-3 py-1 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between text-[10px] text-slate-400 font-sans">
+              <span>Historical Descriptive Clustering (DBSCAN)</span>
+              <span className="text-emerald-400 font-mono">✔ Descriptive Historical Analysis</span>
+            </div>
+
+            <div className="flex-1 rounded-xl overflow-hidden border border-slate-800/80 z-0 relative h-full">
+              <MapContainer
+                center={mapCenter}
+                zoom={defaultZoom}
+                style={{ height: "100%", width: "100%", background: "#0c1020" }}
+                zoomControl
+              >
+                <LeafletMapResizer resizeKey={fullscreen ? "hotspot-full" : "hotspot-inline"} />
+                <TileLayer
+                  url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+                  maxZoom={20}
+                />
+                {data.map((cluster) => {
+                  const icon = createHotspotIcon(cluster.cluster_id);
+                  return (
+                    <React.Fragment key={`hotspot-${cluster.cluster_id}`}>
+                      <Circle
+                        center={[cluster.latitude, cluster.longitude]}
+                        radius={2000}
+                        pathOptions={{
+                          fillColor: "#ef4444",
+                          fillOpacity: 0.14,
+                          color: "#ef4444",
+                          weight: 1.2,
+                          dashArray: "4 4",
+                        }}
+                      />
+                      <Marker position={[cluster.latitude, cluster.longitude]} icon={icon || undefined}>
+                        <Popup>
+                          <div className="p-2 text-slate-200 font-sans text-xs min-w-[170px]">
+                            <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-1.5">
+                              <h4 className="font-bold text-[#ef4444] text-sm">Zone H{cluster.cluster_id}</h4>
+                              <span className="text-[9px] bg-rose-500/10 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/20 uppercase font-mono">
+                                Historical
+                              </span>
+                            </div>
+                            <div className="space-y-1 mt-1 text-[11px]">
+                              <p>
+                                Incident Count: <span className="font-bold text-white">{cluster.crime_count.toLocaleString()}</span>
+                              </p>
+                              {cluster.first_incident_date && (
+                                <p className="text-[10px] text-slate-300">
+                                  Observed Date: <span className="font-mono">{cluster.first_incident_date}</span>
+                                </p>
+                              )}
+                              {cluster.peak_hour_window && (
+                                <p className="text-[10px] text-slate-300">
+                                  Peak Window: <span className="font-mono text-amber-300">{cluster.peak_hour_window}</span>
+                                </p>
+                              )}
+                              <p className="text-[10px] text-slate-400">
+                                Centroid: {cluster.latitude.toFixed(4)}, {cluster.longitude.toFixed(4)}
+                              </p>
+                              <div className="py-1 px-2 bg-rose-500/10 border border-rose-500/20 text-[#ef4444] text-[9px] uppercase tracking-wider rounded font-bold mt-2 text-center">
+                                High Density Cluster (Historical)
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  </React.Fragment>
-                );
-              })}
-            </MapContainer>
+                        </Popup>
+                      </Marker>
+                    </React.Fragment>
+                  );
+                })}
+              </MapContainer>
+            </div>
           </div>
         );
       }}

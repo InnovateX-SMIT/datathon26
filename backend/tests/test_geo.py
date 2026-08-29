@@ -151,3 +151,49 @@ def test_get_districts_filtered_crime_type(client):
     assert len(data) == 1
     assert data[0]["district"] == "Shivamogga"
     assert data[0]["crime_count"] == 1
+
+def test_get_stations_filtered_station(client):
+    response = client.get("/api/v1/geo/stations?police_station=SHI_PS_31")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["station"] == "SHI_PS_31"
+    assert data[0]["crime_count"] == 1
+
+def test_get_time_of_day_analysis(client):
+    response = client.get("/api/v1/geo/time-of-day")
+    assert response.status_code == 200
+    data = response.json()
+    assert "hourly" in data
+    assert len(data["hourly"]) == 24
+    assert "periods" in data
+    assert data["total_analyzed"] == 6
+
+def test_get_hotspots_temporal_metadata(client):
+    response = client.get("/api/v1/geo/hotspots")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["hotspot_type"] == "Historical Descriptive Cluster"
+    assert "first_incident_date" in data[0]
+    assert "peak_hour_window" in data[0]
+
+def test_get_geo_intelligence_includes_time_of_day(client):
+    response = client.get("/api/v1/geo/intelligence")
+    assert response.status_code == 200
+    data = response.json()
+    assert "districts" in data
+    assert "stations" in data
+    assert "heatmap" in data
+    assert "hotspots" in data
+    assert "markers" in data
+    assert "time_of_day" in data
+    assert data["time_of_day"] is not None
+    assert len(data["time_of_day"]["hourly"]) == 24
+
+def test_get_boundary_geojson(client):
+    response = client.get("/api/v1/geo/boundary-geojson")
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("type") == "FeatureCollection"
+
