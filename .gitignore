@@ -65,8 +65,9 @@ crime_intel.sqlite3
 *.test.db
 backend/tests/*.db
 test_crime_intel.db
-# models
+# models & training logs
 *.pkl
+catboost_info/
 
 # Datasets & Generated Tables
 datasets/uploaded/
