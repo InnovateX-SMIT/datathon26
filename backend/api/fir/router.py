@@ -34,24 +34,26 @@ def get_similar_cases_endpoint(
     limit: int = Query(10, ge=1, le=50),
     min_similarity: float = Query(0.20, ge=0.0, le=1.0),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     """
     Finds behaviorally similar cases in the active dataset using TF-IDF cosine similarity.
     """
-    service = ModusOperandiService(db)
+    service = ModusOperandiService(db, session_id=session_id)
     return service.find_similar_cases(case_id=case_id, limit=limit, min_similarity=min_similarity)
 
 @router.get("/mo/offender/{accused_id}", response_model=OffenderBehavioralProfileResponse)
 def get_offender_mo_profile_endpoint(
     accused_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     """
     Retrieves recurring Modus Operandi signatures and case history for an offender.
     """
-    service = ModusOperandiService(db)
+    service = ModusOperandiService(db, session_id=session_id)
     profile = service.get_offender_behavioral_profile(accused_id)
     if not profile:
         raise HTTPException(
@@ -65,12 +67,13 @@ def get_cross_jurisdiction_mo_endpoint(
     min_similarity: float = Query(0.50, ge=0.0, le=1.0),
     limit: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     """
     Identifies high-similarity cross-jurisdiction (inter-district) MO patterns.
     """
-    service = ModusOperandiService(db)
+    service = ModusOperandiService(db, session_id=session_id)
     return service.get_cross_jurisdiction_patterns(min_similarity=min_similarity, limit=limit)
 
 # ── Lookup Endpoints (MUST be declared before /{case_id} wildcard) ───────────
@@ -318,13 +321,14 @@ def get_case_endpoint(
 def get_case_mo_endpoint(
     case_id: int,
     db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
     current_user = Depends(get_current_user)
 ):
     """
     Retrieves extracted Modus Operandi profile, top behaviorally similar cases,
     and associated suspects for a specific FIR case.
     """
-    service = ModusOperandiService(db)
+    service = ModusOperandiService(db, session_id=session_id)
     profile = service.get_case_mo_profile(case_id)
     if not profile:
         raise HTTPException(

@@ -27,22 +27,40 @@ class FIRService:
     def get_next_serial_number(self, station_id: int, year: int) -> int:
         """
         Calculates the next incremental serial number for the given PS unit and year.
-        Optimized to use database-side cast/substring aggregation instead of in-memory lists.
+        Optimized to use database-side cast/substring aggregation across both CrimeNo
+        and CaseNo tables to ensure no duplicate serials or IDs are ever assigned.
         """
         from sqlalchemy import func, Integer
         from sqlalchemy.sql.expression import cast
         
-        # CrimeNo length must be 18 digits. The serial number is the last 5 characters.
-        # SQLite SUBSTR is 1-indexed. The 14th character is the start of the 5-character serial.
-        max_serial = self.db.query(
+        # 1. Serial from CrimeNo matching station and year
+        # CrimeNo is 18 digits. Serial is last 5 digits (pos 14-18)
+        max_station_crime = self.db.query(
             func.max(cast(func.substr(CaseMaster.CrimeNo, 14, 5), Integer))
         ).filter(
             CaseMaster.PoliceStationID == station_id,
             CaseMaster.CrimeNo.like(f"_________{year:04d}%"),
             func.length(CaseMaster.CrimeNo) == 18
-        ).scalar()
-        
-        return (max_serial or 0) + 1
+        ).scalar() or 0
+
+        # 2. Serial from any 18-digit CrimeNo matching the year (pos 10-13 = year)
+        max_any_crime = self.db.query(
+            func.max(cast(func.substr(CaseMaster.CrimeNo, 14, 5), Integer))
+        ).filter(
+            CaseMaster.CrimeNo.like(f"_________{year:04d}%"),
+            func.length(CaseMaster.CrimeNo) == 18
+        ).scalar() or 0
+
+        # 3. Serial from 9-digit CaseNo matching year (pos 1-4 = year, pos 5-9 = serial)
+        max_case_no = self.db.query(
+            func.max(cast(func.substr(CaseMaster.CaseNo, 5, 5), Integer))
+        ).filter(
+            CaseMaster.CaseNo.like(f"{year:04d}%"),
+            func.length(CaseMaster.CaseNo) == 9
+        ).scalar() or 0
+
+        max_serial = max(max_station_crime, max_any_crime, max_case_no)
+        return max_serial + 1
 
 
     def create_case(
@@ -84,6 +102,13 @@ class FIRService:
                 case_no = generate_case_no(crime_no)
             elif not validate_case_no(case_no):
                 raise ValueError(f"Invalid CaseNo format: {case_no}. Must be 9 digits containing a valid year.")
+                
+            # Validate uniqueness of explicitly passed CrimeNo and CaseNo
+            existing = self.db.query(CaseMaster).filter(
+                (CaseMaster.CrimeNo == crime_no) | (CaseMaster.CaseNo == case_no)
+            ).first()
+            if existing:
+                raise ValueError(f"Duplicate Case: A CaseMaster with CrimeNo '{crime_no}' or CaseNo '{case_no}' already exists.")
         else:
             # Look up Unit's District
             unit = self.db.query(Unit).filter(Unit.id == case_dto.PoliceStationID).first()
@@ -96,13 +121,17 @@ class FIRService:
             year = case_dto.CrimeRegisteredDate.year if case_dto.CrimeRegisteredDate else datetime.utcnow().year
             
             serial = self.get_next_serial_number(station, year)
-            crime_no = generate_crime_no(category, district, station, year, serial)
-            case_no = generate_case_no(crime_no)
-
-        # Validate uniqueness of CrimeNo
-        existing = self.db.query(CaseMaster).filter(CaseMaster.CrimeNo == crime_no).first()
-        if existing:
-            raise ValueError(f"Duplicate Case: A CaseMaster with CrimeNo {crime_no} already exists.")
+            
+            # Loop to ensure the generated crime_no and case_no are strictly unique and never collide
+            while True:
+                crime_no = generate_crime_no(category, district, station, year, serial)
+                case_no = generate_case_no(crime_no)
+                existing = self.db.query(CaseMaster.id).filter(
+                    (CaseMaster.CrimeNo == crime_no) | (CaseMaster.CaseNo == case_no)
+                ).first()
+                if not existing:
+                    break
+                serial += 1
 
         # Extract occurrence fields
         incident_from = None

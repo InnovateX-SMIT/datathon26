@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Info, Database } from "lucide-react";
 import type { NetworkCriminalSample } from "@/types/network";
 
@@ -12,11 +12,15 @@ interface NetworkSearchProps {
 export default function NetworkSearch({ onSearch, loading, samples, activeDatasetId }: NetworkSearchProps) {
   const [value, setValue] = useState("");
 
-  const effectiveValue = value || (samples[0] ? String(samples[0].id) : "");
+  useEffect(() => {
+    if (samples.length > 0) {
+      setValue(String(samples[0].id));
+    }
+  }, [activeDatasetId, samples]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedId = parseInt(effectiveValue.trim(), 10);
+    const parsedId = parseInt(value.trim(), 10);
     if (!Number.isNaN(parsedId)) {
       onSearch(parsedId);
     }
@@ -50,7 +54,7 @@ export default function NetworkSearch({ onSearch, loading, samples, activeDatase
             type="number"
             min="1"
             placeholder={samples[0] ? `Try ${samples[0].id}` : "Enter criminal ID..."}
-            value={effectiveValue}
+            value={value}
             onChange={(e) => setValue(e.target.value)}
             className="w-full bg-slate-950/80 border border-slate-800 text-slate-100 placeholder-slate-500 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-mono"
             required
@@ -59,7 +63,7 @@ export default function NetworkSearch({ onSearch, loading, samples, activeDatase
         </div>
         <button
           type="submit"
-          disabled={loading || !effectiveValue.trim()}
+          disabled={loading || !value.trim()}
           className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 disabled:text-slate-600 disabled:border-slate-950 border border-indigo-500/30 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl cursor-pointer hover:shadow-[0_0_15px_rgba(99,102,241,0.35)] disabled:shadow-none transition-all duration-300 shrink-0"
         >
           {loading ? "Loading Graph..." : "Load Graph"}

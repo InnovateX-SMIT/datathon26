@@ -43,6 +43,8 @@ export default function FirModusOperandi({ caseId }: FirModusOperandiProps) {
   const [offenderProfile, setOffenderProfile] = useState<OffenderBehavioralProfileResponse | null>(null);
   const [loadingOffender, setLoadingOffender] = useState(false);
 
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
     async function loadMO() {
@@ -65,7 +67,7 @@ export default function FirModusOperandi({ caseId }: FirModusOperandiProps) {
     return () => {
       cancelled = true;
     };
-  }, [caseId]);
+  }, [caseId, reloadTrigger]);
 
   const handleOpenOffenderProfile = async (accusedId: number) => {
     setSelectedOffenderId(accusedId);
@@ -100,8 +102,8 @@ export default function FirModusOperandi({ caseId }: FirModusOperandiProps) {
             <span>Failed to load Modus Operandi profile: {error}</span>
           </div>
           <button
-            onClick={() => window.location.reload()}
-            className="px-3 py-1.5 bg-red-600/80 hover:bg-red-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider"
+            onClick={() => setReloadTrigger((prev) => prev + 1)}
+            className="px-3 py-1.5 bg-red-600/80 hover:bg-red-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
           >
             Retry
           </button>

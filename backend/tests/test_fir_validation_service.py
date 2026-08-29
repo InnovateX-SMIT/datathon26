@@ -261,3 +261,17 @@ def test_fir_service_crud_and_validations(db_session):
     case_create.CrimeNo = "100010001202600001"
     with pytest.raises(ValueError, match="Duplicate Case"):
         fir_service.create_case(case_create)
+
+    # Reset CrimeNo to None to test successive registration
+    case_create.CrimeNo = None
+    case_create.CaseNo = None
+    response2 = fir_service.create_case(case_create)
+    assert response2.id != response.id
+    assert response2.CrimeNo == "100010001202600002"
+    assert response2.CaseNo == "202600002"
+
+    # Test third case creation
+    response3 = fir_service.create_case(case_create)
+    assert response3.id != response2.id
+    assert response3.CrimeNo == "100010001202600003"
+    assert response3.CaseNo == "202600003"
