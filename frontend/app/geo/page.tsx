@@ -18,6 +18,7 @@ import type {
 import { fetchGeoIntelligence } from "@/features/geo/services/geoApi";
 
 import CrimeRiskPredictionCard from "@/features/geo/components/CrimeRiskPredictionCard";
+import HotspotPredictionCard from "@/features/geo/components/HotspotPredictionCard";
 
 // Dynamically import Leaflet maps with ssr: false to prevent Next.js SSR build crashes
 const DistrictMap = dynamic(() => import("@/features/geo/components/DistrictMap"), {
@@ -337,8 +338,9 @@ export default function GeoPage() {
         {/* Crime Density Heatmap */}
         <CrimeHeatmap data={heatmapData} loading={loading} />
         
-        {/* Historical Spatiotemporal DBSCAN Hotspots */}
-        <div className="lg:col-span-2">
+        {/* Historical Spatiotemporal DBSCAN Hotspots & QuickML Pipeline 2 Forecast */}
+        <div className="lg:col-span-2 space-y-6">
+          <HotspotPredictionCard filters={filters} />
           <HotspotMap data={hotspotData} loading={loading} />
         </div>
       </div>

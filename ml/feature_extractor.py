@@ -123,9 +123,10 @@ def extract_crime_risk_features(conn: sqlite3.Connection) -> pd.DataFrame:
 
 def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Extracts spatial grid binned features for Future Hotspot Prediction using a STRICT TEMPORAL CUTOFF.
-    - Historical Features (prior_7d, prior_30d, spatial_density, peak_window) are calculated ONLY from incidents <= T_cutoff.
-    - Future Target (is_future_hotspot) is calculated ONLY from incidents > T_cutoff in the future window.
+    Extracts spatial sector cluster binned features for Future Hotspot Prediction using a STRICT TEMPORAL CUTOFF.
+    - Historical Features (prior_7d, 30d, 90d, 180d, spatial_density, peak_window) are calculated ONLY from incidents <= T_cutoff.
+    - Future Target (is_future_hotspot) is calculated ONLY from incidents > T_cutoff in the future window (cutoff, cutoff + 60d].
+    - Binned at 0.05 degree (~5.5km sector beats) to provide strong, non-sparse predictive signal.
     100% Numeric columns output for Catalyst QuickML compatibility.
     """
     query = """
@@ -133,6 +134,8 @@ def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
         iot.CaseMasterID,
         u.DistrictID,
         cm.PoliceStationID,
+        cm.CrimeMajorHeadID,
+        cm.CrimeMinorHeadID,
         iot.IncidentFromDate,
         iot.latitude,
         iot.longitude
@@ -153,7 +156,6 @@ def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
 
     # 1. Define Strict Temporal Cutoff Timestamp
     max_date = df['inc_dt'].max()
-    # T_cutoff set to 180 days before max recorded incident
     cutoff_dt = max_date - pd.Timedelta(days=180)
     future_end_dt = cutoff_dt + pd.Timedelta(days=60)
 
@@ -161,20 +163,24 @@ def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
     hist_df = df[df['inc_dt'] <= cutoff_dt].copy()
     future_df = df[(df['inc_dt'] > cutoff_dt) & (df['inc_dt'] <= future_end_dt)].copy()
 
-    # 3. Bin coordinates into 0.01 lat/lon grid centroids (~1.1km grid cells)
-    hist_df['grid_lat'] = np.round(hist_df['latitude'], 2)
-    hist_df['grid_lon'] = np.round(hist_df['longitude'], 2)
-    hist_df['grid_id'] = "GRID_" + hist_df['grid_lat'].astype(str) + "_" + hist_df['grid_lon'].astype(str)
+    # 3. Bin coordinates into 0.05 degree sector centroids (~5.5km sector beats)
+    hist_df['grid_lat'] = np.round(hist_df['latitude'] / 0.05) * 0.05
+    hist_df['grid_lon'] = np.round(hist_df['longitude'] / 0.05) * 0.05
+    hist_df['grid_id'] = "SECTOR_" + hist_df['grid_lat'].astype(str) + "_" + hist_df['grid_lon'].astype(str)
 
-    future_df['grid_lat'] = np.round(future_df['latitude'], 2)
-    future_df['grid_lon'] = np.round(future_df['longitude'], 2)
-    future_df['grid_id'] = "GRID_" + future_df['grid_lat'].astype(str) + "_" + future_df['grid_lon'].astype(str)
+    future_df['grid_lat'] = np.round(future_df['latitude'] / 0.05) * 0.05
+    future_df['grid_lon'] = np.round(future_df['longitude'] / 0.05) * 0.05
+    future_df['grid_id'] = "SECTOR_" + future_df['grid_lat'].astype(str) + "_" + future_df['grid_lon'].astype(str)
 
-    # Calculate future crime counts per grid cell (STRICTLY post-cutoff)
+    # Calculate future crime counts per sector (STRICTLY post-cutoff)
     future_counts = future_df.groupby('grid_id').size().to_dict()
 
     # Calculate district prior 30d baselines (STRICTLY pre-cutoff)
+    p7_start = cutoff_dt - pd.Timedelta(days=7)
     p30_start = cutoff_dt - pd.Timedelta(days=30)
+    p90_start = cutoff_dt - pd.Timedelta(days=90)
+    p180_start = cutoff_dt - pd.Timedelta(days=180)
+
     hist_30d_df = hist_df[hist_df['inc_dt'] >= p30_start]
     district_30d_baseline = hist_30d_df.groupby('DistrictID').size().to_dict()
 
@@ -187,32 +193,27 @@ def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
         district_id = group['DistrictID'].dropna().mode().iloc[0] if not group['DistrictID'].dropna().empty else 1
         police_station_id = group['PoliceStationID'].dropna().mode().iloc[0] if not group['PoliceStationID'].dropna().empty else 1
         
-        # Prior 7d count (strictly in [cutoff - 7d, cutoff])
-        p7_start = cutoff_dt - pd.Timedelta(days=7)
         prior_7d = len(group[(group['inc_dt'] >= p7_start) & (group['inc_dt'] <= cutoff_dt)])
-        
-        # Prior 30d count (strictly in [cutoff - 30d, cutoff])
         prior_30d = len(group[(group['inc_dt'] >= p30_start) & (group['inc_dt'] <= cutoff_dt)])
+        prior_90d = len(group[(group['inc_dt'] >= p90_start) & (group['inc_dt'] <= cutoff_dt)])
+        prior_180d = len(group[(group['inc_dt'] >= p180_start) & (group['inc_dt'] <= cutoff_dt)])
         
-        # Spatial density ratio relative to district 30d baseline
         dt_base = district_30d_baseline.get(district_id, 100)
         density_ratio = np.round(prior_30d / (dt_base / 35.0 if dt_base > 0 else 1.0), 3)
         
-        # Peak hour distribution strictly pre-cutoff
         hours = group['inc_dt'].dt.hour
         night_crimes = (hours.between(22, 23) | hours.between(0, 5)).sum()
         morning_crimes = hours.between(6, 11).sum()
         afternoon_crimes = hours.between(12, 17).sum()
         evening_crimes = hours.between(18, 21).sum()
         
-        peak_idx = np.argmax([night_crimes, morning_crimes, afternoon_crimes, evening_crimes])
-        peak_window_id = int(peak_idx)
+        peak_idx = int(np.argmax([night_crimes, morning_crimes, afternoon_crimes, evening_crimes]))
 
         # Future crime count (STRICTLY post-cutoff in (cutoff, cutoff + 60d])
         future_crimes = future_counts.get(grid_id, 0)
         
-        # Target Label: Future Hotspot (True if future crimes >= 1 in next 60 days)
-        is_future_hotspot = 1 if future_crimes >= 1 else 0
+        # Target Label: Future Hotspot (True if future crimes >= 3 in sector over 60 days)
+        is_future_hotspot = 1 if future_crimes >= 3 else 0
 
         rows.append({
             'grid_lat': lat,
@@ -221,8 +222,10 @@ def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
             'police_station_id': int(police_station_id),
             'prior_7d_crime_count': prior_7d,
             'prior_30d_crime_count': prior_30d,
+            'prior_90d_crime_count': prior_90d,
+            'prior_180d_crime_count': prior_180d,
             'spatial_density_ratio': density_ratio,
-            'peak_hour_window_id': peak_window_id,
+            'peak_hour_window_id': peak_idx,
             'is_future_hotspot': is_future_hotspot
         })
 
