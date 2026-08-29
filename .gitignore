@@ -5,6 +5,7 @@ frontend/out/
 frontend/build/
 frontend/.turbo/
 frontend/.env*.local
+frontend/.env*
 frontend/.vercel/
 *.tsbuildinfo
 
@@ -23,6 +24,12 @@ __pycache__/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+
+# Environment Variables & Secrets
+.env
+*.env
+backend/.env
+frontend/.env*
 
 # Runtime logs and temporary files
 *.log
@@ -75,12 +82,5 @@ backend/tests/scratch*
 vendor/
 backend/vendor/
 
-# Allow committing env files
-!frontend/.env.local
-!backend/.env
-
 # Documents
 Project_Documents/FIR_DB/
-
-# ENV VARIALES
-backend/.env
