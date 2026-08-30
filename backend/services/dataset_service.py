@@ -450,32 +450,10 @@ class DatasetService:
             db_dataset.schema_type = schema_type
             self.db.commit()
 
-            # Check if running in background
-            is_test = False
-            try:
-                bind = self.db.bind
-                if bind and hasattr(bind, "url") and bind.url:
-                    is_test = bind.url.drivername == "sqlite" and (bind.url.database == ":memory:" or not bind.url.database)
-            except Exception:
-                pass
-                
-            is_large = db_dataset.file_size > 500_000
-            run_bg = background if background is not None else (is_large and not is_test)
-            
-            if run_bg:
-                # Background task runs in a separate thread
-                import threading
-                threading.Thread(
-                    target=run_dataset_import_bg,
-                    args=(db_dataset.id, user_id, real_storage_path, schema_type),
-                    daemon=True
-                ).start()
-                return db_dataset
-            else:
-                # Run synchronously
-                self.execute_import(db_dataset.id, user_id, real_storage_path, schema_type, self.db)
-                self.db.refresh(db_dataset)
-                return db_dataset
+            # Always run import synchronously so serverless runtimes (Zoho Catalyst AppSail) complete validation and activation immediately
+            self.execute_import(db_dataset.id, user_id, real_storage_path, schema_type, self.db)
+            self.db.refresh(db_dataset)
+            return db_dataset
 
         except Exception as file_err:
             self.db.rollback()
