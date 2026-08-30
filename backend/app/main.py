@@ -279,6 +279,18 @@ app = FastAPI(
     redirect_slashes=False
 )
 
+from backend.core.exceptions import NoActiveDatasetException
+
+@app.exception_handler(NoActiveDatasetException)
+async def no_active_dataset_exception_handler(request: Request, exc: NoActiveDatasetException):
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={
+            "detail": "No active dataset selected. Please activate a dataset to begin analysis.",
+            "code": "NO_ACTIVE_DATASET"
+        }
+    )
+
 
 
 @app.middleware("http")

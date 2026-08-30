@@ -17,6 +17,7 @@ import { useDecisionSupport } from "@/hooks/useDecisionSupport";
 import ResourceOptimizer from "@/components/decision-support/resource-optimizer";
 import RecommendationList from "@/components/decision-support/recommendation-list";
 import MonitoringPanels from "@/components/decision-support/monitoring-panels";
+import NoDatasetBanner from "@/components/shared/NoDatasetBanner";
 import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
 
 export default function DecisionSupportPage() {
@@ -152,7 +153,14 @@ export default function DecisionSupportPage() {
         </div>
       )}
 
-      {/* Metrics Banner */}
+      {datasetsLoading ? (
+        <div className="p-8 text-center text-slate-500 font-mono text-sm animate-pulse">
+          Loading workspace decision context...
+        </div>
+      ) : activeDatasets.length === 0 ? (
+        <NoDatasetBanner />
+      ) : (
+        <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Actions */}
         <div className="glass-card rounded-2xl p-5 border border-slate-800/60 relative overflow-hidden flex items-center justify-between transition-all duration-300 hover:border-slate-700/60">
@@ -342,7 +350,8 @@ export default function DecisionSupportPage() {
           </div>
         )}
       </div>
-
+      </>
+    )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, date
 from backend.models.dataset import Dataset
+from backend.core.config import settings
 from backend.core.exceptions import NoActiveDatasetException
 from backend.core.logging import logger
 
@@ -226,6 +227,9 @@ class DatasetService:
         dataset.status = "Archived"
         dataset.is_active = False
         self.db.commit()
+
+        from backend.core.analytics_cache import AnalyticsCache
+        AnalyticsCache.clear(session_id=self.session_id)
         return dataset
 
 
@@ -310,6 +314,10 @@ class DatasetService:
         # Delete dataset registry record
         self.db.delete(dataset)
         self.db.commit()
+
+        # Invalidate all in-memory analytics and network graph caches for this session
+        from backend.core.analytics_cache import AnalyticsCache
+        AnalyticsCache.clear(session_id=self.session_id)
         return True
 
     def import_dataset(
@@ -637,7 +645,7 @@ class DatasetService:
         import numpy as np
         if storage_path.lower().endswith(".csv"):
             for chunk in pd.read_csv(storage_path, chunksize=chunk_size):
-                chunk = chunk.replace({np.nan: None})
+                chunk = chunk.astype(object).where(pd.notnull(chunk), None)
                 yield chunk.to_dict(orient="records")
         else:
             import openpyxl

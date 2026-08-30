@@ -11,8 +11,12 @@ Serves:
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from sqlalchemy.orm import Session
 
 from backend.api.deps import get_session_id
+from backend.core.database import get_db
+from backend.core.dataset_resolver import DatasetResolver
+from backend.core.exceptions import NoActiveDatasetException
 from backend.services.prediction_service import PredictionService
 
 router = APIRouter()
@@ -87,11 +91,14 @@ def predict_crime_risk(
     is_night_time: int = Query(1),
     hist_station_crime_count_30d: int = Query(500),
     hist_district_crime_count_30d: int = Query(800),
-    session_id: str = Depends(get_session_id)
+    session_id: str = Depends(get_session_id),
+    db: Session = Depends(get_db)
 ):
     """
     Predict Crime Risk Score & Risk Tier (0=LOW, 1=MEDIUM, 2=HIGH, 3=CRITICAL) via Zoho Catalyst QuickML POST Endpoint.
     """
+    # Verify active dataset state for session prior to calling QuickML
+    DatasetResolver(db, session_id).get_active_dataset_id()
     try:
         service = PredictionService()
         if req:
@@ -144,6 +151,8 @@ def predict_crime_risk(
             hist_station_crime_count_30d=st_30d,
             hist_district_crime_count_30d=dt_30d
         )
+    except NoActiveDatasetException as nde:
+        raise nde
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Crime risk prediction failed: {str(e)}")
 
@@ -161,11 +170,14 @@ def predict_future_hotspots(
     prior_180d_crime_count: int = Query(5),
     spatial_density_ratio: float = Query(0.0),
     peak_hour_window_id: int = Query(0),
-    session_id: str = Depends(get_session_id)
+    session_id: str = Depends(get_session_id),
+    db: Session = Depends(get_db)
 ):
     """
     Predict Future High-Risk Hotspot Sector Clusters (0=NON_HOTSPOT, 1=FUTURE_HOTSPOT) via QuickML Pipeline 2.
     """
+    # Verify active dataset state for session prior to calling QuickML
+    DatasetResolver(db, session_id).get_active_dataset_id()
     try:
         service = PredictionService()
         if req:
@@ -203,6 +215,8 @@ def predict_future_hotspots(
             spatial_density_ratio=density,
             peak_hour_window_id=peak
         )
+    except NoActiveDatasetException as nde:
+        raise nde
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Hotspot prediction failed: {str(e)}")
 
@@ -223,11 +237,14 @@ def predict_recidivism(
     initial_is_weekend: int = Query(1),
     initial_is_night_time: int = Query(0),
     initial_co_offender_count: int = Query(3),
-    session_id: str = Depends(get_session_id)
+    session_id: str = Depends(get_session_id),
+    db: Session = Depends(get_db)
 ):
     """
     Predict Repeat Offender Recidivism Risk (0=NON_RECIDIVIST, 1=REPEAT_OFFENDER) via QuickML Pipeline 3 Endpoint.
     """
+    # Verify active dataset state for session prior to calling QuickML
+    DatasetResolver(db, session_id).get_active_dataset_id()
     try:
         service = PredictionService()
         if req:
@@ -274,6 +291,7 @@ def predict_recidivism(
             initial_is_night_time=night,
             initial_co_offender_count=co_off
         )
+    except NoActiveDatasetException as nde:
+        raise nde
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recidivism prediction failed: {str(e)}")
-

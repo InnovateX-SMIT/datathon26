@@ -401,12 +401,20 @@ class RecommendationService:
 
 
     def get_recommendations(self, status: Optional[str] = None, priority: Optional[str] = None) -> List[Recommendation]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids_optional()
+        if not active_ids:
+            return []
         return self.repo.get_recommendations(status=status, priority=priority)
 
     def update_recommendation_status(self, recommendation_id: int, status: str) -> Optional[Recommendation]:
         return self.repo.update_recommendation_status(recommendation_id, status)
 
     def fetch_allocations_logs(self) -> List[Dict[str, Any]]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids_optional()
+        if not active_ids:
+            return []
         history = self.repo.get_resource_allocations_history()
         logs = []
         for h in history:
@@ -426,5 +434,9 @@ class RecommendationService:
         return logs
 
     def get_recommendation_history(self) -> List[Any]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids_optional()
+        if not active_ids:
+            return []
         from backend.models.recommendation import RecommendationHistory
         return self.db.query(RecommendationHistory).order_by(RecommendationHistory.created_at.desc()).all()

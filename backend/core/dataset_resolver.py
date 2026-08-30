@@ -74,49 +74,8 @@ class DatasetResolver:
                 self.db.commit()
             return [9999]
 
-        # In non-test environments (production/dev), ensure at least one dataset is active
-        query_ds = self.db.query(Dataset).filter(Dataset.status != "Archived", Dataset.status != "Failed")
-        if self.session_id:
-            query_ds = query_ds.filter((Dataset.session_id == self.session_id) | (Dataset.session_id == None))
-        ds_existing = query_ds.order_by(Dataset.row_count.desc(), Dataset.created_at.desc()).first()
-
-        if ds_existing:
-            ds_existing.is_active = True
-            self.db.commit()
-            return [ds_existing.id]
-        else:
-            from sqlalchemy import func
-            case_cnt = self.db.query(func.count(CaseMaster.id)).scalar() or 0
-            event_cnt = self.db.query(func.count(CrimeEvent.id)).scalar() or 0
-            final_cnt = max(case_cnt, event_cnt, 15000)
-
-            default_ds = Dataset(
-                name="default_karnataka_dataset",
-                original_filename="karnataka_crime_intel.csv",
-                display_name="Karnataka Crime Dataset",
-                is_active=True,
-                status="Ready",
-                upload_status="Completed",
-                schema_type="fir_normalized",
-                row_count=final_cnt,
-                column_count=62,
-                file_size=17134211,
-                session_id=self.session_id
-            )
-            self.db.add(default_ds)
-            self.db.flush()
-
-            from backend.models.criminal import Criminal
-            from backend.models.victim import Victim
-            from backend.models.crime_participation import CrimeParticipation
-
-            for model in [CrimeEvent, CaseMaster, Criminal, Victim, CrimeParticipation]:
-                try:
-                    self.db.query(model).filter(model.dataset_id.is_(None)).update({model.dataset_id: default_ds.id})
-                except Exception:
-                    pass
-            self.db.commit()
-            return [default_ds.id]
+        # In non-test environments, if no dataset is active for this session, raise NoActiveDatasetException
+        raise NoActiveDatasetException()
 
     def get_active_dataset_ids_optional(self) -> list[int]:
         """

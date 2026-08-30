@@ -17,6 +17,8 @@ from backend.services.recommendation_service import RecommendationService
 
 router = APIRouter()
 
+from backend.core.exceptions import NoActiveDatasetException
+
 @router.post("/solve", response_model=AllocationResponse)
 def run_allocation_solver(
     payload: AllocationPayload,
@@ -47,6 +49,8 @@ def run_allocation_solver(
         )
     except HTTPException as he:
         raise he
+    except NoActiveDatasetException as nde:
+        raise nde
     except Exception as e:
         logger.error(f"Error in run_allocation_solver: {str(e)}", exc_info=True)
         raise HTTPException(

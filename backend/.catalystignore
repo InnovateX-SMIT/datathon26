@@ -1,0 +1,15 @@
+# Catalyst AppSail deployment ignore list
+crime_intel.db
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+uploads/
+datasets/uploaded/
+temp_analysis/
+file.txt
+.pytest_cache/
+tests/
+scratch/
+.env
