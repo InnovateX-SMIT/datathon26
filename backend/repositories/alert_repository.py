@@ -12,6 +12,7 @@ class AlertRepository:
     def create_alert(self, alert: AlertCreate) -> Alert:
         db_alert = Alert(
             crime_event_id=alert.crime_event_id,
+            alert_type=alert.alert_type,
             title=alert.title,
             description=alert.description,
             severity=alert.severity,
@@ -30,6 +31,7 @@ class AlertRepository:
         for alert in alerts:
             db_alert = Alert(
                 crime_event_id=alert.crime_event_id,
+                alert_type=alert.alert_type,
                 title=alert.title,
                 description=alert.description,
                 severity=alert.severity,

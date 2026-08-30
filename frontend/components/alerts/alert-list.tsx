@@ -130,11 +130,19 @@ export default function AlertList({
   const getSourceIcon = (source: string) => {
     switch (source) {
       case "prediction":
+      case "ml_prediction":
         return <Cpu className="w-4.5 h-4.5 text-indigo-400" />;
       case "network":
+      case "network_intelligence":
         return <Network className="w-4.5 h-4.5 text-violet-400" />;
       case "decision_support":
         return <AlertOctagon className="w-4.5 h-4.5 text-amber-400" />;
+      case "crime_analytics":
+        return <Clock className="w-4.5 h-4.5 text-rose-400" />;
+      case "statistical_anomaly":
+        return <AlertOctagon className="w-4.5 h-4.5 text-amber-500" />;
+      case "mo_intelligence":
+        return <Search className="w-4.5 h-4.5 text-cyan-400" />;
       default:
         return <MapPin className="w-4.5 h-4.5 text-cyan-400" />;
     }
@@ -210,6 +218,9 @@ export default function AlertList({
                 <option value="prediction">Predictions</option>
                 <option value="network">Network Models</option>
                 <option value="decision_support">Decision Support</option>
+                <option value="crime_analytics">Crime Analytics</option>
+                <option value="statistical_anomaly">Statistical Anomaly</option>
+                <option value="mo_intelligence">MO Intelligence</option>
                 <option value="geo">Geo Intelligence</option>
               </select>
               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />

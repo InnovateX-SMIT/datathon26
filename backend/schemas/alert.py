@@ -4,6 +4,7 @@ from typing import Optional, List, Dict
 
 class AlertBase(BaseModel):
     crime_event_id: Optional[int] = None
+    alert_type: str = "default"
     title: str
     description: str
     severity: str = "medium"                      # CRITICAL, HIGH, MEDIUM, LOW
