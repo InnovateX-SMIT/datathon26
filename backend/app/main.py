@@ -313,7 +313,7 @@ async def secure_headers_middleware(request: Request, call_next):
 # Memory-based Rate Limiting Middleware
 from collections import defaultdict
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX_REQUESTS = 100
+RATE_LIMIT_MAX_REQUESTS = 2000
 request_counts = defaultdict(list)
 
 @app.middleware("http")

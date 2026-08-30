@@ -594,6 +594,10 @@ class AlertService:
         return []
 
     def get_alerts(self, severity: Optional[str] = None, status: Optional[str] = None, source: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[Alert]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids_optional()
+        if not active_ids:
+            return []
         return self.repo.get_alerts(severity=severity, status=status, source=source, skip=skip, limit=limit)
 
     def get_alert_by_id(self, alert_id: int) -> Optional[Alert]:
@@ -603,4 +607,17 @@ class AlertService:
         return self.repo.update_alert_status(alert_id, status=status_str, assigned_user_id=assigned_user_id)
 
     def get_summary(self) -> Dict[str, Any]:
+        from backend.core.dataset_resolver import DatasetResolver
+        active_ids = DatasetResolver(self.db, self.session_id).get_active_dataset_ids_optional()
+        if not active_ids:
+            return {
+                "total_alerts": 0,
+                "active_alerts": 0,
+                "critical_anomalies": 0,
+                "resolved_alerts": 0,
+                "todays_alerts": 0,
+                "by_severity": {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0},
+                "by_status": {"NEW": 0, "ACKNOWLEDGED": 0, "IN_PROGRESS": 0, "RESOLVED": 0},
+                "by_source": {"geo": 0, "temporal": 0, "network": 0, "decision_support": 0}
+            }
         return self.repo.get_alert_summary_statistics()

@@ -6,6 +6,7 @@ import { useAlerts } from "@/hooks/useAlerts";
 import AlertStats from "@/components/alerts/alert-stats";
 import AlertList from "@/components/alerts/alert-list";
 import MonitoringView from "@/components/alerts/monitoring-view";
+import NoDatasetBanner from "@/components/shared/NoDatasetBanner";
 
 export default function AlertsPage() {
   const {
@@ -26,6 +27,12 @@ export default function AlertsPage() {
   } = useAlerts();
 
   const [activeTab, setActiveTab] = useState<"dispatch" | "logs">("dispatch");
+
+  const isNoData = !alertsLoading && !summaryLoading && alerts.length === 0 && (summary.total_active === 0 || !summary.total_active);
+
+  if (isNoData) {
+    return <NoDatasetBanner title="No Operational Alerts Generated" description="Operational alerts and tactical dispatch triage require an active dataset in the Dataset Manager to evaluate spatial clusters, co-offender networks, and patrol anomalies." />;
+  }
 
   return (
     <div className="space-y-8 animate-fade-in relative">

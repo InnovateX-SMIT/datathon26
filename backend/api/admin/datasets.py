@@ -385,7 +385,31 @@ def activate_dataset(
             detail="Failed to switch active dataset."
         )
 
-@router.delete("/{dataset_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{dataset_id}", response_model=DatasetResponse)
+def soft_delete_dataset_endpoint(
+    dataset_id: int,
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
+    current_user = Depends(require_admin)
+):
+    """
+    Soft-deletes the specified dataset by archiving it for the current session.
+    """
+    try:
+        service = DatasetService(db, session_id=session_id)
+        return service.delete_dataset(dataset_id)
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error archiving dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to archive dataset."
+        )
+
 @router.delete("/{dataset_id}/permanent", status_code=status.HTTP_200_OK)
 def delete_dataset_record(
     dataset_id: int,
@@ -420,7 +444,7 @@ def delete_dataset_record(
             )
         except Exception as ae:
             logger.error(f"Failed to log dataset deletion audit: {ae}")
-        return {"detail": "Dataset permanently deleted successfully."}
+        return {"detail": "Dataset and all associated records permanently deleted."}
     except HTTPException:
         raise
     except ValueError as ve:

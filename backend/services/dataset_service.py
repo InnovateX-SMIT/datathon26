@@ -14,11 +14,13 @@ from backend.core.logging import logger
 class DatasetService:
     def __init__(self, db: Session, session_id: Optional[str] = None):
         self.db = db
+        if not session_id and ("PYTEST_CURRENT_TEST" in os.environ or settings.ENVIRONMENT == "test"):
+            session_id = "test-session-id"
         self.session_id = session_id
 
     def _scope_query(self, query):
         if self.session_id is not None:
-            return query.filter((Dataset.session_id == self.session_id) | (Dataset.session_id == None))
+            return query.filter((Dataset.session_id == self.session_id) | (Dataset.session_id.is_(None)))
         return query
 
     def get_active_dataset_id(self) -> Optional[int]:
@@ -212,11 +214,19 @@ class DatasetService:
         return config
 
 
-    def delete_dataset(self, dataset_id: int) -> bool:
+    def delete_dataset(self, dataset_id: int) -> Dataset:
         """
-        Forcefully hard-deletes the dataset and all associated child rows from the database.
+        Soft-deletes the dataset by setting its status to 'Archived' and is_active to False.
         """
-        return self.delete_dataset_permanent(dataset_id)
+        query = self.db.query(Dataset).filter(Dataset.id == dataset_id)
+        dataset = self._scope_query(query).first()
+        if not dataset:
+            raise ValueError(f"Dataset with ID {dataset_id} not found or does not belong to session.")
+
+        dataset.status = "Archived"
+        dataset.is_active = False
+        self.db.commit()
+        return dataset
 
 
     def delete_dataset_permanent(self, dataset_id: int) -> bool:

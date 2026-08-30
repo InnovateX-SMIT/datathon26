@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { AlertCircle, ChevronRight, Compass, Map, RefreshCw, ShieldAlert, X } from "lucide-react";
+import NoDatasetBanner from "@/components/shared/NoDatasetBanner";
 import GeoFilters from "@/features/geo/components/GeoFilters";
 import TimeOfDayAnalysis from "@/features/geo/components/TimeOfDayAnalysis";
 import { fetchDatasets, DatasetInfo } from "@/services/dataset.service";
@@ -170,23 +171,7 @@ export default function GeoPage() {
     (error?.includes("No active dataset") || activeDatasets.length === 0);
 
   if (isNoActiveDataset) {
-    return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center text-slate-200">
-        <div className="bg-slate-900/60 p-8 rounded-3xl border border-slate-800/80 max-w-md w-full backdrop-blur-md space-y-6">
-          <ShieldAlert className="w-16 h-16 text-indigo-400 mx-auto animate-pulse" />
-          <h2 className="text-xl font-bold uppercase tracking-tight font-sans">No active dataset selected</h2>
-          <p className="text-sm text-slate-400 leading-relaxed font-sans">
-            CrimeNexus operations require at least one active database registry entry to query operational analytics, trend lines, and mapping clusters.
-          </p>
-          <a
-            href="/dataset-manager"
-            className="block w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/10 font-sans"
-          >
-            Go to Dataset Manager
-          </a>
-        </div>
-      </div>
-    );
+    return <NoDatasetBanner />;
   }
 
   return (

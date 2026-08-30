@@ -45,14 +45,14 @@ class AnalyticsService:
         from backend.core.analytics_cache import AnalyticsCache
         cache_key = self._get_cache_key(active_ids)
         full_key = (cache_key, args, tuple(sorted(kwargs.items())))
-        cached_val = AnalyticsCache.get(method_name, full_key)
+        cached_val = AnalyticsCache.get(method_name, full_key, session_id=self.session_id)
         if cached_val is not None:
             return True, cached_val, full_key
         return False, None, full_key
 
     def _set_cache(self, method_name: str, full_key: tuple, value: Any):
         from backend.core.analytics_cache import AnalyticsCache
-        AnalyticsCache.set(method_name, full_key, value)
+        AnalyticsCache.set(method_name, full_key, value, session_id=self.session_id)
 
     def get_dashboard_summary(self) -> dict:
         active_ids = self._get_active_ids()
