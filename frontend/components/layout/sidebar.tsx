@@ -18,7 +18,8 @@ import {
   FileText,
   FilePlus,
   Users,
-  BrainCircuit
+  BrainCircuit,
+  Fingerprint
 } from "lucide-react";
 import logoImg from "../../public/logo.png";
 
@@ -35,8 +36,8 @@ const menuItems = [
   { name: "Crime Analytics", href: "/analytics", icon: BarChart3, group: "Intelligence" },
   { name: "Sociological Intel", href: "/sociological", icon: BrainCircuit, group: "Intelligence" },
   { name: "Geo Intelligence", href: "/geo", icon: Map, group: "Intelligence" },
-
   { name: "Network Intel", href: "/network", icon: Network, group: "Intelligence" },
+  { name: "MO Intelligence", href: "/modus-operandi", icon: Fingerprint, group: "Intelligence" },
   { name: "Decision Support", href: "/decision-support", icon: Scale, group: "Intelligence" },
   { name: "Executive Reports", href: "/reports", icon: FileSpreadsheet, group: "Administration" },
   { name: "Dataset Manager", href: "/dataset-manager", icon: Layers, group: "Administration" },
