@@ -37,20 +37,20 @@
 2. [Problem Statement](#2-problem-statement)
 3. [Why CrimeNexus](#3-why-crimenexus)
 4. [Platform at a Glance](#4-platform-at-a-glance)
-5. [Technology Stack](#7-technology-stack)
-6. [Product Tour & Core Modules](#8-product-tour--core-modules)
-7. [Machine Learning & Predictive Intelligence](#9-machine-learning--predictive-intelligence)
-8. [Backend Architecture](#10-backend-architecture)
-9. [Database Overview](#11-database-overview)
-10. [Project Structure](#12-project-structure)
-11. [API Overview](#13-api-overview)
-12. [Installation & Local Setup](#14-installation--local-setup)
-13. [Docker Orchestration](#15-docker-orchestration)
-14. [Configuration & Environment Variables](#16-configuration--environment-variables)
-15. [Deployment](#17-deployment)
-16. [Future Roadmap](#18-future-roadmap)
-17. [Team](#19-team)
-18. [License](#20-license)
+5. [Technology Stack](#5-technology-stack)
+6. [Product Tour & Core Modules](#6-product-tour--core-modules)
+7. [Machine Learning & Predictive Intelligence](#7-machine-learning--predictive-intelligence)
+8. [Backend Architecture](#8-backend-architecture)
+9. [Database Overview](#9-database-overview)
+10. [Project Structure](#10-project-structure)
+11. [API Overview](#11-api-overview)
+12. [Installation & Local Setup](#12-installation--local-setup)
+13. [Docker Orchestration](#13-docker-orchestration)
+14. [Configuration & Environment Variables](#14-configuration--environment-variables)
+15. [Deployment](#15-deployment)
+16. [Future Roadmap](#16-future-roadmap)
+17. [Team](#17-team)
+18. [License](#18-license)
 
 ---
 
@@ -379,7 +379,7 @@ erDiagram
 
 ---
 
-## 12. Project Structure
+## 10. Project Structure
 
 ```
 crimenexus-ai/
@@ -423,7 +423,7 @@ crimenexus-ai/
 
 ---
 
-## 10. API Overview
+## 11. API Overview
 
 | Router | Path Prefix | Description | Status |
 | :--- | :--- | :--- | :--- |
@@ -440,7 +440,7 @@ crimenexus-ai/
 
 ---
 
-## 11. Installation & Local Setup
+## 12. Installation & Local Setup
 
 ### Prerequisites
 
@@ -492,7 +492,7 @@ The frontend will be live at `http://localhost:3000` communicating with the Fast
 
 ---
 
-## 12. Docker Orchestration
+## 13. Docker Orchestration
 
 Run the complete platform (Database + Backend + Frontend) using Docker Compose:
 
@@ -519,7 +519,7 @@ docker compose down
 
 ---
 
-## 13. Configuration & Environment Variables
+## 14. Configuration & Environment Variables
 
 ### Backend Configuration (`backend/.env`)
 
@@ -549,7 +549,7 @@ NEXT_PUBLIC_MAP_TILE_PROVIDER=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 
 ---
 
-## 14. Deployment
+## 15. Deployment
 
 ### Zoho Catalyst Deployment (Production)
 
@@ -565,14 +565,14 @@ catalyst deploy
 
 ---
 
-## 15. Future Roadmap
+## 16. Future Roadmap
 - [ ] **Real-time CCTV & Drone Feed Ingestion**: Computer vision integration for automated license plate and crowd anomaly detection.
 - [ ] **Speech-to-Text Multi-Lingual FIR Intake**: Voice-driven FIR registration supporting regional languages (Kannada, Hindi, etc.).
 - [ ] **Automated Court Summons & Bail Prediction**: Predictive modeling for judicial attendance and bail compliance.
 
 ---
 
-## 16. Team
+## 17. Team
 
 **Team InnovateX** · Sikkim Manipal Institute of Technology (SMIT) · Datathon 2026
 
@@ -586,7 +586,7 @@ catalyst deploy
 
 ---
 
-## 17. License
+## 18. License
 
 This project is released under the **MIT License**. See [`LICENSE`](./LICENSE) for full details.
 
