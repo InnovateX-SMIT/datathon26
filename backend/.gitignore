@@ -30,7 +30,11 @@ htmlcov/
 *.env
 backend/.env
 frontend/.env*
+!*.env.example
+!frontend/.env.example
+!backend/.env.example
 backend/app-config.json
+!backend/app-config.json.example
 
 # Runtime logs and temporary files
 *.log
@@ -83,6 +87,16 @@ backend/tests/scratch*
 # Catalyst Vendor directory
 vendor/
 backend/vendor/
+!backend/vendor/requests/
+!backend/vendor/requests*
+!backend/vendor/urllib3/
+!backend/vendor/urllib3*
+!backend/vendor/charset_normalizer/
+!backend/vendor/charset_normalizer*
+!backend/vendor/certifi/
+!backend/vendor/certifi*
+!backend/vendor/idna/
+!backend/vendor/idna*
 
 # Documents
 Project_Documents/FIR_DB/
