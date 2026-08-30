@@ -105,7 +105,7 @@ def main():
     r1 = validate_dataset(
         risk_path,
         "Crime Risk Prediction",
-        target_col="risk_tier",
+        target_col="risk_tier_id",
         feature_cols=["DistrictID", "PoliceStationID", "CrimeMajorHeadID", "CrimeMinorHeadID", "gravity_offence_id", "hour_of_day", "is_weekend", "is_night_time"]
     )
 

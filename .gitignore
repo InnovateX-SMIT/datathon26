@@ -73,7 +73,6 @@ catboost_info/
 # Datasets & Generated Tables
 datasets/uploaded/
 datasets/models/
-datasets/datasets_final/
 backend/datasets/uploaded/
 backend/datasets/models/
 ClaudeForTheProject/normalized_tables/out/
