@@ -1,26 +1,88 @@
-# Python artifacts
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+# Next.js / Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.turbo/
+frontend/.env*.local
+frontend/.env*
+frontend/.vercel/
+*.tsbuildinfo
 
-# Environments
-.env
-.env.local
-.venv
+# Python / FastAPI
+backend/.venv/
+.venv/
 venv/
 ENV/
-
-# Pytest / Cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# Logs
+# Environment Variables & Secrets
+.env
+*.env
+backend/.env
+frontend/.env*
+backend/app-config.json
+
+# Runtime logs and temporary files
 *.log
+logs/
+tmp/
+temp/
+.temp/
+temp_analysis/
+uploads/
+backend/uploads/
+backend/datasets/uploaded/
+frontend/.cache/
+file.txt
 
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Database data folders and temporary SQLite runtime files
+pgdata/
+crime_intel.sqlite3
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.db.tmp
+*.bak
+
+*.test.db
+backend/tests/*.db
+test_crime_intel.db
+# models & training logs
+*.pkl
+catboost_info/
+
+# Datasets & Generated Tables
+datasets/uploaded/
+datasets/models/
+datasets/datasets_final/
+backend/datasets/uploaded/
+backend/datasets/models/
+ClaudeForTheProject/normalized_tables/out/
+# Test Scratch files
+backend/tests/scratch*
+
+# Catalyst Vendor directory
 vendor/
+backend/vendor/
 
-!.env
-!.env.local
+# Documents
+Project_Documents/FIR_DB/
