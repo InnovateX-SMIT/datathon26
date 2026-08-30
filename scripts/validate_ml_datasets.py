@@ -124,7 +124,12 @@ def main():
         offender_path,
         "Repeat Offender Recidivism Prediction",
         target_col="recidivism_flag",
-        feature_cols=["age_years", "gender_id", "prior_case_count", "arrest_count", "chargesheet_count", "co_offender_count", "grave_offence_ratio"]
+        feature_cols=[
+            "age_years", "gender_id", "district_id", "police_station_id",
+            "initial_gravity_offence_id", "initial_crime_major_head_id", "initial_crime_minor_head_id",
+            "initial_hour_of_day", "initial_day_of_week", "initial_month",
+            "initial_is_weekend", "initial_is_night_time", "initial_co_offender_count"
+        ]
     )
 
     print("\n" + "=" * 70)

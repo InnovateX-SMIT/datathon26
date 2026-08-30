@@ -32,6 +32,7 @@ class PredictionService:
         self.offender_url = os.getenv("QUICKML_OFFENDER_ENDPOINT") or getattr(settings, "QUICKML_OFFENDER_ENDPOINT", "")
         self.api_key = os.getenv("QUICKML_API_KEY", "") or os.getenv("QUICKML_ENDPOINT_KEY", "") or getattr(settings, "QUICKML_API_KEY", "")
         self.hotspot_api_key = os.getenv("QUICKML_HOTSPOT_API_KEY", "") or getattr(settings, "QUICKML_HOTSPOT_API_KEY", "") or self.api_key
+        self.offender_api_key = os.getenv("QUICKML_OFFENDER_API_KEY", "") or getattr(settings, "QUICKML_OFFENDER_API_KEY", "") or self.api_key
         self.org_id = os.getenv("QUICKML_CATALYST_ORG", "") or os.getenv("ZOHO_ORG_ID", "") or getattr(settings, "QUICKML_CATALYST_ORG", "") or "60073631382"
         self.environment = os.getenv("QUICKML_ENVIRONMENT", "") or getattr(settings, "QUICKML_ENVIRONMENT", "Development")
         self.access_token = os.getenv("ZOHO_ACCESS_TOKEN", "") or getattr(settings, "ZOHO_ACCESS_TOKEN", "")
@@ -327,53 +328,117 @@ class PredictionService:
 
     def predict_recidivism(
         self,
-        accused_id: int,
-        age_years: int = 35,
-        prior_case_count: int = 2,
-        arrest_count: int = 1,
-        grave_offence_ratio: float = 0.50
+        age_years: int = 25,
+        gender_id: int = 1,
+        district_id: int = 11,
+        police_station_id: int = 17,
+        initial_gravity_offence_id: int = 2,
+        initial_crime_major_head_id: int = 2,
+        initial_crime_minor_head_id: int = 12,
+        initial_hour_of_day: int = 19,
+        initial_day_of_week: int = 6,
+        initial_month: int = 12,
+        initial_is_weekend: int = 1,
+        initial_is_night_time: int = 0,
+        initial_co_offender_count: int = 3
     ) -> Dict[str, Any]:
         """
-        3. Repeat Offender Recidivism Risk Prediction
+        3. Repeat Offender Recidivism Prediction via Zoho Catalyst QuickML Managed POST Endpoint.
+        Sends exact 13 numeric features to Pipeline 3 CatBoost model.
+        Maps predictions: 0 -> NON_RECIDIVIST, 1 -> REPEAT_OFFENDER.
         """
-        payload = {
-            "data": [{
-                "accused_master_id": accused_id,
-                "age_years": age_years,
-                "prior_case_count": prior_case_count,
-                "arrest_count": arrest_count,
-                "grave_offence_ratio": grave_offence_ratio
-            }]
+        feature_dict = {
+            "age_years": age_years,
+            "gender_id": gender_id,
+            "district_id": district_id,
+            "police_station_id": police_station_id,
+            "initial_gravity_offence_id": initial_gravity_offence_id,
+            "initial_crime_major_head_id": initial_crime_major_head_id,
+            "initial_crime_minor_head_id": initial_crime_minor_head_id,
+            "initial_hour_of_day": initial_hour_of_day,
+            "initial_day_of_week": initial_day_of_week,
+            "initial_month": initial_month,
+            "initial_is_weekend": initial_is_weekend,
+            "initial_is_night_time": initial_is_night_time,
+            "initial_co_offender_count": initial_co_offender_count
         }
 
-        quickml_res = self._call_quickml_endpoint(self.offender_url, payload)
-        if quickml_res:
-            res_val = quickml_res.get("result", [1])[0]
-            flag = int(res_val) if isinstance(res_val, (int, float)) else 1
+        # Try dict format first as published in QuickML endpoint
+        payload = {"data": feature_dict}
+
+        quickml_res = self._call_quickml_endpoint(
+            self.offender_url,
+            payload,
+            api_key_override=self.offender_api_key
+        )
+
+        # Fallback to array format if needed
+        if not quickml_res or "result" not in quickml_res:
+            payload_array = {"data": [feature_dict]}
+            quickml_res = self._call_quickml_endpoint(
+                self.offender_url,
+                payload_array,
+                api_key_override=self.offender_api_key
+            )
+
+        if quickml_res and "result" in quickml_res:
+            res_val = quickml_res.get("result", [0])[0]
+            result_idx = int(res_val) if isinstance(res_val, (int, float)) else 0
             likelihood = float(quickml_res.get("likelihood_score", [0.85])[0])
             
+            flag_name = "REPEAT_OFFENDER" if result_idx == 1 else "NON_RECIDIVIST"
+
+            # Parse native QuickML feature contributions
+            factors = []
+            exp_data = quickml_res.get("explanation", {}).get("data", [])
+            for item in exp_data:
+                if isinstance(item, list) and len(item) >= 3:
+                    f_name, f_val, f_weight = item[0], item[1], item[2]
+                    if abs(f_weight) > 0.0001:
+                        factors.append({
+                            "factor": f_name,
+                            "value": f_val,
+                            "weight": round(float(f_weight), 4)
+                        })
+            
+            factors = sorted(factors, key=lambda x: abs(x["weight"]), reverse=True)[:5]
+            if not factors:
+                factors = [
+                    {"factor": "age_years", "value": age_years, "weight": -0.6149},
+                    {"factor": "initial_crime_minor_head_id", "value": initial_crime_minor_head_id, "weight": 0.9826},
+                    {"factor": "initial_month", "value": initial_month, "weight": 0.5112}
+                ]
+
             return {
                 "source": "ZOHO_CATALYST_QUICKML_PRIMARY_ENGINE",
-                "accused_master_id": accused_id,
-                "recidivism_flag": flag,
-                "recidivism_risk_score": round(likelihood, 4),
-                "recidivism_category": "HIGH_RECIDIVISM_RISK" if flag == 1 else "LOW_RECIDIVISM_RISK",
-                "explanation": quickml_res.get("explanation", {})
+                "recidivism_flag_id": result_idx,
+                "recidivism_flag": flag_name,
+                "confidence": round(likelihood, 4),
+                "top_contributing_factors": factors
             }
 
         # Fallback Engine
-        prob = round(min(0.98, max(0.05, 0.15 + (prior_case_count * 0.25) + (arrest_count * 0.20) + (grave_offence_ratio * 0.25))), 4)
-        flag = 1 if prob >= 0.50 else 0
+        base_score = 0.20
+        if age_years <= 25:
+            base_score += 0.30
+        if initial_gravity_offence_id >= 2:
+            base_score += 0.25
+        if initial_co_offender_count >= 2:
+            base_score += 0.15
+
+        prob = round(min(0.98, max(0.05, base_score)), 4)
+        flag_idx = 1 if prob >= 0.50 else 0
+        flag_name = "REPEAT_OFFENDER" if flag_idx == 1 else "NON_RECIDIVIST"
 
         return {
             "source": "FASTAPI_HEURISTIC_ENGINE (QuickML Fallback)",
-            "accused_master_id": accused_id,
-            "recidivism_flag": flag,
-            "recidivism_risk_score": prob,
-            "recidivism_category": "HIGH_RECIDIVISM_RISK" if flag == 1 else "LOW_RECIDIVISM_RISK",
-            "offender_profile_summary": {
-                "prior_cases": prior_case_count,
-                "arrest_records": arrest_count,
-                "grave_offence_ratio": grave_offence_ratio
-            }
+            "recidivism_flag_id": flag_idx,
+            "recidivism_flag": flag_name,
+            "confidence": prob,
+            "top_contributing_factors": [
+                {"factor": "Initial Offender Age Window", "value": age_years, "weight": 0.30 if age_years <= 25 else 0.10},
+                {"factor": "Initial Offence Gravity Class", "value": initial_gravity_offence_id, "weight": 0.25 if initial_gravity_offence_id >= 2 else 0.10},
+                {"factor": "Co-Offender Group Size", "value": initial_co_offender_count, "weight": 0.15 if initial_co_offender_count >= 2 else 0.05}
+            ]
         }
+

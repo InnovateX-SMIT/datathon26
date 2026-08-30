@@ -52,11 +52,19 @@ class HotspotPredictionRequest(BaseModel):
 
 
 class OffenderRecidivismRequest(BaseModel):
-    accused_id: int = Field(..., description="Accused Master ID")
-    age_years: int = Field(default=35, ge=1, le=120)
-    prior_case_count: int = Field(default=2, ge=0)
-    arrest_count: int = Field(default=1, ge=0)
-    grave_offence_ratio: float = Field(default=0.50, ge=0.0, le=1.0)
+    age_years: int = Field(default=25, ge=1, le=120)
+    gender_id: int = Field(default=1, ge=1, le=3)
+    district_id: int = Field(default=11, ge=1)
+    police_station_id: int = Field(default=17, ge=1)
+    initial_gravity_offence_id: int = Field(default=2, ge=1, le=2)
+    initial_crime_major_head_id: int = Field(default=2, ge=1)
+    initial_crime_minor_head_id: int = Field(default=12, ge=1)
+    initial_hour_of_day: int = Field(default=19, ge=0, le=23)
+    initial_day_of_week: int = Field(default=6, ge=0, le=6)
+    initial_month: int = Field(default=12, ge=1, le=12)
+    initial_is_weekend: int = Field(default=1, ge=0, le=1)
+    initial_is_night_time: int = Field(default=0, ge=0, le=1)
+    initial_co_offender_count: int = Field(default=3, ge=1)
 
 
 # --- Endpoint Routes ---
@@ -202,37 +210,70 @@ def predict_future_hotspots(
 @router.api_route("/recidivism", methods=["GET", "POST"])
 def predict_recidivism(
     req: Optional[OffenderRecidivismRequest] = None,
-    accused_id: int = Query(1),
-    age_years: int = Query(35),
-    prior_case_count: int = Query(2),
-    arrest_count: int = Query(1),
-    grave_offence_ratio: float = Query(0.50),
+    age_years: int = Query(25),
+    gender_id: int = Query(1),
+    district_id: int = Query(11),
+    police_station_id: int = Query(17),
+    initial_gravity_offence_id: int = Query(2),
+    initial_crime_major_head_id: int = Query(2),
+    initial_crime_minor_head_id: int = Query(12),
+    initial_hour_of_day: int = Query(19),
+    initial_day_of_week: int = Query(6),
+    initial_month: int = Query(12),
+    initial_is_weekend: int = Query(1),
+    initial_is_night_time: int = Query(0),
+    initial_co_offender_count: int = Query(3),
     session_id: str = Depends(get_session_id)
 ):
     """
-    Predict Repeat Offender Recidivism Risk & Profile.
+    Predict Repeat Offender Recidivism Risk (0=NON_RECIDIVIST, 1=REPEAT_OFFENDER) via QuickML Pipeline 3 Endpoint.
     """
     try:
         service = PredictionService()
         if req:
-            acc_id = req.accused_id
             age = req.age_years
-            p_cnt = req.prior_case_count
-            arr = req.arrest_count
-            g_ratio = req.grave_offence_ratio
+            gid = req.gender_id
+            did = req.district_id
+            psid = req.police_station_id
+            grav = req.initial_gravity_offence_id
+            cmaj = req.initial_crime_major_head_id
+            cmin = req.initial_crime_minor_head_id
+            hr = req.initial_hour_of_day
+            dow = req.initial_day_of_week
+            mth = req.initial_month
+            wknd = req.initial_is_weekend
+            night = req.initial_is_night_time
+            co_off = req.initial_co_offender_count
         else:
-            acc_id = accused_id
             age = age_years
-            p_cnt = prior_case_count
-            arr = arrest_count
-            g_ratio = grave_offence_ratio
+            gid = gender_id
+            did = district_id
+            psid = police_station_id
+            grav = initial_gravity_offence_id
+            cmaj = initial_crime_major_head_id
+            cmin = initial_crime_minor_head_id
+            hr = initial_hour_of_day
+            dow = initial_day_of_week
+            mth = initial_month
+            wknd = initial_is_weekend
+            night = initial_is_night_time
+            co_off = initial_co_offender_count
 
         return service.predict_recidivism(
-            accused_id=acc_id,
             age_years=age,
-            prior_case_count=p_cnt,
-            arrest_count=arr,
-            grave_offence_ratio=g_ratio
+            gender_id=gid,
+            district_id=did,
+            police_station_id=psid,
+            initial_gravity_offence_id=grav,
+            initial_crime_major_head_id=cmaj,
+            initial_crime_minor_head_id=cmin,
+            initial_hour_of_day=hr,
+            initial_day_of_week=dow,
+            initial_month=mth,
+            initial_is_weekend=wknd,
+            initial_is_night_time=night,
+            initial_co_offender_count=co_off
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recidivism prediction failed: {str(e)}")
+

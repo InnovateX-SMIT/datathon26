@@ -83,3 +83,43 @@ export async function predictFutureHotspot(
   );
   return response.data;
 }
+
+export interface OffenderRecidivismRequest {
+  age_years?: number;
+  gender_id?: number;
+  district_id?: number;
+  police_station_id?: number;
+  initial_gravity_offence_id?: number;
+  initial_crime_major_head_id?: number;
+  initial_crime_minor_head_id?: number;
+  initial_hour_of_day?: number;
+  initial_day_of_week?: number;
+  initial_month?: number;
+  initial_is_weekend?: number;
+  initial_is_night_time?: number;
+  initial_co_offender_count?: number;
+}
+
+export interface OffenderRecidivismResponse {
+  source: string;
+  recidivism_flag_id?: number;
+  recidivism_flag: "NON_RECIDIVIST" | "REPEAT_OFFENDER";
+  confidence?: number;
+  top_contributing_factors?: ContributingFactor[];
+}
+
+/**
+ * Calls backend FastAPI /api/v1/predictions/recidivism endpoint (Pipeline 3: QuickML).
+ */
+export async function predictRecidivism(
+  payload: OffenderRecidivismRequest,
+  signal?: AbortSignal
+): Promise<OffenderRecidivismResponse> {
+  const response = await apiClient.post<OffenderRecidivismResponse>(
+    "/api/v1/predictions/recidivism",
+    payload,
+    { signal }
+  );
+  return response.data;
+}
+

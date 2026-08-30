@@ -235,8 +235,11 @@ def extract_hotspot_features(conn: sqlite3.Connection) -> pd.DataFrame:
 
 def extract_offender_features(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Extracts relational criminal recidivism features.
-    Sources: accused, case_master, arrest_surrender, inv_arrestsurrenderaccused, chargesheet_details
+    Extracts genuine, leak-free repeat offender recidivism features.
+    - Features are computed STRICTLY from information available at the accused person's initial involvement.
+    - Target (recidivism_flag) = 1 if the accused has subsequent offence(s) on later distinct dates, 0 otherwise.
+    - ID columns (accused_master_id) and pre-calculated scores (recidivism_risk_score) are completely excluded.
+    - Output is 100% numeric for QuickML compatibility.
     """
     query = """
     SELECT 
@@ -246,68 +249,77 @@ def extract_offender_features(conn: sqlite3.Connection) -> pd.DataFrame:
         a.AgeYear,
         a.GenderID,
         cm.GravityOffenceID,
-        cm.CrimeRegisteredDate
+        cm.CrimeMajorHeadID,
+        cm.CrimeMinorHeadID,
+        u.DistrictID,
+        cm.PoliceStationID,
+        cm.CrimeRegisteredDate,
+        iot.IncidentFromDate
     FROM accused a
     JOIN case_master cm ON a.CaseMasterID = cm.CaseMasterID
+    LEFT JOIN inv_occurance_time iot ON cm.CaseMasterID = iot.CaseMasterID
+    LEFT JOIN unit u ON cm.PoliceStationID = u.UnitID
     """
     df = pd.read_sql_query(query, conn)
     if df.empty:
         return pd.DataFrame()
 
-    df['reg_dt'] = pd.to_datetime(df['CrimeRegisteredDate'], errors='coerce').fillna(pd.Timestamp('2024-01-01'))
-    
-    # Query arrests count per accused
-    arrest_query = """
-    SELECT AccusedMasterID, COUNT(ArrestSurrenderID) as arrest_count
-    FROM inv_arrestsurrenderaccused
-    GROUP BY AccusedMasterID
-    """
-    arrest_df = pd.read_sql_query(arrest_query, conn)
-    
-    # Query chargesheets per case
-    cs_query = "SELECT CaseMasterID, COUNT(CSID) as cs_count FROM chargesheet_details GROUP BY CaseMasterID"
-    cs_df = pd.read_sql_query(cs_query, conn)
+    df['inc_dt'] = pd.to_datetime(df['IncidentFromDate'], errors='coerce')
+    df['reg_dt'] = pd.to_datetime(df['CrimeRegisteredDate'], errors='coerce')
+    df['event_dt'] = df['inc_dt'].fillna(df['reg_dt']).fillna(pd.Timestamp('2024-01-01'))
 
-    # Group by AccusedMasterID
-    offender_rows = []
-    grouped = df.groupby('AccusedMasterID')
+    df['clean_name'] = df['AccusedName'].fillna('UNKNOWN').str.strip().str.upper()
+    df['person_key'] = df['clean_name'] + '_' + df['GenderID'].fillna(1).astype(str) + '_' + df['AgeYear'].fillna(30).astype(str)
 
-    arrest_map = dict(zip(arrest_df['AccusedMasterID'], arrest_df['arrest_count'])) if not arrest_df.empty else {}
-    cs_map = dict(zip(cs_df['CaseMasterID'], cs_df['cs_count'])) if not cs_df.empty else {}
+    # Group by individual person to construct temporal first-incident features & future re-offense target
+    person_groups = df.groupby('person_key')
 
-    for accused_id, group in grouped:
-        age = group['AgeYear'].dropna()
-        age_val = int(age.iloc[0]) if not age.empty and age.iloc[0] > 0 else 32
-        gender_id = group['GenderID'].iloc[0] if 'GenderID' in group and pd.notna(group['GenderID'].iloc[0]) else 1
+    rows = []
+    for _, group in person_groups:
+        sorted_group = group.sort_values('event_dt')
         
-        prior_case_count = len(group['CaseMasterID'].unique())
-        arrest_count = arrest_map.get(accused_id, 0)
+        first_incident = sorted_group.iloc[0]
+        first_date = first_incident['event_dt']
         
-        linked_cases = group['CaseMasterID'].tolist()
-        cs_count = sum(cs_map.get(cid, 0) for cid in linked_cases)
-
-        grave_cases = (group['GravityOffenceID'] >= 2).sum()
-        grave_ratio = np.round(grave_cases / prior_case_count, 3)
-
-        co_offenders = max(1, len(group))
-
-        # Target: Recidivism Flag (1 if >= 2 cases or arrests, 0 otherwise)
-        recidivism_flag = 1 if (prior_case_count >= 2 or arrest_count >= 1) else 0
+        # Check if person has subsequent offences on a later distinct date (> first_date + 1 day)
+        subsequent_incidents = sorted_group[sorted_group['event_dt'] > (first_date + pd.Timedelta(days=1))]
+        recidivism_flag = 1 if len(subsequent_incidents) > 0 else 0
         
-        raw_prob = (prior_case_count * 0.30) + (arrest_count * 0.25) + (grave_ratio * 0.25) + (cs_count * 0.20)
-        recidivism_risk_score = np.round(np.clip(raw_prob / 3.0 + 0.10, 0.05, 0.98), 4)
-
-        offender_rows.append({
-            'accused_master_id': int(accused_id),
+        age_val = int(first_incident['AgeYear']) if pd.notna(first_incident['AgeYear']) and first_incident['AgeYear'] > 0 else 30
+        gender_id = int(first_incident['GenderID']) if pd.notna(first_incident['GenderID']) else 1
+        gravity_id = int(first_incident['GravityOffenceID']) if pd.notna(first_incident['GravityOffenceID']) else 1
+        cmajor_id = int(first_incident['CrimeMajorHeadID']) if pd.notna(first_incident['CrimeMajorHeadID']) else 1
+        cminor_id = int(first_incident['CrimeMinorHeadID']) if pd.notna(first_incident['CrimeMinorHeadID']) else 1
+        district_id = int(first_incident['DistrictID']) if pd.notna(first_incident['DistrictID']) else 1
+        station_id = int(first_incident['PoliceStationID']) if pd.notna(first_incident['PoliceStationID']) else 1
+        
+        hr = first_date.hour
+        dow = first_date.dayofweek
+        mth = first_date.month
+        is_weekend = 1 if dow in [5, 6] else 0
+        is_night = 1 if (hr >= 22 or hr < 6) else 0
+        
+        # Initial co-offenders count in the first incident
+        first_case_id = first_incident['CaseMasterID']
+        co_offenders = len(df[df['CaseMasterID'] == first_case_id])
+        
+        rows.append({
             'age_years': age_val,
-            'gender_id': int(gender_id) if pd.notna(gender_id) else 1,
-            'prior_case_count': prior_case_count,
-            'arrest_count': arrest_count,
-            'chargesheet_count': cs_count,
-            'co_offender_count': co_offenders,
-            'grave_offence_ratio': grave_ratio,
-            'recidivism_flag': recidivism_flag,
-            'recidivism_risk_score': recidivism_risk_score
+            'gender_id': gender_id,
+            'district_id': district_id,
+            'police_station_id': station_id,
+            'initial_gravity_offence_id': gravity_id,
+            'initial_crime_major_head_id': cmajor_id,
+            'initial_crime_minor_head_id': cminor_id,
+            'initial_hour_of_day': hr,
+            'initial_day_of_week': dow,
+            'initial_month': mth,
+            'initial_is_weekend': is_weekend,
+            'initial_is_night_time': is_night,
+            'initial_co_offender_count': co_offenders,
+            'recidivism_flag': recidivism_flag
         })
 
-    return pd.DataFrame(offender_rows)
+    result_df = pd.DataFrame(rows)
+    return result_df
+

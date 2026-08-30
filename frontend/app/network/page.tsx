@@ -3,6 +3,7 @@
 import React from "react";
 import { Network } from "lucide-react";
 import NetworkViewer from "@/features/network/components/NetworkViewer";
+import RepeatOffenderPredictionCard from "@/features/network/components/RepeatOffenderPredictionCard";
 
 export default function NetworkIntelligencePage() {
   return (
@@ -20,8 +21,11 @@ export default function NetworkIntelligencePage() {
           </div>
         </div>
       </div>
+      {/* Repeat Offender Recidivism Prediction Component (Pipeline 3) */}
+      <RepeatOffenderPredictionCard />
       {/* Network Graph */}
       <NetworkViewer />
     </div>
   );
 }
+
