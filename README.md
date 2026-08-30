@@ -37,22 +37,20 @@
 2. [Problem Statement](#2-problem-statement)
 3. [Why CrimeNexus](#3-why-crimenexus)
 4. [Platform at a Glance](#4-platform-at-a-glance)
-5. [Architecture](#5-architecture)
-6. [Workflow](#6-workflow)
-7. [Technology Stack](#7-technology-stack)
-8. [Product Tour & Core Modules](#8-product-tour--core-modules)
-9. [Machine Learning & Predictive Intelligence](#9-machine-learning--predictive-intelligence)
-10. [Backend Architecture](#10-backend-architecture)
-11. [Database Overview](#11-database-overview)
-12. [Project Structure](#12-project-structure)
-13. [API Overview](#13-api-overview)
-14. [Installation & Local Setup](#14-installation--local-setup)
-15. [Docker Orchestration](#15-docker-orchestration)
-16. [Configuration & Environment Variables](#16-configuration--environment-variables)
-17. [Deployment](#17-deployment)
-18. [Future Roadmap](#18-future-roadmap)
-19. [Team](#19-team)
-20. [License](#20-license)
+5. [Technology Stack](#7-technology-stack)
+6. [Product Tour & Core Modules](#8-product-tour--core-modules)
+7. [Machine Learning & Predictive Intelligence](#9-machine-learning--predictive-intelligence)
+8. [Backend Architecture](#10-backend-architecture)
+9. [Database Overview](#11-database-overview)
+10. [Project Structure](#12-project-structure)
+11. [API Overview](#13-api-overview)
+12. [Installation & Local Setup](#14-installation--local-setup)
+13. [Docker Orchestration](#15-docker-orchestration)
+14. [Configuration & Environment Variables](#16-configuration--environment-variables)
+15. [Deployment](#17-deployment)
+16. [Future Roadmap](#18-future-roadmap)
+17. [Team](#19-team)
+18. [License](#20-license)
 
 ---
 
@@ -114,100 +112,8 @@ CrimeNexus solves these challenges by converting structured records into actiona
 
 ---
 
-## 5. Architecture
 
-CrimeNexus follows a modular, high-throughput micro-monorepo architecture engineered for both cloud serverless environments (Zoho Catalyst AppSail) and multi-container Docker deployments.
-
-```mermaid
-flowchart TB
-subgraph Client["Presentation Layer (Next.js 16 / React 19 / TypeScript)"]
-  UI1[Command Center · Analytics]
-  UI2[Geo Intelligence & Hotspot Predictor]
-  UI3[Network Graph & Recidivism Predictor]
-  UI4[Modus Operandi & Sociological Intel]
-  UI5[FIR System · Decision Support · Alerts · Reports · Dataset Manager]
-end
-
-subgraph API["API Gateway Layer (FastAPI)"]
-  Auth[Auth & JWT Middleware]
-  RouterAdmin[Admin & Datasets Router]
-  RouterAnalytics[Analytics & Sociological Router]
-  RouterFIR[FIR & MO Router]
-  RouterGeo[Geo & Spatial Router]
-  RouterNet[Network & Graph Router]
-  RouterPred[Predictions Router - Phase 5 ML]
-  RouterAlerts[Alerts & Tactical Dispatch Router]
-  RouterRec[Recommendations Router]
-  RouterRep[Executive Reports Router]
-end
-
-subgraph Services["Service Layer (Python 3.10+)"]
-  SvcData[dataset_service.py]
-  SvcAnalytics[analytics_service.py]
-  SvcFIR[fir_service.py / fir_import_service.py]
-  SvcGeo[geo_service.py]
-  SvcNet[network_service.py / network_analytics_service.py]
-  SvcPred[prediction_service.py]
-  SvcAlert[alert_service.py]
-  SvcRec[recommendation_service.py]
-  SvcRep[report_service.py]
-end
-
-subgraph Engines["Computational & AI Engines"]
-  PandasEngine[Pandas / NumPy / SciPy]
-  NetworkXEngine[NetworkX Centrality & Graph Engine]
-  QuickML[Zoho Catalyst QuickML REST APIs]
-  LocalML[Local Fallback CatBoost / Scikit-Learn Engine]
-end
-
-subgraph Storage["Data Layer"]
-  PG[(PostgreSQL 15 Database)]
-  GeoJSON[(Karnataka GeoJSON Boundaries)]
-  CSVs[(Active CSV Datasets & Multi-Feeds)]
-end
-
-Client -->|REST / JSON| API
-API --> Services
-Services --> Engines
-Engines --> QuickML
-Engines --> LocalML
-Services --> Storage
-```
-
----
-
-## 6. Workflow
-
-### 6.1 End-to-End Operational Workflow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Officer as Law Enforcement Officer
-    participant UI as Next.js Presentation Layer
-    participant API as FastAPI Router
-    participant Service as Service Layer
-    participant ML as Zoho QuickML / Analytics Engine
-    participant DB as PostgreSQL 15
-
-    Officer->>UI: Selects active dataset / Uploads regional feed
-    UI->>API: POST /admin/datasets/activate
-    API->>Service: dataset_service.activate()
-    Service->>DB: Load & normalize records across tables
-    
-    Officer->>UI: Navigates to Geo / Network / MO / Sociological
-    UI->>API: GET /predictions/* or /analytics/* or /fir/*
-    API->>Service: prediction_service.predict() / analytics_service.compute()
-    Service->>ML: Inference request (QuickML REST API or Pandas/NetworkX)
-    ML-->>Service: Predictions, confidence scores, and centrality metrics
-    Service-->>API: Pydantic-validated payload
-    API-->>UI: Dynamic JSON response
-    UI-->>Officer: Interactive visualizations, heatmaps & predictive cards
-```
-
----
-
-## 7. Technology Stack
+## 5. Technology Stack
 
 | Layer | Technology | Key Capabilities |
 | :--- | :--- | :--- |
@@ -227,9 +133,9 @@ sequenceDiagram
 
 ---
 
-## 8. Product Tour & Core Modules
+## 6. Product Tour & Core Modules
 
-### 8.1 Command Center
+### 6.1 Command Center
 The central operational dashboard providing instant visibility into total incident counts, active investigations, arrest rates, average severity indexes, temporal crime volume trendlines, and a live statewide incident feed.
 
 <p align="center">
@@ -241,7 +147,7 @@ The central operational dashboard providing instant visibility into total incide
 
 ---
 
-### 8.2 Dataset Manager
+### 6.2 Dataset Manager
 Allows administrators to manage, validate, preview, and activate multi-format police record feeds (CSV/XLSX). Built-in alias mapping normalizes varying regional column nomenclature (e.g., Bengaluru Metro, Coastal Hubballi, Mysuru Heritage) into the unified platform schema.
 
 <p align="center">
@@ -250,7 +156,7 @@ Allows administrators to manage, validate, preview, and activate multi-format po
 
 ---
 
-### 8.3 Crime Analytics
+### 6.3 Crime Analytics
 Aggregates crime data across temporal dimensions (daily, weekly, monthly, yearly), gravity classes (Grave vs. Non-Grave), and IPC/BNS crime major heads.
 
 <p align="center">
@@ -259,7 +165,7 @@ Aggregates crime data across temporal dimensions (daily, weekly, monthly, yearly
 
 ---
 
-### 8.4 FIR Management & Intake
+### 6.4 FIR Management & Intake
 A comprehensive system of record for First Information Reports. Enables officers to search cases by number, law cited, accused names, and procedural stages (Under Investigation, Chargesheeted, B-Report). Includes a multi-step digital intake portal for filing new FIRs.
 
 <p align="center">
@@ -271,44 +177,67 @@ A comprehensive system of record for First Information Reports. Enables officers
 
 ---
 
-### 8.5 Geo Intelligence & Hotspot Prediction
+### 6.5 Geo Intelligence & Hotspot Prediction
 Renders synchronized GIS layers with district-level choropleths, density heatmap overlays, and station beat clusters. Incorporates **Pipeline 2: Future Hotspot Prediction Card** powered by Zoho QuickML to forecast future high-risk sectors and peak operational time windows.
 
 <p align="center">
 <img src="docs/screenshots/geo-intelligence-1.png" alt="Geo Intelligence Engine" width="100%">
 </p>
 
+<p align="center">
+<img src="docs/screenshots/CRIME RISK PREDICTIVE.jpg" alt="CRIME RISK PREDICTIVE" width="100%">
+</p>
+
+<p align="center">
+<img src="docs/screenshots/FUTURE HOTSPOT PREDICTION.jpg" alt="FUTURE HOTSPOT PREDICTION" width="100%">
+</p>
+
+<p align="center">
+<img src="docs/screenshots/TIME-OF-DAY INCIDENT ANALYSIS.jpg" alt="TIME-OF-DAY INCIDENT ANALYSIS" width="100%">
+</p>
+
+
+
+
+
+
 ---
 
-### 8.6 Network Intelligence & Recidivism Prediction
+### 6.6 Network Intelligence & Recidivism Prediction
 Traces connections between offenders, organized crime syndicates, crime events, and locations using NetworkX graph centrality and interactive React Flow diagrams. Embeds **Pipeline 3: Repeat Offender Recidivism Prediction Card** to evaluate an offender's re-offending risk score and future gravity potential.
 
 <p align="center">
 <img src="docs/screenshots/network-intel-1.png" alt="Network Intelligence Search Interface" width="100%">
 </p>
+
+
+<p align="center">
+<img src="docs/screenshots/Repeat Offender Recidivism.jpg" alt="Repeat Offender Recidivism" width="100%">
+</p>
+
 <p align="center">
 <img src="docs/screenshots/Network-intel.jpeg" alt="Rendered Criminal Network Graph" width="100%">
 </p>
 
 ---
 
-### 8.7 Modus Operandi (MO) Intelligence
+### 6.7 Modus Operandi (MO) Intelligence
 A specialized investigative module that performs cross-jurisdictional signature matching:
-- **Cross-Jurisdiction Linkages**: Discovers shared criminal tactics, entry methods, and weapon signatures across different police station jurisdictions.
-- **Offender Behavioral Profiling**: Tracks weapon preferences, target selection patterns, and temporal execution habits of known serial offenders.
-- **Case Similarity Analyzer**: Compares unsolved case parameters against historical resolved incidents.
+<p align="center">
+<img src="docs/screenshots/MO.jpg" alt="Modus Operandi (MO) Intelligence" width="100%">
+</p>
 
 ---
 
-### 8.8 Sociological Intelligence & Demographic Analytics
+### 6.8 Sociological Intelligence & Demographic Analytics
 Analyzes the socio-economic and demographic fabric underlying regional crime patterns:
-- **Demographic Breakdown**: Evaluates gender, age, literacy, and employment status across victim and accused populations.
-- **Socio-Economic Correlation**: Correlates poverty indices, unemployment rates, and urban density with specific crime major heads.
-- **District Sociological Risk Index**: Computes composite vulnerability scores to guide community policing and social intervention initiatives.
+<p align="center">
+<img src="docs/screenshots/Sociological.jpg" alt="Sociological Intelligence & Demographic Analytics" width="100%">
+</p>
 
 ---
 
-### 8.9 Decision Support Center
+### 6.9 Decision Support Center
 Translates statistical signals and ML predictions into actionable tactical directives:
 - **Priority Actions**: Ranked tactical recommendations with confidence scores and impact ratings.
 - **Patrol Allocation**: Dynamic beat patrol optimization balancing incident density with station manpower.
@@ -320,7 +249,7 @@ Translates statistical signals and ML predictions into actionable tactical direc
 
 ---
 
-### 8.10 Operational Alerts Panel
+### 6.10 Operational Alerts Panel
 Rule-based detection engine monitoring the active dataset for spatial spikes, serial offender activity, and grave crime escalations. Provides tactical dispatch triage and historical archive management.
 
 <p align="center">
@@ -329,7 +258,7 @@ Rule-based detection engine monitoring the active dataset for spatial spikes, se
 
 ---
 
-### 8.11 Executive Dossier Briefings
+### 6.11 Executive Dossier Briefings
 Generates standardized, multi-parameter intelligence dossiers for commanding officers and executive review cycles with configurable report types, date ranges, and export capabilities.
 
 <p align="center">
@@ -338,7 +267,7 @@ Generates standardized, multi-parameter intelligence dossiers for commanding off
 
 ---
 
-## 9. Machine Learning & Predictive Intelligence
+## 7. Machine Learning & Predictive Intelligence
 
 CrimeNexus incorporates **three production-grade machine learning pipelines** with a hybrid architecture: live cloud inference via **Zoho Catalyst QuickML REST endpoints** with automated OAuth token refresh and seamless fallback to local CatBoost/Scikit-Learn models.
 
@@ -386,7 +315,7 @@ flowchart LR
 
 ---
 
-## 10. Backend Architecture
+## 8. Backend Architecture
 
 The backend follows a clean **Router → Service → Repository / Model** pattern:
 
@@ -423,7 +352,7 @@ backend/
 
 ---
 
-## 11. Database Overview
+## 9. Database Overview
 
 The relational database is structured to model both standard operational police records and the detailed procedural lifecycle of Indian First Information Reports (FIRs):
 
@@ -494,7 +423,7 @@ crimenexus-ai/
 
 ---
 
-## 13. API Overview
+## 10. API Overview
 
 | Router | Path Prefix | Description | Status |
 | :--- | :--- | :--- | :--- |
@@ -511,7 +440,7 @@ crimenexus-ai/
 
 ---
 
-## 14. Installation & Local Setup
+## 11. Installation & Local Setup
 
 ### Prerequisites
 
@@ -563,7 +492,7 @@ The frontend will be live at `http://localhost:3000` communicating with the Fast
 
 ---
 
-## 15. Docker Orchestration
+## 12. Docker Orchestration
 
 Run the complete platform (Database + Backend + Frontend) using Docker Compose:
 
@@ -590,7 +519,7 @@ docker compose down
 
 ---
 
-## 16. Configuration & Environment Variables
+## 13. Configuration & Environment Variables
 
 ### Backend Configuration (`backend/.env`)
 
@@ -620,7 +549,7 @@ NEXT_PUBLIC_MAP_TILE_PROVIDER=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 
 ---
 
-## 17. Deployment
+## 14. Deployment
 
 ### Zoho Catalyst Deployment (Production)
 
@@ -636,19 +565,14 @@ catalyst deploy
 
 ---
 
-## 18. Future Roadmap
-
-- [x] **Zoho Catalyst QuickML Integration**: End-to-end deployment of 3 ML predictive pipelines.
-- [x] **Sociological Intelligence**: Demographic, socio-economic, and vulnerable population risk analytics.
-- [x] **Modus Operandi (MO) Intelligence**: Cross-jurisdictional signature matching and behavioral profiling.
-- [x] **Multi-Feed Ingestion**: Normalized statewide, metro, coastal, and heritage police feeds.
+## 15. Future Roadmap
 - [ ] **Real-time CCTV & Drone Feed Ingestion**: Computer vision integration for automated license plate and crowd anomaly detection.
 - [ ] **Speech-to-Text Multi-Lingual FIR Intake**: Voice-driven FIR registration supporting regional languages (Kannada, Hindi, etc.).
 - [ ] **Automated Court Summons & Bail Prediction**: Predictive modeling for judicial attendance and bail compliance.
 
 ---
 
-## 19. Team
+## 16. Team
 
 **Team InnovateX** · Sikkim Manipal Institute of Technology (SMIT) · Datathon 2026
 
@@ -662,7 +586,7 @@ catalyst deploy
 
 ---
 
-## 20. License
+## 17. License
 
 This project is released under the **MIT License**. See [`LICENSE`](./LICENSE) for full details.
 
