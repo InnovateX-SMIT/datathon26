@@ -66,3 +66,62 @@ class ComparisonResponse(BaseModel):
     previous_year: int
     year_change_percent: float
 
+
+# Phase 7: Sociological Intelligence & Correlation Analysis Schemas
+
+class DemographicItem(BaseModel):
+    category: str
+    count: int
+
+class AgeVsCrimeItem(BaseModel):
+    age_group: str
+    crime_category: str
+    count: int
+
+class GenderVsCrimeItem(BaseModel):
+    gender: str
+    crime_category: str
+    count: int
+
+class DistrictDemographicItem(BaseModel):
+    district: str
+    average_offender_age: float
+    predominant_gender: str
+    predominant_crime_category: str
+    count: int
+
+class DemographicsResponse(BaseModel):
+    offender_age_distribution: list[DemographicItem]
+    offender_gender_distribution: list[DemographicItem]
+    victim_age_distribution: list[DemographicItem]
+    victim_gender_distribution: list[DemographicItem]
+    age_vs_crime: list[AgeVsCrimeItem]
+    gender_vs_crime: list[GenderVsCrimeItem]
+    district_demographics: list[DistrictDemographicItem]
+    data_limitations: list[str]
+
+class RiskCorrelationItem(BaseModel):
+    group: str
+    average_risk: float
+
+class CorrelationMetric(BaseModel):
+    variables: str
+    correlation_type: str
+    correlation_coefficient: float
+    sample_size: int
+    geographic_level: str
+    time_period: str
+    interpretation: str
+
+class SociologicalRiskResponse(BaseModel):
+    age_group_risk: list[RiskCorrelationItem]
+    gender_risk: list[RiskCorrelationItem]
+    district_risk: list[RiskCorrelationItem]
+    repeat_involvement_risk: list[RiskCorrelationItem]
+    correlations: list[CorrelationMetric]
+
+class SocioEconomicCorrelationResponse(BaseModel):
+    data_available: bool
+    error_message: str
+
+

@@ -15,6 +15,9 @@ from backend.schemas.analytics import (
     TrendResponse,
     CategoryResponse,
     ComparisonResponse,
+    DemographicsResponse,
+    SociologicalRiskResponse,
+    SocioEconomicCorrelationResponse,
 )
 from backend.services.analytics_service import AnalyticsService
 
@@ -162,4 +165,47 @@ def get_historical_comparison(
     except Exception as e:
         logger.error(f"Error fetching historical comparison: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/demographics", response_model=DemographicsResponse)
+def get_demographics(
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = AnalyticsService(db, session_id=session_id)
+        return service.get_demographics()
+    except Exception as e:
+        logger.error(f"Error fetching demographics: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/sociological-risk", response_model=SociologicalRiskResponse)
+def get_sociological_risk(
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = AnalyticsService(db, session_id=session_id)
+        return service.get_sociological_risk()
+    except Exception as e:
+        logger.error(f"Error fetching sociological risk: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/socioeconomic-correlation", response_model=SocioEconomicCorrelationResponse)
+def get_socioeconomic_correlation(
+    db: Session = Depends(get_db),
+    session_id: str = Depends(get_session_id),
+    current_user = Depends(get_current_user)
+):
+    try:
+        service = AnalyticsService(db, session_id=session_id)
+        return service.get_socioeconomic_correlation()
+    except Exception as e:
+        logger.error(f"Error fetching socioeconomic correlation: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 

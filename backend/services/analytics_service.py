@@ -763,3 +763,295 @@ class AnalyticsService:
         }
         self._set_cache("get_historical_comparison", full_key, result)
         return result
+
+    def get_demographics(self) -> dict:
+        import pandas as pd
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_demographics", active_ids)
+        if is_cached:
+            return val
+
+        schema_type = self._get_schema_type()
+        
+        if schema_type == "fir_normalized":
+            offender_query = f"""
+            SELECT a.AgeYear as age, gm.GenderName as gender, ch.CrimeGroupName as category, d.DistrictName as district
+            FROM accused a
+            JOIN case_master cm ON a.CaseMasterID = cm.CaseMasterID
+            LEFT JOIN unit u ON cm.PoliceStationID = u.UnitID
+            LEFT JOIN district d ON u.DistrictID = d.DistrictID
+            LEFT JOIN gender_master gm ON a.GenderID = gm.GenderID
+            LEFT JOIN crime_head ch ON cm.CrimeMajorHeadID = ch.CrimeHeadID
+            WHERE cm.dataset_id IN ({','.join(map(str, active_ids))})
+            """
+            
+            victim_query = f"""
+            SELECT v.AgeYear as age, gm.GenderName as gender, ch.CrimeGroupName as category, d.DistrictName as district
+            FROM victim v
+            JOIN case_master cm ON v.CaseMasterID = cm.CaseMasterID
+            LEFT JOIN unit u ON cm.PoliceStationID = u.UnitID
+            LEFT JOIN district d ON u.DistrictID = d.DistrictID
+            LEFT JOIN gender_master gm ON v.GenderID = gm.GenderID
+            LEFT JOIN crime_head ch ON cm.CrimeMajorHeadID = ch.CrimeHeadID
+            WHERE cm.dataset_id IN ({','.join(map(str, active_ids))})
+            """
+        else:
+            offender_query = f"""
+            SELECT c.age, c.gender, ce.crime_category as category, l.district
+            FROM criminals c
+            LEFT JOIN crime_participation cp ON c.id = cp.criminal_id
+            LEFT JOIN crime_events ce ON cp.crime_event_id = ce.id
+            LEFT JOIN locations l ON ce.location_id = l.id
+            WHERE c.dataset_id IN ({','.join(map(str, active_ids))})
+            """
+            
+            victim_query = f"""
+            SELECT v.age, v.gender, ce.crime_category as category, l.district
+            FROM victims v
+            LEFT JOIN crime_events ce ON v.crime_event_id = ce.id
+            LEFT JOIN locations l ON ce.location_id = l.id
+            WHERE v.dataset_id IN ({','.join(map(str, active_ids))})
+            """
+
+        df_offenders = pd.read_sql_query(offender_query, self.db.bind)
+        df_victims = pd.read_sql_query(victim_query, self.db.bind)
+
+        def get_age_dist(df):
+            if df.empty or 'age' not in df.columns:
+                return []
+            df_clean = df.dropna(subset=['age']).copy()
+            df_clean['age'] = pd.to_numeric(df_clean['age'], errors='coerce')
+            df_clean = df_clean[df_clean['age'] > 0]
+            if df_clean.empty:
+                return []
+            
+            bins = [0, 18, 25, 35, 50, 65, 120]
+            labels = ['Under 18', '18-25', '26-35', '36-50', '51-65', 'Over 65']
+            df_clean['age_group'] = pd.cut(df_clean['age'], bins=bins, labels=labels)
+            counts = df_clean['age_group'].value_counts()
+            return [{"category": str(k), "count": int(v)} for k, v in counts.items()]
+
+        def get_gender_dist(df):
+            if df.empty or 'gender' not in df.columns:
+                return []
+            df_clean = df.dropna(subset=['gender']).copy()
+            df_clean['gender'] = df_clean['gender'].str.strip().str.capitalize()
+            counts = df_clean['gender'].value_counts()
+            return [{"category": str(k), "count": int(v)} for k, v in counts.items()]
+
+        age_vs_crime = []
+        if not df_offenders.empty and 'age' in df_offenders.columns and 'category' in df_offenders.columns:
+            df_c = df_offenders.dropna(subset=['age', 'category']).copy()
+            df_c['age'] = pd.to_numeric(df_c['age'], errors='coerce')
+            df_c = df_c[df_c['age'] > 0]
+            if not df_c.empty:
+                bins = [0, 18, 25, 35, 50, 65, 120]
+                labels = ['Under 18', '18-25', '26-35', '36-50', '51-65', 'Over 65']
+                df_c['age_group'] = pd.cut(df_c['age'], bins=bins, labels=labels)
+                grp = df_c.groupby(['age_group', 'category'], observed=False).size().reset_index(name='count')
+                age_vs_crime = [{"age_group": str(r['age_group']), "crime_category": str(r['category']), "count": int(r['count'])} for _, r in grp.iterrows() if r['count'] > 0]
+
+        gender_vs_crime = []
+        if not df_offenders.empty and 'gender' in df_offenders.columns and 'category' in df_offenders.columns:
+            df_g = df_offenders.dropna(subset=['gender', 'category']).copy()
+            df_g['gender'] = df_g['gender'].str.strip().str.capitalize()
+            if not df_g.empty:
+                grp = df_g.groupby(['gender', 'category']).size().reset_index(name='count')
+                gender_vs_crime = [{"gender": str(r['gender']), "crime_category": str(r['category']), "count": int(r['count'])} for _, r in grp.iterrows() if r['count'] > 0]
+
+        district_demographics = []
+        if not df_offenders.empty and 'district' in df_offenders.columns:
+            df_d = df_offenders.dropna(subset=['district']).copy()
+            if not df_d.empty:
+                for dist, group in df_d.groupby('district'):
+                    ages = pd.to_numeric(group['age'], errors='coerce').dropna()
+                    avg_age = float(ages.mean()) if not ages.empty else 0.0
+                    genders = group['gender'].dropna()
+                    pred_gender = str(genders.mode().iloc[0]).capitalize() if not genders.empty else "Unknown"
+                    cats = group['category'].dropna()
+                    pred_cat = str(cats.mode().iloc[0]) if not cats.empty else "Unknown"
+                    district_demographics.append({
+                        "district": str(dist),
+                        "average_offender_age": round(avg_age, 2),
+                        "predominant_gender": pred_gender,
+                        "predominant_crime_category": pred_cat,
+                        "count": int(len(group))
+                    })
+                district_demographics = sorted(district_demographics, key=lambda x: x['count'], reverse=True)[:15]
+
+        result = {
+            "offender_age_distribution": get_age_dist(df_offenders),
+            "offender_gender_distribution": get_gender_dist(df_offenders),
+            "victim_age_distribution": get_age_dist(df_victims),
+            "victim_gender_distribution": get_gender_dist(df_victims),
+            "age_vs_crime": age_vs_crime,
+            "gender_vs_crime": gender_vs_crime,
+            "district_demographics": district_demographics,
+            "data_limitations": [
+                "DATA NOT RELIABLE: Caste fields are 100% NULL in database and excluded from sociological analysis.",
+                "DATA NOT RELIABLE: Occupation fields are 100% NULL in database and excluded from sociological analysis."
+            ]
+        }
+        self._set_cache("get_demographics", full_key, result)
+        return result
+
+    def get_sociological_risk(self) -> dict:
+        import pandas as pd
+        active_ids = self._get_active_ids()
+        is_cached, val, full_key = self._check_cache("get_sociological_risk", active_ids)
+        if is_cached:
+            return val
+
+        schema_type = self._get_schema_type()
+        
+        if schema_type == "fir_normalized":
+            query = f"""
+            SELECT a.AgeYear as age, gm.GenderName as gender, d.DistrictName as district,
+                   cm.GravityOffenceID, cm.CrimeRegisteredDate, iot.IncidentFromDate, a.PersonID as person_key
+            FROM accused a
+            JOIN case_master cm ON a.CaseMasterID = cm.CaseMasterID
+            LEFT JOIN inv_occurance_time iot ON cm.CaseMasterID = iot.CaseMasterID
+            LEFT JOIN unit u ON cm.PoliceStationID = u.UnitID
+            LEFT JOIN district d ON u.DistrictID = d.DistrictID
+            LEFT JOIN gender_master gm ON a.GenderID = gm.GenderID
+            WHERE cm.dataset_id IN ({','.join(map(str, active_ids))})
+            """
+            df = pd.read_sql_query(query, self.db.bind)
+            if not df.empty:
+                df['event_dt'] = pd.to_datetime(df['IncidentFromDate'], errors='coerce').fillna(pd.to_datetime(df['CrimeRegisteredDate'], errors='coerce'))
+                df['hour'] = df['event_dt'].dt.hour.fillna(12)
+                df['day_of_week'] = df['event_dt'].dt.dayofweek.fillna(0)
+                df['is_weekend'] = df['day_of_week'].apply(lambda x: 1 if x in [5, 6] else 0)
+                df['is_night_time'] = df['hour'].apply(lambda x: 1 if (x >= 22 or x < 6) else 0)
+                df['gravity_offence_id'] = pd.to_numeric(df['GravityOffenceID'], errors='coerce').fillna(1)
+                
+                base_score = 0.20
+                df['risk_score'] = base_score + df['is_night_time'] * 0.25 + (df['gravity_offence_id'] >= 2) * 0.35 + df['is_weekend'] * 0.10
+                df['risk_score'] = df['risk_score'].clip(0.05, 0.98).round(4)
+                df['person_key'] = df['person_key'].fillna('')
+                if (df['person_key'] == '').all():
+                    df['person_key'] = df['age'].astype(str) + "_" + df['gender'].astype(str)
+        else:
+            query = f"""
+            SELECT c.age, c.gender, l.district, ce.severity, ce.crime_date, ce.crime_time, cp.criminal_id as person_key
+            FROM criminals c
+            LEFT JOIN crime_participation cp ON c.id = cp.criminal_id
+            LEFT JOIN crime_events ce ON cp.crime_event_id = ce.id
+            LEFT JOIN locations l ON ce.location_id = l.id
+            WHERE c.dataset_id IN ({','.join(map(str, active_ids))})
+            """
+            df = pd.read_sql_query(query, self.db.bind)
+            if not df.empty:
+                df['crime_date'] = pd.to_datetime(df['crime_date'], errors='coerce')
+                df['day_of_week'] = df['crime_date'].dt.dayofweek.fillna(0)
+                df['is_weekend'] = df['day_of_week'].apply(lambda x: 1 if x in [5, 6] else 0)
+                
+                def get_hour(t_str):
+                    if not t_str: return 12
+                    try:
+                        return pd.to_datetime(t_str, format='%H:%M:%S').hour
+                    except:
+                        try:
+                            return pd.to_datetime(t_str).hour
+                        except:
+                            return 12
+                
+                df['hour'] = df['crime_time'].apply(get_hour)
+                df['is_night_time'] = df['hour'].apply(lambda x: 1 if (x >= 22 or x < 6) else 0)
+                df['severity'] = pd.to_numeric(df['severity'], errors='coerce').fillna(1.0)
+                
+                base_score = 0.20
+                df['risk_score'] = base_score + df['is_night_time'] * 0.25 + (df['severity'] >= 7.0) * 0.35 + df['is_weekend'] * 0.10
+                df['risk_score'] = df['risk_score'].clip(0.05, 0.98).round(4)
+                df['person_key'] = df['person_key'].fillna(df.index.to_series())
+
+        if df.empty:
+            return {
+                "age_group_risk": [],
+                "gender_risk": [],
+                "district_risk": [],
+                "repeat_involvement_risk": [],
+                "correlations": []
+            }
+
+        df['age'] = pd.to_numeric(df['age'], errors='coerce')
+        df_valid_age = df[df['age'] > 0].copy()
+        
+        age_group_risk = []
+        if not df_valid_age.empty:
+            bins = [0, 18, 25, 35, 50, 65, 120]
+            labels = ['Under 18', '18-25', '26-35', '36-50', '51-65', 'Over 65']
+            df_valid_age['age_group'] = pd.cut(df_valid_age['age'], bins=bins, labels=labels)
+            grp = df_valid_age.groupby('age_group', observed=False)['risk_score'].mean().reset_index()
+            age_group_risk = [{"group": str(r['age_group']), "average_risk": round(float(r['risk_score']), 4)} for _, r in grp.iterrows() if pd.notna(r['risk_score'])]
+
+        gender_risk = []
+        df_gender = df.dropna(subset=['gender']).copy()
+        df_gender['gender'] = df_gender['gender'].str.strip().str.capitalize()
+        if not df_gender.empty:
+            grp = df_gender.groupby('gender')['risk_score'].mean().reset_index()
+            gender_risk = [{"group": str(r['gender']), "average_risk": round(float(r['risk_score']), 4)} for _, r in grp.iterrows()]
+
+        district_risk = []
+        df_dist = df.dropna(subset=['district']).copy()
+        if not df_dist.empty:
+            grp = df_dist.groupby('district')['risk_score'].mean().reset_index()
+            district_risk = [{"group": str(r['district']), "average_risk": round(float(r['risk_score']), 4)} for _, r in grp.iterrows()]
+            district_risk = sorted(district_risk, key=lambda x: x['average_risk'], reverse=True)[:15]
+
+        person_counts = df['person_key'].value_counts()
+        df['involvements'] = df['person_key'].map(person_counts)
+        df['repeat_offender'] = df['involvements'].apply(lambda x: "Repeat Offender" if x > 1 else "First-time Offender")
+        
+        grp = df.groupby('repeat_offender')['risk_score'].mean().reset_index()
+        repeat_involvement_risk = [{"group": str(r['repeat_offender']), "average_risk": round(float(r['risk_score']), 4)} for _, r in grp.iterrows()]
+
+        correlations = []
+        df_corr = df.dropna(subset=['age', 'risk_score']).copy()
+        if len(df_corr) > 5:
+            p_val = float(df_corr['age'].corr(df_corr['risk_score'], method='pearson'))
+            s_val = float(df_corr['age'].corr(df_corr['risk_score'], method='spearman'))
+            
+            p_val = 0.0 if np.isnan(p_val) else p_val
+            s_val = 0.0 if np.isnan(s_val) else s_val
+            
+            min_date = df_corr['event_dt'].min() if 'event_dt' in df_corr.columns else df_corr['crime_date'].min()
+            max_date = df_corr['event_dt'].max() if 'event_dt' in df_corr.columns else df_corr['crime_date'].max()
+            time_period_str = f"{min_date.date()} to {max_date.date()}" if pd.notna(min_date) and pd.notna(max_date) else "Unknown"
+
+            correlations.append({
+                "variables": "Offender Age vs Calculated Model Risk",
+                "correlation_type": "Pearson Correlation",
+                "correlation_coefficient": round(p_val, 4),
+                "sample_size": int(len(df_corr)),
+                "geographic_level": "District level aggregates",
+                "time_period": time_period_str,
+                "interpretation": f"A Pearson coefficient of {round(p_val, 4)} indicates a {'positive' if p_val > 0 else 'negative'} linear association between offender age and risk score."
+            })
+            
+            correlations.append({
+                "variables": "Offender Age vs Calculated Model Risk",
+                "correlation_type": "Spearman Rank Correlation",
+                "correlation_coefficient": round(s_val, 4),
+                "sample_size": int(len(df_corr)),
+                "geographic_level": "District level aggregates",
+                "time_period": time_period_str,
+                "interpretation": f"A Spearman rank coefficient of {round(s_val, 4)} indicates a {'positive' if s_val > 0 else 'negative'} monotonic relationship between offender age and risk score ranking."
+            })
+
+        result = {
+            "age_group_risk": age_group_risk,
+            "gender_risk": gender_risk,
+            "district_risk": district_risk,
+            "repeat_involvement_risk": repeat_involvement_risk,
+            "correlations": correlations
+        }
+        self._set_cache("get_sociological_risk", full_key, result)
+        return result
+
+    def get_socioeconomic_correlation(self) -> dict:
+        return {
+            "data_available": False,
+            "error_message": "DATA LIMITATION: Required socio-economic dataset is unavailable."
+        }
+

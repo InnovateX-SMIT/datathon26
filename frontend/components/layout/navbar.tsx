@@ -8,6 +8,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/": "Home",
   "/dashboard": "Command Center",
   "/analytics": "Crime Analytics",
+  "/sociological": "Sociological Intelligence",
   "/geo": "Geo Intelligence",
   "/network": "Network Intel",
   "/dataset-manager": "Dataset Manager",

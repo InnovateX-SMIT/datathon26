@@ -3,6 +3,9 @@ import type {
   TrendResponse,
   CategoryResponse,
   ComparisonResponse,
+  DemographicsResponse,
+  SociologicalRiskResponse,
+  SocioEconomicCorrelationResponse,
 } from "../types/analytics";
 import { API_BASE, getAuthHeaders } from "@/services/api";
 
@@ -33,3 +36,16 @@ export async function fetchCategories(): Promise<CategoryResponse> {
 export async function fetchComparison(): Promise<ComparisonResponse> {
   return apiGet<ComparisonResponse>("/api/v1/analytics/comparison");
 }
+
+export async function fetchDemographics(): Promise<DemographicsResponse> {
+  return apiGet<DemographicsResponse>("/api/v1/analytics/demographics");
+}
+
+export async function fetchSociologicalRisk(): Promise<SociologicalRiskResponse> {
+  return apiGet<SociologicalRiskResponse>("/api/v1/analytics/sociological-risk");
+}
+
+export async function fetchSocioEconomicCorrelation(): Promise<SocioEconomicCorrelationResponse> {
+  return apiGet<SocioEconomicCorrelationResponse>("/api/v1/analytics/socioeconomic-correlation");
+}
+
