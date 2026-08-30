@@ -1,0 +1,26 @@
+{
+	"command": "python3 app/main.py",
+	"build_path": "./",
+	"stack": "python_3_13",
+	"env_variables": {
+		"ENVIRONMENT": "production",
+		"SECRET_KEY": "YOUR_SECRET_KEY_HERE",
+		"ALLOWED_ORIGINS": "https://crimenexus.onslate.in",
+		"QUICKML_CRIME_RISK_ENDPOINT": "https://api.catalyst.zoho.in/quickml/v1/project/47004000000181026/endpoints/predict",
+		"QUICKML_API_KEY": "YOUR_QUICKML_API_KEY_HERE",
+		"QUICKML_HOTSPOT_ENDPOINT": "https://api.catalyst.zoho.in/quickml/v1/project/47004000000181026/endpoints/predict",
+		"QUICKML_HOTSPOT_API_KEY": "YOUR_QUICKML_HOTSPOT_API_KEY_HERE",
+		"QUICKML_OFFENDER_ENDPOINT": "https://api.catalyst.zoho.in/quickml/v1/project/47004000000181026/endpoints/predict?explainModel=true",
+		"QUICKML_OFFENDER_API_KEY": "YOUR_QUICKML_OFFENDER_API_KEY_HERE",
+		"QUICKML_CATALYST_ORG": "60073631382",
+		"QUICKML_ENVIRONMENT": "Development",
+		"ZOHO_CLIENT_ID": "YOUR_ZOHO_CLIENT_ID_HERE",
+		"ZOHO_CLIENT_SECRET": "YOUR_ZOHO_CLIENT_SECRET_HERE",
+		"ZOHO_GRANT_TOKEN": "YOUR_ZOHO_GRANT_TOKEN_HERE",
+		"ZOHO_ACCESS_TOKEN": "YOUR_ZOHO_ACCESS_TOKEN_HERE",
+		"ZOHO_REFRESH_TOKEN": "YOUR_ZOHO_REFRESH_TOKEN_HERE"
+	},
+	"memory": 2048,
+	"disk": 1024,
+	"scripts": {}
+}
